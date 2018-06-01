@@ -47,8 +47,8 @@ flags.DEFINE_string("video_level_classifier_model", "MoeModel",
 flags.DEFINE_integer("lstm_cells", 1024, "Number of LSTM cells.")
 flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
 
-class FrameLevelLogisticModel(models.BaseModel):
 
+class FrameLevelLogisticModel(models.BaseModel):
   def create_model(self, model_input, vocab_size, num_frames, **unused_params):
     """Creates a model which uses a logistic classifier over the average of the
     frame-level features.
@@ -81,6 +81,7 @@ class FrameLevelLogisticModel(models.BaseModel):
         avg_pooled, vocab_size, activation_fn=tf.nn.sigmoid,
         weights_regularizer=slim.l2_regularizer(1e-8))
     return {"predictions": output}
+
 
 class DbofModel(models.BaseModel):
   """Creates a Deep Bag of Frames model.
@@ -193,6 +194,7 @@ class DbofModel(models.BaseModel):
         model_input=activation,
         vocab_size=vocab_size,
         **unused_params)
+
 
 class LstmModel(models.BaseModel):
 
