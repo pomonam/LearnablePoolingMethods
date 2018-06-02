@@ -6,3 +6,5 @@ submit training $JOB_NAME \
 -- --train_data_pattern='gs://youtube8m-ml-us-east1/1/video_level/train/train*.tfrecord' \
 --model=LogisticModel \
 --train_dir=$BUCKET_NAME/yt8m_train_video_level_logistic_model
+
+#TODO make proper scripts
