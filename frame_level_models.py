@@ -81,7 +81,6 @@ class FrameLevelLogisticModel(models.BaseModel):
         return {"predictions": output}
 
 
-
 class DbofModel(models.BaseModel):
     """Creates a Deep Bag of Frames model.
 
@@ -104,7 +103,6 @@ class DbofModel(models.BaseModel):
     model in the 'predictions' key. The dimensions of the tensor are
     'batch_size' x 'num_classes'.
     """
-
     def create_model(self,
                      model_input,
                      vocab_size,
@@ -199,11 +197,6 @@ class DbofModel(models.BaseModel):
             vocab_size=vocab_size,
             **unused_params)
 
-<<<<<<< HEAD
-=======
-
-class LstmModel(models.BaseModel):
->>>>>>> 5d8f8d62c821e4c49dee6585421874e41c9c40c5
 
 class LstmModel(models.BaseModel):
     def create_model(self, model_input, vocab_size, num_frames, **unused_params):
