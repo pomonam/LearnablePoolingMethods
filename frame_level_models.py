@@ -239,10 +239,22 @@ class LstmModel(models.BaseModel):
 
 
 class BidirectionalLstmModel(models.BaseModel):
-    """
-
-    """
     def create_model(self, model_input, vocab_size, num_frames, **unused_params):
+        """
+        Creates a model which uses a stack of LSTMs to represent the video.
+
+        Args:
+          model_input: A 'batch_size' x 'max_frames' x 'num_features' matrix of
+                       input features.
+          vocab_size: The number of classes in the dataset.
+          num_frames: A vector of length 'batch' which indicates the number of
+               frames for each video (before padding).
+
+        Returns:
+          A dictionary with a tensor containing the probability predictions of the
+          model in the 'predictions' key. The dimensions of the tensor are
+          'batch_size' x 'num_classes'.
+        """
         lstm_size = FLAGS.lstm_cells
         number_of_layers = FLAGS.lstm_layers
 
