@@ -10,7 +10,7 @@
 # distributed under the License is distributed on an "AS-IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.
+# limitations under thqe License.
 
 """Contains a collection of models which operate on variable-length sequences.
 """
@@ -46,6 +46,8 @@ flags.DEFINE_string("video_level_classifier_model", "MoeModel",
                     "classifier layer")
 flags.DEFINE_integer("lstm_cells", 1024, "Number of LSTM cells.")
 flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
+
+# FLAG for
 
 
 class FrameLevelLogisticModel(models.BaseModel):
@@ -277,4 +279,53 @@ class BidirectionalLstmModel(models.BaseModel):
         return aggregated_model().create_model(
             model_input=states[-1].c,
             vocab_size=vocab_size,
+            **unused_params)
+
+
+class GruModel(models.BaseModel):
+    def create_model(self, model_input, vocab_size, num_frames, is_training=True, **unused_params):
+        """Creates a model which uses a stack of GRUs to represent the video.
+        Args:
+          model_input: A 'batch_size' x 'max_frames' x 'num_features' matrix of
+                       input features.
+          vocab_size: The number of classes in the dataset.
+          num_frames: A vector of length 'batch' which indicates the number of
+               frames for each video (before padding).
+        Returns:
+          A dictionary with a tensor containing the probability predictions of the
+          model in the 'predictions' key. The dimensions of the tensor are
+          'batch_size' x 'num_classes'.
+        """
+        gru_size = FLAGS.gru_cells
+        number_of_layers = FLAGS.gru_layers
+        backward = FLAGS.gru_backward
+        random_frames = FLAGS.gru_random_sequence
+        iterations = FLAGS.iterations
+
+        if random_frames:
+            num_frames_2 = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+            model_input = utils.SampleRandomFrames(model_input, num_frames_2,
+                                                   iterations)
+
+        if backward:
+            model_input = tf.reverse_sequence(model_input, num_frames, seq_axis=1)
+
+        stacked_GRU = tf.contrib.rnn.MultiRNNCell(
+            [
+                tf.contrib.rnn.GRUCell(gru_size)
+                for _ in range(number_of_layers)
+            ], state_is_tuple=False)
+
+        loss = 0.0
+        with tf.variable_scope("RNN"):
+            outputs, state = tf.nn.dynamic_rnn(stacked_GRU, model_input,
+                                               sequence_length=num_frames,
+                                               dtype=tf.float32)
+
+        aggregated_model = getattr(video_level_models,
+                                   FLAGS.video_level_classifier_model)
+        return aggregated_model().create_model(
+            model_input=state,
+            vocab_size=vocab_size,
+            is_training=is_training,
             **unused_params)
