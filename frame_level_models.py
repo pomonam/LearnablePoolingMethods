@@ -47,7 +47,38 @@ flags.DEFINE_string("video_level_classifier_model", "MoeModel",
 flags.DEFINE_integer("lstm_cells", 1024, "Number of LSTM cells.")
 flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
 
-# FLAG for
+
+#####################################################################################
+# Sample Modules ####################################################################
+#####################################################################################
+class AttentionV1:
+    def __init__(self, feature_size, max_frames, cluster_size):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.cluster_size = cluster_size
+
+#####################################################################################
+
+
+class NN(models.BaseModel):
+    def create_model(self, model_input,
+                     vocab_size,
+                     num_frames,
+                     sample_random_frames,
+                     **unused_params):
+
+        random_frames = sample_random_frames or FLAGS.sample_random_frames
+        iterations = FLAGS.iterations
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+
+        if random_frames:
+            model_input = utils.SampleRandomFrames(model_input, num_frames,
+                                                   iterations)
+        else:
+            model_input = utils.SampleRandomSequence(model_input, num_frames,
+                                                     iterations)
+
 
 
 class FrameLevelLogisticModel(models.BaseModel):
