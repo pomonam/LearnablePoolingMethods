@@ -79,27 +79,6 @@ class ContextGateV1:
 #####################################################################################
 
 
-class NN(models.BaseModel):
-    def create_model(self, model_input,
-                     vocab_size,
-                     num_frames,
-                     sample_random_frames,
-                     **unused_params):
-
-        random_frames = sample_random_frames or FLAGS.sample_random_frames
-        iterations = FLAGS.iterations
-
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-
-        if random_frames:
-            model_input = utils.SampleRandomFrames(model_input, num_frames,
-                                                   iterations)
-        else:
-            model_input = utils.SampleRandomSequence(model_input, num_frames,
-                                                     iterations)
-
-
-
 class FrameLevelLogisticModel(models.BaseModel):
     def create_model(self, model_input, vocab_size, num_frames, **unused_params):
         """Creates a model which uses a logistic classifier over the average of the
