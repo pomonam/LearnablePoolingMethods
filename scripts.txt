@@ -84,7 +84,7 @@ submit training $JOB_NAME \
 -- --train_data_pattern='gs://youtube8m-ml-us-east1/2/frame/train/train*.tfrecord' \
 --frame_features=True --model=FrameLevelLogisticModel --feature_names="rgb" \
 --feature_sizes="1024" --batch_size=128 \
---train_dir=$BUCKET_NAME/yt8m_train_frame_level_logistic_model
+--train_dir=$BUCKET_NAME/yt8m_train_frame_level_logistic_model2 --start_new_model
 
 
 ----
@@ -97,6 +97,7 @@ gcloud ml-engine local train \
 --train_dir=$BUCKET_NAME/yt8m_train_frame_level_logistic_model --start_new_model
 
 
+tensorboard --logdir=$BUCKET_NAME/yt8m_train_frame_level_logistic_model2
 
 
 

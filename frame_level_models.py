@@ -49,13 +49,32 @@ flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
 
 
 #####################################################################################
-# Sample Modules ####################################################################
+# Attention modules #################################################################
 #####################################################################################
-class AttentionV1:
-    def __init__(self, feature_size, max_frames, cluster_size):
+class ContextGateV1:
+    """
+    Given the weight W, calculate sigmoid(WX + b) o X. o is an element-wise
+    multiplication.
+
+    Citation: Learnable pooling with Context Gating for video classification.
+    """
+    def __init__(self, feature_size, cluster_size):
+        """ Initialize a class ContextGateV1.
+        The idea and implementation is adopted from WILLOW.
+        :param feature_size:
+        :param cluster_size:
+        """
         self.feature_size = feature_size
-        self.max_frames = max_frames
         self.cluster_size = cluster_size
+
+    def forward(self, reshaped_input):
+        gate_weights = tf.get_variable("gate_weights",
+                                       [1, self.cluster_size, self.feature_size],
+                                       initializer=tf.random_normal_initializer(
+                                           stddev=1 / math.sqrt(self.feature_size)))
+        gate_weights = tf.sigmoid(gate_weights)
+        multiplied_weights = tf.multiply(reshaped_input, gate_weights)
+        return multiplied_weights
 
 #####################################################################################
 
