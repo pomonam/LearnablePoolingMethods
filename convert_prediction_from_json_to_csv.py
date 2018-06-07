@@ -47,6 +47,7 @@ if __name__ == '__main__':
 def get_csv_header():
     return "VideoId,LabelConfidencePairs\n"
 
+
 def to_csv_row(json_data):
     video_id = json_data["video_id"]
 

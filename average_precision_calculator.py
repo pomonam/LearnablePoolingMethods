@@ -54,7 +54,6 @@ ap3 = calculator.peek_ap_at_n()
 import heapq
 import random
 import numbers
-
 import numpy
 
 

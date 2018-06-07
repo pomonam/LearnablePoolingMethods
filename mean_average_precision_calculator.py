@@ -42,71 +42,71 @@ import average_precision_calculator
 
 
 class MeanAveragePrecisionCalculator(object):
-  """This class is to calculate mean average precision.
-  """
-
-  def __init__(self, num_class):
-    """Construct a calculator to calculate the (macro) average precision.
-
-    Args:
-      num_class: A positive Integer specifying the number of classes.
-      top_n_array: A list of positive integers specifying the top n for each
-      class. The top n in each class will be used to calculate its average
-      precision at n.
-      The size of the array must be num_class.
-
-    Raises:
-      ValueError: An error occurred when num_class is not a positive integer;
-      or the top_n_array is not a list of positive integers.
+    """This class is to calculate mean average precision.
     """
-    if not isinstance(num_class, int) or num_class <= 1:
-      raise ValueError("num_class must be a positive integer.")
 
-    self._ap_calculators = []  # member of AveragePrecisionCalculator
-    self._num_class = num_class  # total number of classes
-    for i in range(num_class):
-      self._ap_calculators.append(
-          average_precision_calculator.AveragePrecisionCalculator())
+    def __init__(self, num_class):
+        """Construct a calculator to calculate the (macro) average precision.
 
-  def accumulate(self, predictions, actuals, num_positives=None):
-    """Accumulate the predictions and their ground truth labels.
+        Args:
+          num_class: A positive Integer specifying the number of classes.
+          top_n_array: A list of positive integers specifying the top n for each
+          class. The top n in each class will be used to calculate its average
+          precision at n.
+          The size of the array must be num_class.
 
-    Args:
-      predictions: A list of lists storing the prediction scores. The outer
-      dimension corresponds to classes.
-      actuals: A list of lists storing the ground truth labels. The dimensions
-      should correspond to the predictions input. Any value
-      larger than 0 will be treated as positives, otherwise as negatives.
-      num_positives: If provided, it is a list of numbers representing the
-      number of true positives for each class. If not provided, the number of
-      true positives will be inferred from the 'actuals' array.
+        Raises:
+          ValueError: An error occurred when num_class is not a positive integer;
+          or the top_n_array is not a list of positive integers.
+        """
+        if not isinstance(num_class, int) or num_class <= 1:
+            raise ValueError("num_class must be a positive integer.")
 
-    Raises:
-      ValueError: An error occurred when the shape of predictions and actuals
-      does not match.
-    """
-    if not num_positives:
-      num_positives = [None for i in predictions.shape[1]]
+        self._ap_calculators = []  # member of AveragePrecisionCalculator
+        self._num_class = num_class  # total number of classes
+        for i in range(num_class):
+            self._ap_calculators.append(
+                average_precision_calculator.AveragePrecisionCalculator())
 
-    calculators = self._ap_calculators
-    for i in range(len(predictions)):
-      calculators[i].accumulate(predictions[i], actuals[i], num_positives[i])
+    def accumulate(self, predictions, actuals, num_positives=None):
+        """Accumulate the predictions and their ground truth labels.
 
-  def clear(self):
-    for calculator in self._ap_calculators:
-      calculator.clear()
+        Args:
+          predictions: A list of lists storing the prediction scores. The outer
+          dimension corresponds to classes.
+          actuals: A list of lists storing the ground truth labels. The dimensions
+          should correspond to the predictions input. Any value
+          larger than 0 will be treated as positives, otherwise as negatives.
+          num_positives: If provided, it is a list of numbers representing the
+          number of true positives for each class. If not provided, the number of
+          true positives will be inferred from the 'actuals' array.
 
-  def is_empty(self):
-    return ([calculator.heap_size for calculator in self._ap_calculators] ==
-            [0 for _ in range(self._num_class)])
+        Raises:
+          ValueError: An error occurred when the shape of predictions and actuals
+          does not match.
+        """
+        if not num_positives:
+            num_positives = [None for i in predictions.shape[1]]
 
-  def peek_map_at_n(self):
-    """Peek the non-interpolated mean average precision at n.
+        calculators = self._ap_calculators
+        for i in range(len(predictions)):
+            calculators[i].accumulate(predictions[i], actuals[i], num_positives[i])
 
-    Returns:
-      An array of non-interpolated average precision at n (default 0) for each
-      class.
-    """
-    aps = [self._ap_calculators[i].peek_ap_at_n()
-           for i in range(self._num_class)]
-    return aps
+    def clear(self):
+        for calculator in self._ap_calculators:
+            calculator.clear()
+
+    def is_empty(self):
+        return ([calculator.heap_size for calculator in self._ap_calculators] ==
+                [0 for _ in range(self._num_class)])
+
+    def peek_map_at_n(self):
+        """Peek the non-interpolated mean average precision at n.
+
+        Returns:
+          An array of non-interpolated average precision at n (default 0) for each
+          class.
+        """
+        aps = [self._ap_calculators[i].peek_ap_at_n()
+               for i in range(self._num_class)]
+        return aps
