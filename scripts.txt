@@ -100,7 +100,40 @@ gcloud ml-engine local train \
 tensorboard --logdir=$BUCKET_NAME/yt8m_train_frame_level_logistic_model2
 
 
+JOB_NAME=yt8m_eval_$(date +%Y%m%d_%H%M%S); gcloud --verbosity=debug ml-engine jobs \
+submit training $JOB_NAME \
+--package-path=youtube-8m --module-name=youtube-8m.eval \
+--staging-bucket=$BUCKET_NAME --region=us-east1 \
+--config=youtube-8m/cloudml-gpu.yaml \
+-- --eval_data_pattern='gs://youtube8m-ml-us-east1/2/frame/validate/validate*.tfrecord' \
+--model=FrameLevelLogisticModel \
+--train_dir=$BUCKET_NAME/yt8m_train_frame_level_logistic_model2 --run_once=True
 
 
+JOB_NAME=yt8m_eval_$(date +%Y%m%d_%H%M%S); gcloud --verbosity=debug ml-engine jobs \
+submit training $JOB_NAME \
+--package-path=youtube-8m --module-name=youtube-8m.eval \
+--staging-bucket=$BUCKET_NAME --region=us-east1 \
+--config=youtube-8m/cloudml-gpu.yaml \
+-- --eval_data_pattern='gs://youtube8m-ml-us-east1/2/frame/validate/validate*.tfrecord' \
+--model=FrameLevelLogisticModel \
+--train_dir=/Users/juhanbae/Documents/GitHub/result/test-1 --run_once=True
+
+/Users/juhanbae/Documents/GitHub/result/test-1
 
 
+JOB_NAME=yt8m_inference_$(date +%Y%m%d_%H%M%S); gcloud --verbosity=debug ml-engine jobs \
+submit training $JOB_NAME \
+--package-path=youtube-8m --module-name=youtube-8m.inference \
+--staging-bucket=$BUCKET_NAME --region=us-east1 \
+--config=youtube-8m/cloudml-gpu.yaml \
+-- --input_data_pattern='gs://youtube8m-ml-us-east1/2/frame/test/test*.tfrecord' \
+--train_dir=$BUCKET_NAME/yt8m_train_frame_level_logistic_model2 \
+--output_file=$BUCKET_NAME/yt8m_train_frame_level_logistic_model2/predictions.csv
+
+
+gcloud ml-engine local train \
+--package-path=youtube-8m --module-name=youtube-8m.inference \
+-- --input_data_pattern='gs://youtube8m-ml-us-east1/2/frame/test/test*.tfrecord' \
+--train_dir=/Users/juhanbae/Documents/GitHub/result/test-1/ \
+--output_file=/Users/juhanbae/Documents/GitHub/result/test-1/predictions.csv

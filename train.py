@@ -123,7 +123,7 @@ def validate_class_name(flag_value, category, modules, expected_superclass):
         found with that name doesn't inherit from the expected superclass.
       Returns:
         True if a class was found that matches the given constraints.
-      """
+    """
     candidates = [getattr(module, flag_value, None) for module in modules]
     for candidate in candidates:
         if not candidate:
@@ -343,8 +343,8 @@ class Trainer(object):
     """A Trainer to train a Tensorflow graph."""
 
     def __init__(self, cluster, task, train_dir, model, reader, model_exporter,
-               log_device_placement=True, max_steps=None,
-               export_model_steps=1000):
+                 log_device_placement=True, max_steps=None,
+                 export_model_steps=1000):
         """"Creates a Trainer.
         Args:
           cluster: A tf.train.ClusterSpec if the execution is distributed.
@@ -365,10 +365,6 @@ class Trainer(object):
         self.max_steps_reached = False
         self.export_model_steps = export_model_steps
         self.last_model_export_step = 0
-
-#     if self.is_master and self.task.index > 0:
-#       raise StandardError("%s: Only one replica of master expected",
-#                           task_as_string(self.task))
 
     def run(self, start_new_model=False):
         """Performs training on the currently defined Tensorflow graph.
@@ -589,18 +585,18 @@ class Trainer(object):
 
 
 def get_reader():
-  # Convert feature_names and feature_sizes to lists of values.
-  feature_names, feature_sizes = utils.GetListOfFeatureNamesAndSizes(
-      FLAGS.feature_names, FLAGS.feature_sizes)
+    # Convert feature_names and feature_sizes to lists of values.
+    feature_names, feature_sizes = utils.GetListOfFeatureNamesAndSizes(
+        FLAGS.feature_names, FLAGS.feature_sizes)
 
-  if FLAGS.frame_features:
-    reader = readers.YT8MFrameFeatureReader(
-        feature_names=feature_names, feature_sizes=feature_sizes)
-  else:
-    reader = readers.YT8MAggregatedFeatureReader(
-        feature_names=feature_names, feature_sizes=feature_sizes)
+    if FLAGS.frame_features:
+        reader = readers.YT8MFrameFeatureReader(
+            feature_names=feature_names, feature_sizes=feature_sizes)
+    else:
+        reader = readers.YT8MAggregatedFeatureReader(
+            feature_names=feature_names, feature_sizes=feature_sizes)
 
-  return reader
+    return reader
 
 
 class ParameterServer(object):
