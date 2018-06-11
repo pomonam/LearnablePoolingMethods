@@ -34,17 +34,18 @@ def main():
     # Start by defining a job name.
     command = "JOB_NAME=yt8m_eval_$(date +%Y%m%d_%H%M%S); "
     command += "gcloud --verbosity=debug ml-engine jobs submit training $JOB_NAME "
-    command += "--package-path=youtube-8m --module-name=youtube-8m.train"
+    command += "--package-path=youtube-8m --module-name=youtube-8m.eval "
     command += "--staging-bucket=$BUCKET_NAME --region=us-east1 "
     command += "--config=youtube-8m/{} ".format(CLOUD_GPU)
     if FRAME_LEVEL:
         command += "-- --eval_data_pattern='gs://youtube8m-ml-us-east1/2/frame/validate/validate*.tfrecord' "
         command += "--frame_features=True "
     else:
-        command += "-- --train_data_pattern='gs://youtube8m-ml-us-east1/2/video/validate/validate*.tfrecord "
+        command += "-- --eval_data_pattern='gs://youtube8m-ml-us-east1/2/video/validate/validate*.tfrecord "
         command += "--frame_features=False "
     command += "--train_dir=$BUCKET_NAME/{} ".format(MODEL_NAME + str(MODEL_VERSION))
     command += "--run_once=True"
+    return command
 
 
 if __name__ == "__main__":

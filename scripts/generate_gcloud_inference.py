@@ -23,7 +23,7 @@ import os
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
 MODEL_NAME = "NetVLADModelLF"
-MODEL_VERSION = 1
+MODEL_VERSION = ""
 # Does it require frame-level models?
 FRAME_LEVEL = True
 # What features? e.g. RGB, audio
@@ -34,17 +34,18 @@ def main():
     # Start by defining a job name.
     command = "JOB_NAME=yt8m_inference_$(date +%Y%m%d_%H%M%S); "
     command += "gcloud --verbosity=debug ml-engine jobs submit training $JOB_NAME "
-    command += "--package-path=youtube-8m --module-name=youtube-8m.train"
+    command += "--package-path=youtube-8m --module-name=youtube-8m.inference "
     command += "--staging-bucket=$BUCKET_NAME --region=us-east1 "
     command += "--config=youtube-8m/{} ".format(CLOUD_GPU)
     if FRAME_LEVEL:
-        command += "-- --eval_data_pattern='gs://youtube8m-ml-us-east1/2/frame/test/test*.tfrecord' "
+        command += "-- --input_data_pattern='gs://youtube8m-ml-us-east1/2/frame/test/test*.tfrecord' "
         command += "--frame_features=True "
     else:
-        command += "-- --train_data_pattern='gs://youtube8m-ml-us-east1/2/video/validate/validate*.tfrecord "
+        command += "-- --input_data_pattern='gs://youtube8m-ml-us-east1/2/video/test/test*.tfrecord "
         command += "--frame_features=False "
     command += "--train_dir=$BUCKET_NAME/{} ".format(MODEL_NAME + str(MODEL_VERSION))
     command += "--output_file=$BUCKET_NAME/{}/predictions.csv".format(MODEL_NAME + str(MODEL_VERSION))
+    return command
 
 
 if __name__ == "__main__":
