@@ -168,6 +168,26 @@ class MoeModelGating(models.BaseModel):
                                          [-1, vocab_size])
 
         # Attempt to learn correlation between labels.
-        
+        project_activations = slim.fully_connected(
+            final_probabilities,
+            7200,
+            activation_fn=None,
+            weights_regularizer=slim.l2_regularizer(l2_penalty),
+            scope="context"
+        )
+
+        gating_weights = tf.get_variable("gating_prob_weights",
+                                         [vocab_size, vocab_size],
+                                         initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(vocab_size)))
+        gates = tf.matmul(project_activations, gating_weights)
+
+        gates = slim.batch_norm(
+            gates,
+            center=True,
+            scale=True,
+            scope="gating_prob_bn")
+
+        gates = tf.sigmoid(gates)
+        probabilities = tf.multiply(final_probabilities, gates)
 
         return {"predictions": final_probabilities}
