@@ -17,25 +17,25 @@ import json
 import os
 import time
 import sys
-
-# Explicitly add the file's directory to the path list.
-file_dir = os.path.dirname(__file__)
-sys.path.append(file_dir)
-
 import eval_util
 import export_model
 import losses
-import frame_level_models
+import frame_level_models_temp
 import video_level_models
 import readers
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+from tensorflow.python.lib.io import file_io
 from tensorflow import app
 from tensorflow import flags
 from tensorflow import gfile
 from tensorflow import logging
 from tensorflow.python.client import device_lib
 import utils
+
+# Explicitly add the file's directory to the path list.
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
 
 FLAGS = flags.FLAGS
 
@@ -386,8 +386,8 @@ class Trainer(object):
             "label_loss": FLAGS.label_loss,
         }
         flags_json_path = os.path.join(FLAGS.train_dir, "model_flags.json")
-        if os.path.exists(flags_json_path):
-            existing_flags = json.load(open(flags_json_path))
+        if file_io.file_exists(flags_json_path):
+            existing_flags = json.load(file_io.FileIO(flags_json_path, mode="r"))
             if existing_flags != model_flags_dict:
                 logging.error("Model flags do not match existing file %s. Please "
                               "delete the file, change --train_dir, or pass flag "
@@ -398,7 +398,7 @@ class Trainer(object):
                 exit(1)
         else:
             # Write the file.
-            with open(flags_json_path, "w") as fout:
+            with file_io.FileIO(flags_json_path, mode="w") as fout:
                 fout.write(json.dumps(model_flags_dict))
 
         target, device_fn = self.start_server_if_distributed()
@@ -669,7 +669,7 @@ def main(unused_argv):
     # Dispatch to a master, a worker, or a parameter server.
     if not cluster or task.type == "master" or task.type == "worker":
         model = find_class_by_name(FLAGS.model,
-                                   [frame_level_models, video_level_models])()
+                                   [frame_level_models_temp, video_level_models])()
 
         reader = get_reader()
 
