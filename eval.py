@@ -18,31 +18,32 @@ import json
 import os
 import time
 import sys
-
-# Explicitly add the file's directory to the path list.
-file_dir = os.path.dirname(__file__)
-sys.path.append(file_dir)
-
 import eval_util
 import losses
-import frame_level_models
+import frame_level_models_temp
 import video_level_models
 import readers
 import tensorflow as tf
+import tensorflow.python.lib.io.file_io as file_io
 from tensorflow import app
 from tensorflow import flags
 from tensorflow import gfile
 from tensorflow import logging
 import utils
 
+# Explicitly add the file's directory to the path list.
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+
+
 FLAGS = flags.FLAGS
 
 if __name__ == "__main__":
-    # Dataset flags.
+    # Data set flags.
     flags.DEFINE_string("train_dir", "/tmp/yt8m_model/",
-                      "The directory to load the model files from. "
-                      "The tensorboard metrics files are also saved to this "
-                      "directory.")
+                        "The directory to load the model files from. "
+                        "The tensorboard metrics files are also saved to this "
+                        "directory.")
     flags.DEFINE_string(
       "eval_data_pattern", "",
       "File glob defining the evaluation dataset in tensorflow.SequenceExample "
@@ -51,17 +52,17 @@ if __name__ == "__main__":
 
     # Other flags.
     flags.DEFINE_integer("batch_size", 1024,
-                       "How many examples to process per batch.")
+                         "How many examples to process per batch.")
     flags.DEFINE_integer("num_readers", 8,
-                       "How many threads to use for reading input files.")
+                         "How many threads to use for reading input files.")
     flags.DEFINE_boolean("run_once", False, "Whether to run eval only once.")
     flags.DEFINE_integer("top_k", 20, "How many predictions to output per video.")
 
 
 def find_class_by_name(name, modules):
-  """Searches the provided modules for the named class and returns it."""
-  modules = [getattr(module, name, None) for module in modules]
-  return next(a for a in modules if a)
+    """Searches the provided modules for the named class and returns it."""
+    modules = [getattr(module, name, None) for module in modules]
+    return next(a for a in modules if a)
 
 
 def get_input_evaluation_tensors(reader,
@@ -161,7 +162,7 @@ def build_graph(reader,
 
 
 def get_latest_checkpoint():
-    index_files = glob.glob(os.path.join(FLAGS.train_dir, 'model.ckpt-*.index'))
+    index_files = file_io.get_matching_files(os.path.join(FLAGS.train_dir, 'model.ckpt-*.index'))
     tf.logging.debug("Looking at {}".format(index_files))
 
     # No files
@@ -288,19 +289,10 @@ def evaluate():
 
     # Write json of flags
     model_flags_path = os.path.join(FLAGS.train_dir, "model_flags.json")
-    # if not os.path.exists(model_flags_path):
-    #     raise IOError(("Cannot find file %s. Did you run train.py on the same "
-    #                    "--train_dir?") % model_flags_path)
-    # flags_dict = json.loads(open(model_flags_path).read())
-
-    #temp
-    flags_dict = {
-        "model": "FrameLevelLogisticModel",
-        "feature_sizes": "1024",
-        "feature_names": "rgb",
-        "frame_features": "true",
-        "label_loss": "CrossEntropyLoss"
-    }
+    if not file_io.file_exists(model_flags_path):
+        raise IOError(("Cannot find file %s. Did you run train.py on the same "
+                       "--train_dir?") % model_flags_path)
+    flags_dict = json.loads(file_io.FileIO(model_flags_path, mode="r").read())
 
     with tf.Graph().as_default():
         # convert feature_names and feature_sizes to lists of values
@@ -315,7 +307,7 @@ def evaluate():
                                                          feature_sizes=feature_sizes)
 
         model = find_class_by_name(flags_dict["model"],
-                                   [frame_level_models, video_level_models])()
+                                   [frame_level_models_temp, video_level_models])()
         label_loss_fn = find_class_by_name(flags_dict["label_loss"], [losses])()
 
         if FLAGS.eval_data_pattern is "":
