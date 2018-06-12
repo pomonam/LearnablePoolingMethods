@@ -74,7 +74,7 @@ class AveragePrecisionCalculator(object):
           ValueError: An error occurred when the top_n is not a positive integer.
         """
         if not ((isinstance(top_n, int) and top_n >= 0) or top_n is None):
-          raise ValueError("top_n must be a positive integer or None.")
+            raise ValueError("top_n must be a positive integer or None.")
 
         self._top_n = top_n  # average precision at n
         self._total_positives = 0  # total number of positives have seen

@@ -86,7 +86,7 @@ class ContextGateV2(modules.BaseModule):
     MLP-method of calculating the context gate.
     Use 3-layer MLP to understand the context of vocabularies.
     """
-    def __init__(self, vocab_size, batch_norm=True, scope_id=None):
+    def __init__(self, vocab_size, is_training, batch_norm=True, scope_id=None):
         """ Initialize a class ContextGateV2.
         :param vocab_size: int
             e.g. ~3600 for YouTube V2 dataset.
@@ -96,8 +96,9 @@ class ContextGateV2(modules.BaseModule):
         self.vocab_size = vocab_size
         self.batch_norm = batch_norm
         self.scope_id = scope_id
+        self.is_training = is_training
 
-    def forward(self, inputs, is_training, **unused_params):
+    def forward(self, inputs, **unused_params):
         """ Forward function of ContextGateV2.
         :param inputs: batch_size x vocab_size
         :param is_training: bool
@@ -132,7 +133,7 @@ class ContextGateV3(modules.BaseModule):
     Project into higher dimension for sparse representation.
     Calculate context vector in higher dimension and project back to lower dimension.
     """
-    def __init__(self, vocab_size, batch_norm=True, cluster_size=None, scope_id=None):
+    def __init__(self, vocab_size, is_training, batch_norm=True, cluster_size=None, scope_id=None):
         """ Initialize a class ContextGateV2.
         :param vocab_size: int
             e.g. ~3600 for YouTube V2 dataset.
@@ -142,10 +143,11 @@ class ContextGateV3(modules.BaseModule):
         """
         self.vocab_size = vocab_size
         self.batch_norm = batch_norm
+        self.is_training = is_training
         self.cluster_size = cluster_size
         self.scope_id = scope_id
 
-    def forward(self, inputs, is_training, **unused_params):
+    def forward(self, inputs, **unused_params):
         """ Forward function of ContextGateV3.
         :param inputs: batch_size x vocab_size
         :param is_training: bool
@@ -156,9 +158,9 @@ class ContextGateV3(modules.BaseModule):
         # Project to higher dimension.
         cluster_weights = tf.get_variable("cluster_weight_v3{}".format("" if self.scope_id is None else str(self.scope_id)),
                                           [self.vocab_size, cluster_size],
-                                          initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(self.vocab_size)))
-        tf.summary.histogram("cluster_weight_v3"
-                             "{}".format("" if self.scope_id is None else str(self.scope_id)), cluster_weights)
+                                          initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)))
+        # tf.summary.histogram("cluster_weight_v3"
+        #                      "{}".format("" if self.scope_id is None else str(self.scope_id)), cluster_weights)
 
         # batch_size x vocab_size, vocab_size x cluster_size -> batch_size x cluster_size
         activation = tf.matmul(inputs, cluster_weights)
@@ -168,8 +170,8 @@ class ContextGateV3(modules.BaseModule):
                 activation,
                 center=True,
                 scale=True,
-                is_training=is_training,
-                scope="vocab_gate_bn_v3{}".format("" if self.scope_id is None else str(self.scope_id)))
+                is_training=self.is_training,
+                scope="vocab_gate_bn_v3_1{}".format("" if self.scope_id is None else str(self.scope_id)))
 
         gating_weights = tf.get_variable("vocab_gate_v3{}".format("" if self.scope_id is None else str(self.scope_id)),
                                          [cluster_size, cluster_size],
@@ -184,8 +186,8 @@ class ContextGateV3(modules.BaseModule):
                 gates,
                 center=True,
                 scale=True,
-                is_training=is_training,
-                scope="vocab_gate_bn_v3{}".format("" if self.scope_id is None else str(self.scope_id)))
+                is_training=self.is_training,
+                scope="vocab_gate_bn_v3_2{}".format("" if self.scope_id is None else str(self.scope_id)))
 
         gates = tf.sigmoid(gates)
 
@@ -197,3 +199,19 @@ class ContextGateV3(modules.BaseModule):
 
         # batch_size x vocab_size
         return projected_inputs
+
+
+###############################################################################
+# Attention for Video / Audio fusion techniques ###############################
+###############################################################################
+class AvFusionGateV1(modules.BaseModule):
+    def __init__(self, video_size, audio_size, is_training, batch_norm=True, cluster_size=None, scope_id=None):
+        self.video_size = video_size
+        self.audio_size = audio_size
+        self.batch_norm = batch_norm
+        self.is_training = is_training
+        self.cluster_size = cluster_size
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        pass
