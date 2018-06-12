@@ -1,4 +1,4 @@
-# Copyright 2018 Juhan, Ruijian Inc. All Rights Reserved.
+# Copyright 2018 Juhan, Ruijian All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,3 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Path hack to make import statements work."""
+
+import os
+import sys
+
+# Explicitly add the file's directory to the path list.
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+sys.path.append(os.path.join(os.getcwd(), "modules"))

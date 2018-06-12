@@ -13,7 +13,8 @@
 # limitations under the License.
 
 """Provides definitions for non-regularized training or test losses."""
-
+# noinspection PyUnresolvedReferences
+import pathmagic
 import tensorflow as tf
 
 

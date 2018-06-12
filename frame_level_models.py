@@ -13,22 +13,17 @@
 # limitations under the License.
 
 """Contains a collection of models which operate on variable-length sequences."""
+# noinspection PyUnresolvedReferences
+import pathmagic
 from modules import attention
 from modules import video_pooling
 from tensorflow import flags
 import math
 import models
-import os
-import sys
 import video_level_models
 import tensorflow as tf
 import model_utils as utils
 import tensorflow.contrib.slim as slim
-
-# Explicitly add the file's directory to the path list.
-file_dir = os.path.dirname(__file__)
-sys.path.append(file_dir)
-sys.path.append("./modules")
 
 
 FLAGS = flags.FLAGS

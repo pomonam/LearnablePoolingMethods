@@ -14,6 +14,8 @@
 
 """Contains a collection of util functions for model construction.
 """
+# noinspection PyUnresolvedReferences
+import pathmagic
 import numpy
 import tensorflow as tf
 from tensorflow import logging

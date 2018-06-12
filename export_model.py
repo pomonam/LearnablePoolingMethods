@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utilities to export a model for batch prediction."""
-
+# noinspection PyUnresolvedReferences
+import pathmagic
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 

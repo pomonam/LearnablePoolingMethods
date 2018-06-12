@@ -18,7 +18,8 @@ Utility to convert the output of batch prediction into a CSV submission.
 It converts the JSON files created by the command
 'gcloud beta ml jobs submit prediction' into a CSV file ready for submission.
 """
-
+# noinspection PyUnresolvedReferences
+import pathmagic
 import json
 import tensorflow as tf
 

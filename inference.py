@@ -13,18 +13,14 @@
 # limitations under the License.
 
 """Binary for generating predictions over a set of videos."""
-
+# noinspection PyUnresolvedReferences
+import pathmagic
 import os
 import glob
 import json
 import tarfile
 import time
 import sys
-
-# Explicitly add the file's directory to the path list.
-file_dir = os.path.dirname(__file__)
-sys.path.append(file_dir)
-
 import numpy
 import tensorflow as tf
 from tensorflow.python.lib.io import file_io

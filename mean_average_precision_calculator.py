@@ -36,7 +36,8 @@ calculator.accumulate(p, a)
 aps = calculator.peek_map_at_n()
 ```
 """
-
+# noinspection PyUnresolvedReferences
+import pathmagic
 import numpy
 import average_precision_calculator
 

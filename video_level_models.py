@@ -13,6 +13,8 @@
 # limitations under the License.
 
 """Contains model definitions."""
+# noinspection PyUnresolvedReferences
+import pathmagic
 from tensorflow import flags
 from modules import attention
 import tensorflow as tf
@@ -20,13 +22,9 @@ import tensorflow.contrib.slim as slim
 import math
 import models
 import utils
-import os
-import sys
 
-# Explicitly add the file's directory to the path list.
-file_dir = os.path.dirname(__file__)
-sys.path.append(file_dir)
-sys.path.append("./modules")
+
+
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer(

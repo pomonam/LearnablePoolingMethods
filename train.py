@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Binary for training Tensorflow models on the YouTube-8M dataset."""
-
+# noinspection PyUnresolvedReferences
+import pathmagic
 import json
 import os
 import time
@@ -32,10 +33,6 @@ from tensorflow import gfile
 from tensorflow import logging
 from tensorflow.python.client import device_lib
 import utils
-
-# Explicitly add the file's directory to the path list.
-file_dir = os.path.dirname(__file__)
-sys.path.append(file_dir)
 
 FLAGS = flags.FLAGS
 
