@@ -28,6 +28,8 @@ MODEL_VERSION = ""
 FRAME_LEVEL = True
 # What features? e.g. RGB, audio
 FEATURES = "rgb,audio"
+# Some additional flags to execute.
+EXTRA = ""
 
 
 def main():

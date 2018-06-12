@@ -22,6 +22,7 @@ import sys
 import eval_util
 import losses
 import video_level_models
+import frame_level_models
 import readers
 import tensorflow as tf
 from tensorflow.python.lib.io import file_io
@@ -307,7 +308,7 @@ def evaluate():
                                                          feature_sizes=feature_sizes)
 
         model = find_class_by_name(flags_dict["model"],
-                                   [frame_level_models_temp, video_level_models])()
+                                   [frame_level_models, video_level_models])()
         label_loss_fn = find_class_by_name(flags_dict["label_loss"], [losses])()
 
         if FLAGS.eval_data_pattern is "":
