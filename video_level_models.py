@@ -13,21 +13,25 @@
 # limitations under the License.
 
 """Contains model definitions."""
-import math
-
-import models
-import tensorflow as tf
-import utils
-
 from tensorflow import flags
+from modules import attention
+import tensorflow as tf
 import tensorflow.contrib.slim as slim
-from modules.attention import ContextGateV1
+import math
+import models
+import utils
+import os
+import sys
+
+# Explicitly add the file's directory to the path list.
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+sys.path.append("./modules")
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer(
     "moe_num_mixtures", 2,
     "The number of mixtures (excluding the dummy 'expert') used for MoeModel.")
-
 
 
 ###############################################################################
@@ -125,10 +129,11 @@ class WillowMoeModel(models.BaseModel):
                                    [-1, vocab_size])
 
         if gating_probabilities:
-            gating = ContextGateV1(vocab_size, batch_norm=True, is_training=is_training)
+            gating = attention.ContextGateV1(vocab_size, batch_norm=True, is_training=is_training)
             probabilities = gating.forward(probabilities)
 
         return {"predictions": probabilities}
+
 
 ###############################################################################
 # Starter code models #########################################################
@@ -136,7 +141,11 @@ class WillowMoeModel(models.BaseModel):
 class LogisticModel(models.BaseModel):
     """Logistic model with L2 regularization."""
 
-    def create_model(self, model_input, vocab_size, l2_penalty=1e-8, **unused_params):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     l2_penalty=1e-8,
+                     **unused_params):
         """Creates a logistic model.
 
         Args:

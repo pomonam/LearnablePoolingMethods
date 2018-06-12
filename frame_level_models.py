@@ -13,17 +13,22 @@
 # limitations under the License.
 
 """Contains a collection of models which operate on variable-length sequences."""
+from modules import attention
+from modules import video_pooling
+from tensorflow import flags
 import math
-
 import models
+import os
+import sys
 import video_level_models
 import tensorflow as tf
 import model_utils as utils
-
 import tensorflow.contrib.slim as slim
-from tensorflow import flags
 
-from modules.video_pooling import NetVLAD
+# Explicitly add the file's directory to the path list.
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+sys.path.append("./modules")
 
 
 FLAGS = flags.FLAGS
@@ -109,8 +114,8 @@ class WillowModel(models.BaseModel):
         feature_size = model_input.get_shape().as_list()[2]
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
-        video_NetVLAD = NetVLAD(1024, max_frames, cluster_size, add_batch_norm, is_training)
-        audio_NetVLAD = NetVLAD(128, max_frames, cluster_size / 2, add_batch_norm, is_training)
+        video_NetVLAD = video_pooling.NetVLAD(1024, max_frames, cluster_size, add_batch_norm, is_training)
+        audio_NetVLAD = video_pooling.NetVLAD(128, max_frames, cluster_size / 2, add_batch_norm, is_training)
 
         if add_batch_norm:
             reshaped_input = slim.batch_norm(
