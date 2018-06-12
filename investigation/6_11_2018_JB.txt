@@ -6,11 +6,12 @@
     --config=youtube-8m/cloudml-gpu.yaml -- --train_data_pattern='gs://youtube8m-ml-us-east1/2/frame/train/train*.tfrecord' \
     --frame_features=True --model=NetVLADModelLF --feature_names='rgb,audio' --feature_sizes='1024,128' --batch_size=128 \
     --netvlad_cluster_size=256 --netvlad_hidden_size=1024 --moe_l2=1e-6 --iterations=300 --learning_rate_decay=0.8 \
-    --netvlad_relu=False --gating=True --moe_prob_gating=True --train_dir=$BUCKET_NAME/NetVLADModelLF \
+    --netvlad_relu=False --gating=True --moe_prob_gating=True --train_dir=$BUCKET_NAME/NetVLADModelLF22 \
     --base_learning_rate=0.0002 --start_new_model
 
     Evaluation result can be found at:
     gs://juhanbae_yt8m_train_bucket/NetVLADModelLF
+    gs://juhanbae_yt8m_train_bucket/NetVLADModelLF22
 
     Approximate training cloud: 46 hours
 

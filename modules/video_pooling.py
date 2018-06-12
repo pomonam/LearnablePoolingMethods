@@ -16,72 +16,41 @@
 
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-from tensorflow import flags
-
 import module
 import math
+from tensorflow import flags
 
 FLAGS = flags.FLAGS
-flags.DEFINE_integer("lstm_cells", 1024, "Number of LSTM cells.")
-flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
 
 
-class BidirectionalLstmModule(module.BaseModule):
-    def __init__(self, variable_name, lstm_cells, frame_length, lstm_layers, feature_size, output_size):
-        """
 
-        :param feature_size:
-        :param output_size:
-        """
-        self.variable_name = variable_name
-        self.lstm_cells = lstm_cells
-        self.lstm_layers = lstm_layers
-        self.frame_length = frame_length
-        self.feature_size = feature_size
-
-    def __call__(self, inputs, state, scope=None):
-        """ LSTM layers.
-        :param inputs:
-        :param state:
-        :param scope:
-        :return:
-        """
-        with tf.variable_scope(scope or type(self).__name__):
-            forward = tf.contrib.rnn.BasicLSTMCell(self.lstm_cells, forget_bias=1.0)
-            backward = tf.contrib.rnn.BasicLSTMCell(self.lstm_cells, forget_bias=1.0)
-
-            forward_stacked = tf.contrib.rnn.MultiRNNCell([forward])
-            backward_stacked = tf.contrib.rnn.MultiRNNCell([backward])
-
-            outputs, states = tf.nn.bidirectional_dynamic_rnn(
-                forward_stacked,
-                backward_stacked,
-                inputs,
-                sequence_length=self.frame_length,
-                dtype=tf.float32
-            )
-            return states
-
-
-class NetVlad(module.BaseModule):
-    def __init__(self, feature_size, max_frames, cluster_size, add_batch_norm, is_training):
+###############################################################################
+# Distribution-Learning methods                                  ##############
+# Please look the copyright notice for each class                ##############
+# VLAD implementation are based on WILLOW paper & public code    ##############
+###############################################################################
+class LightVLAD(module.BaseModule):
+    """
+    LightVLAD version from public code in WILLOW paper & public code.
+    https://github.com/antoine77340/Youtube-8M-WILLOW
+    """
+    def __init__(self, feature_size, max_frames, cluster_size, batch_norm, is_training, scope_id=None):
         self.feature_size = feature_size
         self.max_frames = max_frames
         self.is_training = is_training
-        self.add_batch_norm = add_batch_norm
+        self.batch_norm = batch_norm
         self.cluster_size = cluster_size
+        self.scope_id = scope_id
 
-    def __call__(self, inputs, state, scope=None):
-
-        cluster_weights = tf.get_variable("cluster_weights",
+    def forward(self, inputs, **unused_params):
+        cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
+                                                                     else str(self.scope_id)),
                                           [self.feature_size, self.cluster_size],
                                           initializer=tf.random_normal_initializer(
                                               stddev=1 / math.sqrt(self.feature_size)))
-
-        tf.summary.histogram("cluster_weights", cluster_weights)
         activation = tf.matmul(inputs, cluster_weights)
 
-        if self.add_batch_norm:
+        if self.batch_norm:
             activation = slim.batch_norm(
                 activation,
                 center=True,
@@ -89,7 +58,63 @@ class NetVlad(module.BaseModule):
                 is_training=self.is_training,
                 scope="cluster_bn")
         else:
-            cluster_biases = tf.get_variable("cluster_biases",
+            cluster_biases = tf.get_variable("cluster_biases{}".format("" if self.scope_id is None
+                                                                       else str(self.scope_id)),
+                                             [self.cluster_size],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(self.feature_size)))
+            tf.summary.histogram("cluster_biases", cluster_biases)
+            activation += cluster_biases
+
+        activation = tf.nn.softmax(activation)
+        activation = tf.reshape(activation, [-1, self.max_frames, self.cluster_size])
+        activation = tf.transpose(activation, perm=[0, 2, 1])
+        reshaped_input = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
+
+        vlad = tf.matmul(activation, reshaped_input)
+        vlad = tf.transpose(vlad, perm=[0, 2, 1])
+        vlad = tf.nn.l2_normalize(vlad, 1)
+        vlad = tf.reshape(vlad, [-1, self.cluster_size * self.feature_size])
+        vlad = tf.nn.l2_normalize(vlad, 1)
+
+        # batch_size x (cluster_size * feature_size)
+        return vlad
+
+
+class NetVLAD(module.BaseModule):
+    """
+    NetVLAD version from public code in WILLOW paper & public code.
+    https://github.com/antoine77340/Youtube-8M-WILLOW
+    """
+    def __init__(self, feature_size, max_frames, cluster_size, batch_norm, is_training, scope_id=None):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.batch_norm = batch_norm
+        self.cluster_size = cluster_size
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
+                                                                     else str(self.scope_id)),
+                                          [self.feature_size, self.cluster_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.feature_size)))
+
+        tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                             cluster_weights)
+        activation = tf.matmul(inputs, cluster_weights)
+
+        if self.batch_norm:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="cluster_bn")
+        else:
+            cluster_biases = tf.get_variable("cluster_biases{}".format("" if self.scope_id is None
+                                                                       else str(self.scope_id)),
                                              [self.cluster_size],
                                              initializer=tf.random_normal_initializer(
                                                  stddev=1 / math.sqrt(self.feature_size)))
@@ -116,10 +141,10 @@ class NetVlad(module.BaseModule):
         vlad = tf.matmul(activation, reshaped_input)
         vlad = tf.transpose(vlad, perm=[0, 2, 1])
         vlad = tf.subtract(vlad, a)
-
         vlad = tf.nn.l2_normalize(vlad, 1)
-
         vlad = tf.reshape(vlad, [-1, self.cluster_size * self.feature_size])
         vlad = tf.nn.l2_normalize(vlad, 1)
 
+        # batch_size x (cluster_size * feature_size)
         return vlad
+

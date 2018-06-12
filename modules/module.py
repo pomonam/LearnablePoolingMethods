@@ -27,5 +27,5 @@ class BaseModule(object):
     # def output_size(self):
     #     raise NotImplementedError()
 
-    def __call__(self, inputs, state, scope=None):
+    def forward(self, unused_model_input, **unused_params):
         raise NotImplementedError()

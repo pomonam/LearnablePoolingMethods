@@ -38,6 +38,17 @@ import losses
 import readers
 import utils
 
+# from tensorflow.core.framework import variable_pb2
+# from tensorflow.python.framework import ops
+# from tensorflow.python.ops import variables
+# from tensorflow.python.framework.ops import register_proto_function
+#
+# register_proto_function(
+#     ops.GraphKeys.LOCAL_VARIABLES,
+#     proto_type=variable_pb2.VariableDef,
+#     to_proto=variables.Variable.to_proto,
+#     from_proto=variables.Variable.from_proto)
+
 FLAGS = flags.FLAGS
 
 if __name__ == '__main__':
@@ -137,7 +148,7 @@ def inference(reader, train_dir, data_pattern, out_file_location, batch_size, to
 
     if FLAGS.output_model_tgz:
       with tarfile.open(FLAGS.output_model_tgz, "w:gz") as tar:
-        for model_file in glob.glob(checkpoint_file + '.*'):
+        for model_file in file_io.get_matching_files(checkpoint_file + '.*'):
           tar.add(model_file, arcname=os.path.basename(model_file))
         tar.add(os.path.join(FLAGS.train_dir, "model_flags.json"),
                 arcname="model_flags.json")
@@ -160,6 +171,8 @@ def inference(reader, train_dir, data_pattern, out_file_location, batch_size, to
       init_op_list.append(tf.variables_initializer(variables))
       return init_op_list
 
+    # tf.get_default_graph().clear_collection("queue_runners")
+    # tf.get_default_graph().clear_collection("local_variables")
     sess.run(set_up_init_ops(tf.get_collection_ref(
         tf.GraphKeys.LOCAL_VARIABLES)))
 
