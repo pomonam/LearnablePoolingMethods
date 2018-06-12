@@ -18,7 +18,7 @@ from tensorflow.python.ops import nn
 from tensorflow import flags
 
 import math
-import module
+import modules
 
 ###############################################################################
 # Necessary FLAGS #############################################################
@@ -32,7 +32,7 @@ flags.DEFINE_integer("CGV3_cluster_size", 7200,
 ###############################################################################
 # Attention / Context Gate for vocabularies ###################################
 ###############################################################################
-class ContextGateV1(module.BaseModule):
+class ContextGateV1(modules.BaseModule):
     """
     Given the weight W, calculate sigmoid(WX + b) o X. o is an element-wise
     multiplication.
@@ -81,7 +81,7 @@ class ContextGateV1(module.BaseModule):
         return updated_inputs
 
 
-class ContextGateV2(module.BaseModule):
+class ContextGateV2(modules.BaseModule):
     """
     MLP-method of calculating the context gate.
     Use 3-layer MLP to understand the context of vocabularies.
@@ -127,7 +127,7 @@ class ContextGateV2(module.BaseModule):
         return fc3_out
 
 
-class ContextGateV3(module.BaseModule):
+class ContextGateV3(modules.BaseModule):
     """
     Project into higher dimension for sparse representation.
     Calculate context vector in higher dimension and project back to lower dimension.
@@ -154,10 +154,11 @@ class ContextGateV3(module.BaseModule):
         cluster_size = self.cluster_size if self.cluster_size is not None else FLAGS.CGV3_cluster_size
 
         # Project to higher dimension.
-        cluster_weights = tf.get_variable("vocab_gate_v3{}".format("" if self.scope_id is None else str(self.scope_id)),
+        cluster_weights = tf.get_variable("cluster_weight_v3{}".format("" if self.scope_id is None else str(self.scope_id)),
                                           [self.vocab_size, cluster_size],
                                           initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(self.vocab_size)))
-        tf.summary.histogram("vocab_gate_v3{}", cluster_weights)
+        tf.summary.histogram("cluster_weight_v3"
+                             "{}".format("" if self.scope_id is None else str(self.scope_id)), cluster_weights)
 
         # batch_size x vocab_size, vocab_size x cluster_size -> batch_size x cluster_size
         activation = tf.matmul(inputs, cluster_weights)

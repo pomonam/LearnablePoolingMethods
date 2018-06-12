@@ -16,15 +16,10 @@
 # noinspection PyUnresolvedReferences
 import pathmagic
 from tensorflow import flags
-from modules import attention
+import attention_modules
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-import math
 import models
-import utils
-
-
-
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer(
@@ -127,7 +122,7 @@ class WillowMoeModel(models.BaseModel):
                                    [-1, vocab_size])
 
         if gating_probabilities:
-            gating = attention.ContextGateV1(vocab_size, batch_norm=True, is_training=is_training)
+            gating = attention_modules.ContextGateV1(vocab_size, batch_norm=True, is_training=is_training)
             probabilities = gating.forward(probabilities)
 
         return {"predictions": probabilities}

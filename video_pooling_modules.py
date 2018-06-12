@@ -16,7 +16,7 @@
 
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-import module
+import modules
 import math
 from tensorflow import flags
 
@@ -28,7 +28,7 @@ FLAGS = flags.FLAGS
 # Please look the copyright notice for each class                ##############
 # VLAD implementation are based on WILLOW paper & public code    ##############
 ###############################################################################
-class LightVLAD(module.BaseModule):
+class LightVLAD(modules.BaseModule):
     """
     LightVLAD version from public code in WILLOW paper & public code.
     https://github.com/antoine77340/Youtube-8M-WILLOW
@@ -80,7 +80,7 @@ class LightVLAD(module.BaseModule):
         return vlad
 
 
-class NetVLAD(module.BaseModule):
+class NetVLAD(modules.BaseModule):
     """
     NetVLAD version from public code in WILLOW paper & public code.
     https://github.com/antoine77340/Youtube-8M-WILLOW

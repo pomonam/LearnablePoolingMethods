@@ -19,13 +19,5 @@ class BaseModule(object):
     """Inherit from this class when implementing new modules."""
     pass
 
-    # @property
-    # def state_size(self):
-    #     raise NotImplementedError()
-    #
-    # @property
-    # def output_size(self):
-    #     raise NotImplementedError()
-
     def forward(self, unused_model_input, **unused_params):
         raise NotImplementedError()

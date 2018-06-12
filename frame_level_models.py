@@ -15,8 +15,7 @@
 """Contains a collection of models which operate on variable-length sequences."""
 # noinspection PyUnresolvedReferences
 import pathmagic
-from modules import attention
-from modules import video_pooling
+import video_pooling_modules
 from tensorflow import flags
 import math
 import models
@@ -109,8 +108,8 @@ class WillowModel(models.BaseModel):
         feature_size = model_input.get_shape().as_list()[2]
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
-        video_NetVLAD = video_pooling.NetVLAD(1024, max_frames, cluster_size, add_batch_norm, is_training)
-        audio_NetVLAD = video_pooling.NetVLAD(128, max_frames, cluster_size / 2, add_batch_norm, is_training)
+        video_NetVLAD = video_pooling_modules.NetVLAD(1024, max_frames, cluster_size, add_batch_norm, is_training)
+        audio_NetVLAD = video_pooling_modules.NetVLAD(128, max_frames, cluster_size / 2, add_batch_norm, is_training)
 
         if add_batch_norm:
             reshaped_input = slim.batch_norm(
@@ -158,7 +157,6 @@ class WillowModel(models.BaseModel):
                                              [hidden1_size, hidden1_size],
                                              initializer=tf.random_normal_initializer(
                                                  stddev=1 / math.sqrt(hidden1_size)))
-
             gates = tf.matmul(activation, gating_weights)
 
             if remove_diag:
@@ -180,7 +178,6 @@ class WillowModel(models.BaseModel):
                 gates += gating_biases
 
             gates = tf.sigmoid(gates)
-
             activation = tf.multiply(activation, gates)
 
         aggregated_model = getattr(video_level_models,
