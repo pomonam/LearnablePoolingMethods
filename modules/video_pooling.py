@@ -23,7 +23,6 @@ from tensorflow import flags
 FLAGS = flags.FLAGS
 
 
-
 ###############################################################################
 # Distribution-Learning methods                                  ##############
 # Please look the copyright notice for each class                ##############

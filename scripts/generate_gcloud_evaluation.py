@@ -36,7 +36,7 @@ def main():
     command += "gcloud --verbosity=debug ml-engine jobs submit training $JOB_NAME "
     command += "--package-path=youtube-8m --module-name=youtube-8m.eval "
     command += "--staging-bucket=$BUCKET_NAME --region=us-east1 "
-    command += "--config=youtube-8m/{} ".format(CLOUD_GPU)
+    command += "--config=youtube-8m/cloudml_config/{} ".format(CLOUD_GPU)
     if FRAME_LEVEL:
         command += "-- --eval_data_pattern='gs://youtube8m-ml-us-east1/2/frame/validate/validate*.tfrecord' "
         command += "--frame_features=True "

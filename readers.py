@@ -263,7 +263,6 @@ class YT8MFrameFeatureReader(BaseReader):
         video_matrix = tf.concat(feature_matrices, 1)
 
         # convert to batch format.
-        # TODO: Do proper batch reads to remove the IO bottleneck.
         batch_video_ids = tf.expand_dims(contexts["id"], 0)
         batch_video_matrix = tf.expand_dims(video_matrix, 0)
         batch_labels = tf.expand_dims(labels, 0)

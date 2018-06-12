@@ -20,7 +20,7 @@ import sys
 import eval_util
 import export_model
 import losses
-import frame_level_models_temp
+import frame_level_models
 import video_level_models
 import readers
 import tensorflow as tf
@@ -669,7 +669,7 @@ def main(unused_argv):
     # Dispatch to a master, a worker, or a parameter server.
     if not cluster or task.type == "master" or task.type == "worker":
         model = find_class_by_name(FLAGS.model,
-                                   [frame_level_models_temp, video_level_models])()
+                                   [frame_level_models, video_level_models])()
 
         reader = get_reader()
 

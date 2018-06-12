@@ -196,7 +196,7 @@ def evaluation_loop(video_id_batch, prediction_batch, label_batch, loss,
 
       Returns:
         The global_step used in the latest model.
-      """
+    """
 
     global_step_val = -1
     with tf.Session() as sess:
