@@ -146,7 +146,8 @@ def inference(reader, train_dir, data_pattern, out_file_location, batch_size, to
         logging.info("loading meta-graph: " + meta_graph_location)
 
         if FLAGS.output_model_tgz:
-            with tarfile.open(FLAGS.output_model_tgz, "w:gz") as tar:
+            out_file_tgz = file_io.FileIO(FLAGS.output_model_tgz, "w")
+            with tarfile.open(fileobj=out_file_tgz, mode="w:gz") as tar:
                 for model_file in file_io.get_matching_files(checkpoint_file + '.*'):
                     tar.add(model_file, arcname=os.path.basename(model_file))
                 tar.add(os.path.join(FLAGS.train_dir, "model_flags.json"),
@@ -213,7 +214,7 @@ def main(unused_argv):
             raise ValueError("You cannot supply --train_dir if supplying "
                              "--input_model_tgz")
         # Untar.
-        if not os.path.exists(FLAGS.untar_model_dir):
+        if not file_io.file_exists(FLAGS.untar_model_dir):
             os.makedirs(FLAGS.untar_model_dir)
         tarfile.open(FLAGS.input_model_tgz).extractall(FLAGS.untar_model_dir)
         FLAGS.train_dir = FLAGS.untar_model_dir

@@ -24,6 +24,45 @@ FLAGS = flags.FLAGS
 
 
 ###############################################################################
+# CNN Type pooling methods ####################################################
+###############################################################################
+class CnnV1(modules.BaseModule):
+    """
+
+    """
+    def __init__(self, kernel_width, kernel_height, num_filter, is_training, scope_id=None):
+        self.kernel_width = kernel_width
+        self.kernel_height = kernel_height
+        self.num_filter = num_filter
+        self.is_training = is_training
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        cnn_activation = slim.conv2d(inputs=inputs,
+                                     num_outputs=self.num_filter,
+                                     kernel_size=[self.kernel_height, self.kernel_width],
+                                     stride=1,
+                                     padding="SAME",
+                                     activation_fn=tf.nn.relu,
+                                     scope="CnnV1_1")
+
+        state = tf.reshape(cnn_activation, shape=[-1, self.num_filter])
+        state = tf.nn.l2_normalize(state, dim=1)
+        return state
+
+
+###############################################################################
+# RNN (LSTM, GRU) Type pooling methods ########################################
+###############################################################################
+class LstmConcatAverage(modules.BaseModule):
+    def __index__(self):
+        pass
+
+    def forward(self, inputs, **unused_params):
+        pass
+
+
+###############################################################################
 # Distribution-Learning methods                                  ##############
 # Please look the copyright notice for each class                ##############
 # VLAD implementation are based on WILLOW paper & public code    ##############
