@@ -55,11 +55,32 @@ class CnnV1(modules.BaseModule):
 # RNN (LSTM, GRU) Type pooling methods ########################################
 ###############################################################################
 class LstmConcatAverage(modules.BaseModule):
-    def __index__(self):
-        pass
+    def __init__(self, lstm_size, num_layers, max_frame):
+        self.lstm_size = lstm_size
+        self.num_layers = num_layers
+        self.max_frame = max_frame
 
     def forward(self, inputs, **unused_params):
-        pass
+        stacked_lstm = tf.contrib.rnn.MultiRNNCell(
+            [
+                tf.contrib.rnn.BasicLSTMCell(
+                    self.lstm_size, forget_bias=1.0, state_is_tuple=False)
+                for _ in range(self.num_layers)
+            ], state_is_tuple=False)
+
+        loss = 0.0
+
+        outputs, state = tf.nn.dynamic_rnn(stacked_lstm, inputs,
+                                           sequence_length=self.max_frame,
+                                           dtype=tf.float32)
+
+        context_memory = tf.nn.l2_normalize(tf.reduce_sum(outputs, axis=1), dim=1)
+        average_state = tf.nn.l2_normalize(tf.reduce_sum(inputs, axis=1), dim=1)
+        # state = tf.concat([state[0], state[1]], 1)
+
+        final_state = tf.concat([context_memory, state, average_state], 1)
+
+        return final_state
 
 
 ###############################################################################

@@ -29,7 +29,7 @@ FRAME_LEVEL = True
 # What features? e.g. RGB, audio
 FEATURES = "rgb,audio"
 # Some additional flags to execute.
-EXTRA = ""
+EXTRA = "--batch_size 128"
 
 
 def main():

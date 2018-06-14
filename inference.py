@@ -82,7 +82,7 @@ if __name__ == '__main__':
 
     # Other flags.
     flags.DEFINE_integer(
-        "batch_size", 8192,
+        "batch_size", 1024,
         "How many examples to process per batch.")
     flags.DEFINE_integer("num_readers", 1,
                          "How many threads to use for reading input files.")

@@ -13,13 +13,10 @@
 # limitations under the License.
 
 """Provides functions to help with evaluating models."""
-import datetime
-import numpy
-
-from tensorflow.python.platform import gfile
-
 import mean_average_precision_calculator as map_calculator
 import average_precision_calculator as ap_calculator
+import datetime
+import numpy
 
 
 def flatten(l):
