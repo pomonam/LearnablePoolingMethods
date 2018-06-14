@@ -22,8 +22,8 @@ import os
 # yaml settings. cloudml-4gpu.yaml, cloudml-gpu.yaml, cloudml-gpu-distributed.yaml
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
-MODEL_NAME = "NetVLADModelLF"
-MODEL_VERSION = 1
+MODEL_NAME = "WillowModel"
+MODEL_VERSION = ""
 # Does it require frame-level models?
 FRAME_LEVEL = True
 # What features? e.g. RGB, audio

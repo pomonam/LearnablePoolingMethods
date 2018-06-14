@@ -104,13 +104,14 @@ class WillowModel(models.BaseModel):
             model_input = utils.SampleRandomSequence(model_input, num_frames,
                                                      iterations)
 
+        # model_input: batch_size x max_frames x feature_size
         max_frames = model_input.get_shape().as_list()[1]
         feature_size = model_input.get_shape().as_list()[2]
+        # model_input: (batch_size * max_frames) x feature_size
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
         video_NetVLAD = video_pooling_modules.NetVLAD(1024, max_frames, cluster_size, add_batch_norm, is_training)
         audio_NetVLAD = video_pooling_modules.NetVLAD(128, max_frames, cluster_size / 2, add_batch_norm, is_training)
-
         if add_batch_norm:
             reshaped_input = slim.batch_norm(
                 reshaped_input,
@@ -120,6 +121,7 @@ class WillowModel(models.BaseModel):
                 scope="input_bn")
 
         with tf.variable_scope("video_VLAD"):
+            # (batch_size * max_frames) x 1024
             vlad_video = video_NetVLAD.forward(reshaped_input[:, 0:1024])
 
         with tf.variable_scope("audio_VLAD"):

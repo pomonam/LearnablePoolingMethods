@@ -149,9 +149,11 @@ def inference(reader, train_dir, data_pattern, out_file_location, batch_size, to
             out_file_tgz = file_io.FileIO(FLAGS.output_model_tgz, "w")
             with tarfile.open(fileobj=out_file_tgz, mode="w:gz") as tar:
                 for model_file in file_io.get_matching_files(checkpoint_file + '.*'):
-                    tar.add(model_file, arcname=os.path.basename(model_file))
-                tar.add(os.path.join(FLAGS.train_dir, "model_flags.json"),
-                        arcname="model_flags.json")
+                    # tar.addfile(file_io.FileIO(model_file, "r"), arcname=os.path.basename(model_file))
+                    tar.addfile(file_io.FileIO(model_file, "r"))
+                # tar.add(os.path.join(FLAGS.train_dir, "model_flags.json"),
+                #         arcname="model_flags.json")
+                tar.addfile(file_io.FileIO(os.path.join(FLAGS.train_dir, "model_flags.json"), "r"))
             print('Tarred model onto ' + FLAGS.output_model_tgz)
         with tf.device("/cpu:0"):
             saver = tf.train.import_meta_graph(meta_graph_location, clear_devices=True)

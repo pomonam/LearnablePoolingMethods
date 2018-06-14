@@ -67,6 +67,88 @@ class LstmConcatAverage(modules.BaseModule):
 # Please look the copyright notice for each class                ##############
 # VLAD implementation are based on WILLOW paper & public code    ##############
 ###############################################################################
+class SparseNetVLAD(modules.BaseModule):
+    """
+    Sparse representation VLAD module.
+    """
+    def __init__(self, feature_size, max_frames, cluster_size, projection_size, batch_norm, is_training, scope_id=None):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.projection_size = projection_size
+        self.batch_norm = batch_norm
+        self.cluster_size = cluster_size
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        projection_weights = tf.get_variable("projection_weights",
+                                             [self.feature_size, self.projection_size],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(self.feature_size)))
+        tf.summary.histogram("projection_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                             projection_weights)
+        # frame_size x feature_size, feature_size x projection_size
+        # frame_size x projection_size
+        project_activation = tf.matmul(inputs, projection_weights)
+
+        cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
+                                                                     else str(self.scope_id)),
+                                          [self.projection_size, self.cluster_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.feature_size)))
+
+        tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                             cluster_weights)
+        # frame_size x cluster_size
+        activation = tf.matmul(project_activation, cluster_weights)
+
+        if self.batch_norm:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="cluster_bn")
+        else:
+            cluster_biases = tf.get_variable("cluster_biases{}".format("" if self.scope_id is None
+                                                                       else str(self.scope_id)),
+                                             [self.cluster_size],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(self.projection_size)))
+            tf.summary.histogram("cluster_biases", cluster_biases)
+            activation += cluster_biases
+
+        activation = tf.nn.softmax(activation)
+        tf.summary.histogram("cluster_output", activation)
+
+        # batch_size x frame_size x cluster_size
+        activation = tf.reshape(activation, [-1, self.max_frames, self.cluster_size])
+
+        # batch_size x 1 x cluster_size
+        a_sum = tf.reduce_sum(activation, -2, keep_dims=True)
+
+        # 1 x feature_size x cluster_size
+        cluster_weights2 = tf.get_variable("cluster_weights2",
+                                           [1, self.projection_size, self.cluster_size],
+                                           initializer=tf.random_normal_initializer(
+                                               stddev=1 / math.sqrt(self.projection_size)))
+
+        a = tf.multiply(a_sum, cluster_weights2)
+
+        activation = tf.transpose(activation, perm=[0, 2, 1])
+
+        reshaped_input = tf.reshape(project_activation, [-1, self.max_frames, self.projection_size])
+        vlad = tf.matmul(activation, reshaped_input)
+        vlad = tf.transpose(vlad, perm=[0, 2, 1])
+        vlad = tf.subtract(vlad, a)
+        vlad = tf.nn.l2_normalize(vlad, 1)
+        vlad = tf.reshape(vlad, [-1, self.cluster_size * self.projection_size])
+        vlad = tf.nn.l2_normalize(vlad, 1)
+
+        # batch_size x (cluster_size * feature_size)
+        return vlad
+
+
 class LightVLAD(modules.BaseModule):
     """
     LightVLAD version from public code in WILLOW paper & public code.
