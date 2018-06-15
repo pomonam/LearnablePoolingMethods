@@ -26,61 +26,52 @@ FLAGS = flags.FLAGS
 ###############################################################################
 # Context Learning methods ####################################################
 ###############################################################################
-# class ClMoeModule(modules.BaseModule):
-#     def __init__(self,
-#                  feature_size,
-#                  max_frames,
-#                  cluster_size,
-#                  batch_norm,
-#                  is_training,
-#                  scope_id=None):
-#
-#         self.feature_size = feature_size
-#         self.max_frames = max_frames
-#         self.is_training = is_training
-#         self.batch_norm = batch_norm
-#         self.cluster_size = cluster_size
-#         self.scope_id = scope_id
-#
-#
-#
-#     def forward(self, inputs, **unused_params):
-#         cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
-#                                                                      else str(self.scope_id)),
-#                                           [self.feature_size, self.cluster_size],
-#                                           initializer=tf.random_normal_initializer(
-#                                               stddev=1 / math.sqrt(self.feature_size)))
-#         activation = tf.matmul(inputs, cluster_weights)
-#
-#         if self.batch_norm:
-#             activation = slim.batch_norm(
-#                 activation,
-#                 center=True,
-#                 scale=True,
-#                 is_training=self.is_training,
-#                 scope="cluster_bn")
-#         else:
-#             cluster_biases = tf.get_variable("cluster_biases{}".format("" if self.scope_id is None
-#                                                                        else str(self.scope_id)),
-#                                              [self.cluster_size],
-#                                              initializer=tf.random_normal_initializer(
-#                                                  stddev=1 / math.sqrt(self.feature_size)))
-#             tf.summary.histogram("cluster_biases", cluster_biases)
-#             activation += cluster_biases
-#
-#         activation = tf.nn.softmax(activation)
-#         activation = tf.reshape(activation, [-1, self.max_frames, self.cluster_size])
-#         activation = tf.transpose(activation, perm=[0, 2, 1])
-#         reshaped_input = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
-#
-#         vlad = tf.matmul(activation, reshaped_input)
-#         vlad = tf.transpose(vlad, perm=[0, 2, 1])
-#         vlad = tf.nn.l2_normalize(vlad, 1)
-#         vlad = tf.reshape(vlad, [-1, self.cluster_size * self.feature_size])
-#         vlad = tf.nn.l2_normalize(vlad, 1)
-#
-#         # batch_size x (cluster_size * feature_size)
-#         return vlad
+class ClPhdModule(modules.BaseModule):
+    def __init__(self,
+                 feature_size,
+                 max_frames,
+                 cluster_size,
+                 batch_norm,
+                 is_training,
+                 scope_id=None):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.cluster_size = cluster_size
+        self.batch_norm = batch_norm
+        self.is_training = is_training
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        """
+        :param inputs: (batch_size * num_samples) x feature_size
+        :return: (batch_size * num_samples) x num_clusters
+        """
+        cluster_weights = tf.get_variable("ClClusterWeights",
+                                          [self.feature_size, self.cluster_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.feature_size)))
+        tf.summary.histogram("cl_cluster_weights", cluster_weights)
+        activation = tf.matmul(inputs, cluster_weights)
+        if self.batch_norm:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="cl_cluster_bn")
+        else:
+            cluster_biases = tf.get_variable("cluster_biases",
+                                             [self.cluster_size],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(self.feature_size)))
+            tf.summary.histogram("cl_cluster_biases", cluster_biases)
+            activation += cluster_biases
+        # -> (batch_size * num_samples) x num_clusters
+        activation = tf.nn.relu6(activation)
+        tf.summary.histogram("cl_cluster_output", activation)
+        return activation
+
+
 class ClLrModule(modules.BaseModule):
     def __init__(self,
                  feature_size,
@@ -89,7 +80,6 @@ class ClLrModule(modules.BaseModule):
                  batch_norm,
                  is_training,
                  scope_id=None,
-                 num_mixtures=2,
                  l2_penalty=1e-8):
         self.feature_size = feature_size
         self.max_frames = max_frames
@@ -97,7 +87,6 @@ class ClLrModule(modules.BaseModule):
         self.batch_norm = batch_norm
         self.is_training = is_training
         self.scope_id = scope_id
-        self.num_mixtures = num_mixtures
         self.l2_penality = l2_penalty
 
     def forward(self, inputs, **unused_params):
@@ -112,6 +101,7 @@ class ClLrModule(modules.BaseModule):
             weights_regularizer=slim.l2_regularizer(self.l2_penality)
         )
         return output
+
 
 class ClMoeModel(modules.BaseModule):
     def __init__(self,
@@ -239,16 +229,102 @@ class ClVladModule(modules.BaseModule):
         return vlad
 
 
-
-
-
-class ClBowModule(modules.BaseModule):
-    pass
-
 class ClFisherModule(modules.BaseModule):
-    pass
+    def __init__(self,
+                 feature_size,
+                 max_frames,
+                 cluster_size,
+                 batch_norm,
+                 is_training,
+                 scope_id=None):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.batch_norm = batch_norm
+        self.cluster_size = cluster_size
+        self.scope_id = scope_id
 
+    def forward(self, inputs, **unused_params):
+        cluster_weights = tf.get_variable("cluster_weights",
+                                          [self.feature_size, self.cluster_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.feature_size)))
 
+        covar_weights = tf.get_variable("covar_weights",
+                                        [self.feature_size, self.cluster_size],
+                                        initializer=tf.random_normal_initializer(mean=1.0, stddev=1 / math.sqrt(
+                                            self.feature_size)))
+
+        covar_weights = tf.square(covar_weights)
+        eps = tf.constant([1e-6])
+        covar_weights = tf.add(covar_weights, eps)
+
+        tf.summary.histogram("cluster_weights", cluster_weights)
+        activation = tf.matmul(inputs, cluster_weights)
+        if self.batch_norm:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="cluster_bn")
+        else:
+            cluster_biases = tf.get_variable("cluster_biases",
+                                             [self.cluster_size],
+                                             initializer=tf.random_normal(stddev=1 / math.sqrt(self.feature_size)))
+            tf.summary.histogram("cluster_biases", cluster_biases)
+            activation += cluster_biases
+
+        activation = tf.nn.softmax(activation)
+        tf.summary.histogram("cluster_output", activation)
+
+        activation = tf.reshape(activation, [-1, self.max_frames, self.cluster_size])
+
+        a_sum = tf.reduce_sum(activation, -2, keep_dims=True)
+
+        if not FLAGS.fv_couple_weights:
+            cluster_weights2 = tf.get_variable("cluster_weights2",
+                                               [1, self.feature_size, self.cluster_size],
+                                               initializer=tf.random_normal_initializer(
+                                                   stddev=1 / math.sqrt(self.feature_size)))
+        else:
+            cluster_weights2 = tf.scalar_mul(FLAGS.fv_coupling_factor, cluster_weights)
+
+        a = tf.multiply(a_sum, cluster_weights2)
+
+        activation = tf.transpose(activation, perm=[0, 2, 1])
+
+        reshaped_input = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
+        fv1 = tf.matmul(activation, reshaped_input)
+
+        fv1 = tf.transpose(fv1, perm=[0, 2, 1])
+
+        # computing second order FV
+        a2 = tf.multiply(a_sum, tf.square(cluster_weights2))
+
+        b2 = tf.multiply(fv1, cluster_weights2)
+        fv2 = tf.matmul(activation, tf.square(reshaped_input))
+
+        fv2 = tf.transpose(fv2, perm=[0, 2, 1])
+        fv2 = tf.add_n([a2, fv2, tf.scalar_mul(-2, b2)])
+
+        fv2 = tf.divide(fv2, tf.square(covar_weights))
+        fv2 = tf.subtract(fv2, a_sum)
+
+        fv2 = tf.reshape(fv2, [-1, self.cluster_size * self.feature_size])
+
+        fv2 = tf.nn.l2_normalize(fv2, 1)
+        fv2 = tf.reshape(fv2, [-1, self.cluster_size * self.feature_size])
+        fv2 = tf.nn.l2_normalize(fv2, 1)
+
+        fv1 = tf.subtract(fv1, a)
+        fv1 = tf.divide(fv1, covar_weights)
+
+        fv1 = tf.nn.l2_normalize(fv1, 1)
+        fv1 = tf.reshape(fv1, [-1, self.cluster_size * self.feature_size])
+        fv1 = tf.nn.l2_normalize(fv1, 1)
+
+        return tf.concat([fv1, fv2], 1)
 
 
 class ClLstmModule(modules.BaseModule):

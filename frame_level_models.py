@@ -51,7 +51,7 @@ flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
 ###############################################################################
 # Prototype models ############################################################
 ###############################################################################
-from video_pooling_modules import FrameMoeModule, LstmModule
+from video_pooling_modules import ClMoeModel, ClLstmModule
 from attention_modules import ContextGateV1
 
 
@@ -90,31 +90,39 @@ class ContextLearningModelV1(models.BaseModel):
         # model_input: (batch_size * max_frames) x feature_size
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
-        # MoE
-        fmm = FrameMoeModule(vocab_size * 2, num_mixtures=5)
-        fmm_weights = fmm.forward(reshaped_input)
+        fmm = ClMoeModel(feature_size, max_frames, feature_size * 3,
+                         batch_norm=True, is_training=is_training,
+                         scope_id=1)
+        fmm_activation = fmm.forward(reshaped_input)
+        # -> (batch_size * num_samples) x num_clusters
 
         # Context Gating
-        cg_1 = ContextGateV1(vocab_size, is_training)
-        cg_1_weights = cg_1.forward(fmm_weights)
+        cg_1 = ContextGateV1(feature_size * 3,
+                             is_training)
+        cg_1_activation = cg_1.forward(fmm_activation)
+        # -> (batch_size * num_samples) x num_clusters
+        activation = tf.reshape(cg_1_activation, [-1, max_frames, cluster_size])
+        # -> batch_size x max_frames x cluster_size
 
-        # Lstm
-        lstm = LstmModule(feature_size, 2, num_frames)
-        lstm_weights = lstm.forward(cg_1_weights)
+        lstm = ClLstmModule(cluster_size=feature_size * 3,
+                            lstm_size=feature_size,
+                            num_layers=2,
+                            num_frames=max_frames)
+        activation = lstm.forward(activation)
+        # -> batch_size x cluster_size
 
-        cg_2 = ContextGateV1(vocab_size, is_training)
-        cg_2_weights = cg_2.forward(fmm_weights)
+        cg_2 = ContextGateV1(feature_size * 3, is_training)
+        cg_2_activation = cg_2.forward(activation)
+        # -> batch_size x cluster_size
 
         aggregated_model = getattr(video_level_models,
                                    "WillowMoeModel")
 
         return aggregated_model().create_model(
-            model_input=lstm_weights,
+            model_input=cg_2_activation,
             vocab_size=vocab_size,
             is_training=is_training,
             **unused_params)
-
-
 
 
 ###############################################################################
