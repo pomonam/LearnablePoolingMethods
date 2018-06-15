@@ -51,6 +51,70 @@ flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
 ###############################################################################
 # Prototype models ############################################################
 ###############################################################################
+from video_pooling_modules import FrameMoeModule, LstmModule
+from attention_modules import ContextGateV1
+
+
+class ContextLearningModelV1(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     cluster_size=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.iterations
+        add_batch_norm = add_batch_norm or FLAGS.netvlad_add_batch_norm
+        random_frames = sample_random_frames or FLAGS.sample_random_frames
+        cluster_size = cluster_size or FLAGS.netvlad_cluster_size
+        hidden1_size = hidden_size or FLAGS.netvlad_hidden_size
+        relu = FLAGS.netvlad_relu
+        gating = FLAGS.gating
+        remove_diag = FLAGS.gating_remove_diag
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        if random_frames:
+            model_input = utils.SampleRandomFrames(model_input, num_frames,
+                                                   iterations)
+        else:
+            model_input = utils.SampleRandomSequence(model_input, num_frames,
+                                                     iterations)
+
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        # model_input: (batch_size * max_frames) x feature_size
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        # MoE
+        fmm = FrameMoeModule(vocab_size * 2, num_mixtures=5)
+        fmm_weights = fmm.forward(reshaped_input)
+
+        # Context Gating
+        cg_1 = ContextGateV1(vocab_size, is_training)
+        cg_1_weights = cg_1.forward(fmm_weights)
+
+        # Lstm
+        lstm = LstmModule(feature_size, 2, num_frames)
+        lstm_weights = lstm.forward(cg_1_weights)
+
+        cg_2 = ContextGateV1(vocab_size, is_training)
+        cg_2_weights = cg_2.forward(fmm_weights)
+
+        aggregated_model = getattr(video_level_models,
+                                   "WillowMoeModel")
+
+        return aggregated_model().create_model(
+            model_input=lstm_weights,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
+
+
 
 
 ###############################################################################

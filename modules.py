@@ -19,5 +19,5 @@ class BaseModule(object):
     """Inherit from this class when implementing new modules."""
     pass
 
-    def forward(self, unused_model_input, **unused_params):
+    def forward(self, unused_module_input, **unused_params):
         raise NotImplementedError()
