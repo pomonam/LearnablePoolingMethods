@@ -46,7 +46,7 @@ class ClPhdModule(modules.BaseModule):
         :param inputs: (batch_size * num_samples) x feature_size
         :return: (batch_size * num_samples) x num_clusters
         """
-        cluster_weights = tf.get_variable("ClClusterWeights",
+        cluster_weights = tf.get_variable("cl_cluster_weights",
                                           [self.feature_size, self.cluster_size],
                                           initializer=tf.random_normal_initializer(
                                               stddev=1 / math.sqrt(self.feature_size)))
@@ -60,7 +60,7 @@ class ClPhdModule(modules.BaseModule):
                 is_training=self.is_training,
                 scope="cl_cluster_bn")
         else:
-            cluster_biases = tf.get_variable("cluster_biases",
+            cluster_biases = tf.get_variable("cl_cluster_biases",
                                              [self.cluster_size],
                                              initializer=tf.random_normal_initializer(
                                                  stddev=1 / math.sqrt(self.feature_size)))
@@ -135,14 +135,14 @@ class ClMoeModel(modules.BaseModule):
             activation_fn=None,
             biases_initializer=None,
             weights_initializer=slim.l2_regularizer(self.l2_penality),
-            scope="clMoeGates")
+            scope="cl_moe_gates")
         # -> (batch_size * num_samples) x (num_clusters * (num_mixtures + 1))
         expert_activations = slim.fully_connected(
             inputs,
             self.cluster_size * self.num_mixtures,
             activation_fn=None,
             weights_regularizer=slim.l2_regularizer(self.l2_penality),
-            scope="clMoeExperts")
+            scope="cl_moe_gates")
         # -> (batch_size * num_samples) x (num_clusters * num_mixtures)
 
         gating_distribution = tf.nn.softmax(tf.reshape(

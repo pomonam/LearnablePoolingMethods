@@ -15,7 +15,6 @@
 """Provides functions to help with evaluating models."""
 import mean_average_precision_calculator as map_calculator
 import average_precision_calculator as ap_calculator
-import datetime
 import numpy
 
 

@@ -74,7 +74,6 @@ class ContextLearningModelV1(models.BaseModel):
         hidden1_size = hidden_size or FLAGS.netvlad_hidden_size
         relu = FLAGS.netvlad_relu
         gating = FLAGS.gating
-        remove_diag = FLAGS.gating_remove_diag
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         if random_frames:

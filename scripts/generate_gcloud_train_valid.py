@@ -22,7 +22,7 @@ import os
 # yaml settings. cloudml-4gpu.yaml, cloudml-gpu.yaml, cloudml-gpu-distributed.yaml
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
-MODEL_NAME = "WillowModel"
+MODEL_NAME = "ContextLearningModelV1"
 MODEL_VERSION = 1
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -40,7 +40,7 @@ def main():
     # Start by defining a job name.
     command = "JOB_NAME=yt8m_train_$(date +%Y%m%d_%H%M%S); "
     command += "gcloud --verbosity=debug ml-engine jobs submit training $JOB_NAME "
-    command += "--package-path=youtube-8m --module-name=youtube-8m.train"
+    command += "--package-path=youtube-8m --module-name=youtube-8m.train "
     command += "--staging-bucket=$BUCKET_NAME --region=us-east1 "
     command += "--config=youtube-8m/cloudml_config/{} ".format(CLOUD_GPU)
     if FRAME_LEVEL:
