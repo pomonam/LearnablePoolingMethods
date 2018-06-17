@@ -159,8 +159,8 @@ class ContextGateV3(modules.BaseModule):
         cluster_weights = tf.get_variable("cluster_weight_v3{}".format("" if self.scope_id is None else str(self.scope_id)),
                                           [self.vocab_size, cluster_size],
                                           initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)))
-        # tf.summary.histogram("cluster_weight_v3"
-        #                      "{}".format("" if self.scope_id is None else str(self.scope_id)), cluster_weights)
+        tf.summary.histogram("cluster_weight_v3"
+                             "{}".format("" if self.scope_id is None else str(self.scope_id)), cluster_weights)
 
         # batch_size x vocab_size, vocab_size x cluster_size -> batch_size x cluster_size
         activation = tf.matmul(inputs, cluster_weights)

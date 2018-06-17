@@ -75,6 +75,7 @@ class ContextLearningModelV1(models.BaseModel):
         relu = FLAGS.netvlad_relu
         gating = FLAGS.gating
 
+        ori_num_frames = num_frames
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         if random_frames:
             model_input = utils.SampleRandomFrames(model_input, num_frames,
@@ -106,7 +107,7 @@ class ContextLearningModelV1(models.BaseModel):
         lstm = ClLstmModule(cluster_size=feature_size * 3,
                             lstm_size=feature_size,
                             num_layers=2,
-                            num_frames=max_frames)
+                            num_frames=ori_num_frames)
         activation = lstm.forward(activation)
         # -> batch_size x cluster_size
 

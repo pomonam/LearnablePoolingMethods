@@ -120,7 +120,7 @@ class ClMoeModel(modules.BaseModule):
         self.is_training = is_training
         self.scope_id = scope_id
         self.num_mixtures = num_mixtures
-        self.l2_penality = l2_penalty
+        self.l2_penalty = l2_penalty
 
     def forward(self, inputs, **unused_params):
         """
@@ -134,20 +134,19 @@ class ClMoeModel(modules.BaseModule):
             self.cluster_size * (self.num_mixtures + 1),
             activation_fn=None,
             biases_initializer=None,
-            weights_initializer=slim.l2_regularizer(self.l2_penality),
-            scope="cl_moe_gates")
+            weights_regularizer=slim.l2_regularizer(self.l2_penalty))
         # -> (batch_size * num_samples) x (num_clusters * (num_mixtures + 1))
         expert_activations = slim.fully_connected(
             inputs,
             self.cluster_size * self.num_mixtures,
             activation_fn=None,
-            weights_regularizer=slim.l2_regularizer(self.l2_penality),
-            scope="cl_moe_gates")
+            weights_regularizer=slim.l2_regularizer(self.l2_penalty))
         # -> (batch_size * num_samples) x (num_clusters * num_mixtures)
 
         gating_distribution = tf.nn.softmax(tf.reshape(
             gate_activations, [-1, self.num_mixtures + 1]))
         # -> (batch_size * num_samples * num_cluster) x (num_mixtures + 1)
+
         expert_distribution = tf.nn.sigmoid(tf.reshape(
             expert_activations, [-1, self.num_mixtures]))
         # -> (batch_size * num_samples * num_cluster) x num_mixtures
@@ -352,7 +351,7 @@ class ClLstmModule(modules.BaseModule):
                     self.lstm_size, forget_bias=1.0)
                 for _ in range(self.num_layers)
             ])
-
+        print(inputs)
         outputs, state = tf.nn.dynamic_rnn(stacked_lstm, inputs,
                                            sequence_length=self.num_frames,
                                            dtype=tf.float32)
@@ -426,10 +425,10 @@ class CnnV1(modules.BaseModule):
 ###############################################################################
 
 class LstmModule(modules.BaseModule):
-    def __init__(self, lstm_size, num_layers, max_frame):
+    def __init__(self, lstm_size, num_layers, num_frames):
         self.lstm_size = lstm_size
         self.num_layers = num_layers
-        self.max_frame = max_frame
+        self.num_frames = num_frames
 
     def forward(self, inputs, **unused_params):
         stacked_lstm = tf.contrib.rnn.MultiRNNCell(
@@ -442,7 +441,7 @@ class LstmModule(modules.BaseModule):
         loss = 0.0
 
         outputs, state = tf.nn.dynamic_rnn(stacked_lstm, inputs,
-                                           sequence_length=self.max_frame,
+                                           sequence_length=self.num_frames,
                                            dtype=tf.float32)
         return state.h[-1]
 

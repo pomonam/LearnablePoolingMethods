@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Binary for training Tensorflow models on the YouTube-8M dataset."""
+import os
+import sys
+
+# Explicitly add the file's directory to the path list.
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+sys.path.append(os.path.join(os.getcwd(), "modules"))
+
+
 # noinspection PyUnresolvedReferences
 import pathmagic
 import json
