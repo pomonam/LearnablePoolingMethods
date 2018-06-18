@@ -202,6 +202,7 @@ class ContextLearningModelV2(models.BaseModel):
             is_training=is_training,
             **unused_params)
 
+
 class ContextLearningModelV3(models.BaseModel):
     def create_model(self,
                      model_input,
@@ -274,6 +275,8 @@ class ContextLearningModelV3(models.BaseModel):
             vocab_size=vocab_size,
             is_training=is_training,
             **unused_params)
+
+
 ###############################################################################
 # Baseline (Benchmark) models #################################################
 ###############################################################################

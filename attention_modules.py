@@ -30,6 +30,45 @@ flags.DEFINE_integer("CGV3_cluster_size", 7200,
 
 
 ###############################################################################
+# Vocabulary Correlation ######################################################
+###############################################################################
+class PnGateModule(modules.BaseModule):
+    def __init__(self, vocab_size, is_training, batch_norm=True, scope_id=None):
+        """
+        :param vocab_size:
+        :param is_training:
+        :param batch_norm:
+        :param scope_id:
+        """
+        self.vocab_size = vocab_size
+        self.batch_norm = batch_norm
+        self.scope_id = scope_id
+        self.is_training = is_training
+
+    def forward(self, inputs, **unused_params):
+        p_gating_weights = \
+            tf.get_variable("p_pn_gate",
+                            [self.vocab_size, self.vocab_size],
+                            initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(self.vocab_size)))
+        n_gating_weights = \
+            tf.get_variable("n_pn_gate",
+                            [self.vocab_size, self.vocab_size],
+                            initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(self.vocab_size)))
+
+        # batch_size x vocab_size, vocab_size x vocab_size --> batch_size x vocab_size
+        p_activation = tf.matmul(inputs, p_gating_weights)
+        p_activation = tf.nn.relu6(p_activation)
+        p_gate = inputs + p_activation
+
+        # batch_size x vocab_size, vocab_size x vocab_size --> batch_size x vocab_size
+        n_activation = tf.matmul(inputs, n_gating_weights)
+        n_activation = -1 * n_activation
+        n_activation = tf.nn.relu6(n_activation)
+        n_gate = p_gate + (-1 * n_activation)
+
+        output = tf.nn.softmax(n_gate)
+
+###############################################################################
 # Attention / Context Gate for vocabularies ###################################
 ###############################################################################
 class ContextGateV1(modules.BaseModule):
