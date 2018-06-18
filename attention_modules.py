@@ -57,9 +57,7 @@ class ContextGateV1(modules.BaseModule):
         :return: batch_size x vocab_size
         """
         gating_weights = tf.get_variable("vocab_gate_v1{}".format("" if self.scope_id is None else str(self.scope_id)),
-                                         [self.vocab_size, self.vocab_size],
-                                         initializer=
-                                         tf.random_normal_initializer(stddev=1 / math.sqrt(self.vocab_size)))
+                                         [self.vocab_size, self.vocab_size])
 
         # batch_size x vocab_size, vocab_size x vocab_size --> batch_size x vocab_size
         gates = tf.matmul(inputs, gating_weights)

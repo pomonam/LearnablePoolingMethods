@@ -22,7 +22,7 @@ import os
 # yaml settings. cloudml-4gpu.yaml, cloudml-gpu.yaml, cloudml-gpu-distributed.yaml
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
-MODEL_NAME = "ContextLearningModelV1"
+MODEL_NAME = "ContextLearningModelV3"
 MODEL_VERSION = 1
 # Does it require frame-level models?
 FRAME_LEVEL = True
