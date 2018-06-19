@@ -15,16 +15,19 @@
 """Contains a collection of models which operate on variable-length sequences."""
 # noinspection PyUnresolvedReferences
 import pathmagic
-import video_pooling_modules
 from tensorflow import flags
-import math
-import models
-import video_level_models
 import tensorflow as tf
 import model_utils as utils
 import tensorflow.contrib.slim as slim
+import video_pooling_modules
+import math
+import models
+import video_level_models
 
 
+###############################################################################
+# Necessary FLAGS #############################################################
+###############################################################################
 FLAGS = flags.FLAGS
 flags.DEFINE_integer("iterations", 30,
                      "Number of frames per batch for DBoF.")
@@ -47,6 +50,7 @@ flags.DEFINE_string("video_level_classifier_model", "MoeModel",
                     "classifier layer")
 flags.DEFINE_integer("lstm_cells", 1024, "Number of LSTM cells.")
 flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
+
 
 ###############################################################################
 # Prototype models ############################################################

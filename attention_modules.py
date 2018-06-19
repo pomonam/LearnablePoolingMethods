@@ -1,4 +1,4 @@
-# Copyright 2018 Juhan, Ruijian. All Rights Reserved.
+# Copyright 2018 DeepTopology. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import tensorflow as tf
-import tensorflow.contrib.slim as slim
 from tensorflow.python.ops import nn
 from tensorflow import flags
-
+import tensorflow as tf
+import tensorflow.contrib.slim as slim
 import math
 import modules
 

@@ -14,12 +14,16 @@
 
 """Modules for pooling frame-level features."""
 
+from tensorflow import flags
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import modules
 import math
-from tensorflow import flags
 
+
+###############################################################################
+# Necessary FLAGS #############################################################
+###############################################################################
 FLAGS = flags.FLAGS
 
 
@@ -300,25 +304,19 @@ class ClFisherModule(modules.BaseModule):
 
         # computing second order FV
         a2 = tf.multiply(a_sum, tf.square(cluster_weights2))
-
         b2 = tf.multiply(fv1, cluster_weights2)
         fv2 = tf.matmul(activation, tf.square(reshaped_input))
-
         fv2 = tf.transpose(fv2, perm=[0, 2, 1])
         fv2 = tf.add_n([a2, fv2, tf.scalar_mul(-2, b2)])
-
         fv2 = tf.divide(fv2, tf.square(covar_weights))
         fv2 = tf.subtract(fv2, a_sum)
-
         fv2 = tf.reshape(fv2, [-1, self.cluster_size * self.feature_size])
-
         fv2 = tf.nn.l2_normalize(fv2, 1)
         fv2 = tf.reshape(fv2, [-1, self.cluster_size * self.feature_size])
         fv2 = tf.nn.l2_normalize(fv2, 1)
 
         fv1 = tf.subtract(fv1, a)
         fv1 = tf.divide(fv1, covar_weights)
-
         fv1 = tf.nn.l2_normalize(fv1, 1)
         fv1 = tf.reshape(fv1, [-1, self.cluster_size * self.feature_size])
         fv1 = tf.nn.l2_normalize(fv1, 1)
