@@ -477,7 +477,13 @@ class LstmConcatAverage(modules.BaseModule):
 ###############################################################################
 # Transformer #################################################################
 ###############################################################################
+class TransformerEncodeModule(modules.BaseModule):
+    def __init__(self):
+        pass
 
+    def forward(self, inputs, **unused_params):
+        pass
+    
 
 ###############################################################################
 # Distribution-Learning methods                                  ##############
