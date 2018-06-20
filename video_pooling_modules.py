@@ -176,7 +176,7 @@ class NetVLADNccReg(modules.BaseModule):
         return vlad
 
 
-class NetVLADBowAttention(modules.BaseModule):
+class NetVLADBow(modules.BaseModule):
     """
     NetVLAD version from public code in WILLOW paper & public code.
     https://github.com/antoine77340/Youtube-8M-WILLOW
@@ -198,6 +198,7 @@ class NetVLADBowAttention(modules.BaseModule):
 
         tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
                              cluster_weights)
+
         activation = tf.matmul(inputs, cluster_weights)
 
         if self.batch_norm:
@@ -241,7 +242,7 @@ class NetVLADBowAttention(modules.BaseModule):
         vlad = tf.nn.l2_normalize(vlad, 1)
 
         # batch_size x (cluster_size * feature_size)
-        return vlad
+        return vlad,
 
 
 ###############################################################################

@@ -58,6 +58,7 @@ flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
 from video_pooling_modules import ClMoeModel, ClLstmModule, ClLrModule, ClPhdModule
 from attention_modules import ContextGateV1
 
+
 class PrototypeV1(models.BaseModel):
     def create_model(self,
                      model_input,
@@ -70,7 +71,109 @@ class PrototypeV1(models.BaseModel):
                      hidden_size=None,
                      is_training=True,
                      **unused_params):
-        pass
+        iterations = iterations or FLAGS.iterations
+        add_batch_norm = add_batch_norm or FLAGS.netvlad_add_batch_norm
+        random_frames = sample_random_frames or FLAGS.sample_random_frames
+        cluster_size = cluster_size or FLAGS.netvlad_cluster_size
+        hidden1_size = hidden_size or FLAGS.netvlad_hidden_size
+        relu = FLAGS.netvlad_relu
+        gating = FLAGS.gating
+        remove_diag = FLAGS.gating_remove_diag
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        if random_frames:
+            model_input = utils.SampleRandomFrames(model_input, num_frames,
+                                                   iterations)
+        else:
+            model_input = utils.SampleRandomSequence(model_input, num_frames,
+                                                     iterations)
+
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        # model_input: (batch_size * max_frames) x feature_size
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        video_netvlad = video_pooling_modules.NetVLAD(1024, max_frames, cluster_size, add_batch_norm, is_training)
+        audio_netvlad = video_pooling_modules.NetVLAD(128, max_frames, cluster_size / 2, add_batch_norm, is_training)
+        if add_batch_norm:
+            reshaped_input = slim.batch_norm(
+                reshaped_input,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="input_bn")
+
+        with tf.variable_scope("video_VLAD"):
+            # (batch_size * max_frames) x 1024
+            vlad_video = video_NetVLAD.forward(reshaped_input[:, 0:1024])
+
+        with tf.variable_scope("audio_VLAD"):
+            vlad_audio = audio_NetVLAD.forward(reshaped_input[:, 1024:])
+
+        vlad = tf.concat([vlad_video, vlad_audio], 1)
+
+        vlad_dim = vlad.get_shape().as_list()[1]
+        hidden1_weights = tf.get_variable("hidden1_weights",
+                                          [vlad_dim, hidden1_size],
+                                          initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)))
+
+        activation = tf.matmul(vlad, hidden1_weights)
+
+        if add_batch_norm and relu:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="hidden1_bn")
+
+        else:
+            hidden1_biases = tf.get_variable("hidden1_biases",
+                                             [hidden1_size],
+                                             initializer=tf.random_normal_initializer(stddev=0.01))
+            tf.summary.histogram("hidden1_biases", hidden1_biases)
+            activation += hidden1_biases
+
+        if relu:
+            activation = tf.nn.relu6(activation)
+
+        if gating:
+            gating_weights = tf.get_variable("gating_weights_2",
+                                             [hidden1_size, hidden1_size],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(hidden1_size)))
+            gates = tf.matmul(activation, gating_weights)
+
+            if remove_diag:
+                # Removes diagonals coefficients
+                diagonals = tf.matrix_diag_part(gating_weights)
+                gates = gates - tf.multiply(diagonals, activation)
+
+            if add_batch_norm:
+                gates = slim.batch_norm(
+                    gates,
+                    center=True,
+                    scale=True,
+                    is_training=is_training,
+                    scope="gating_bn")
+            else:
+                gating_biases = tf.get_variable("gating_biases",
+                                                [cluster_size],
+                                                initializer=tf.random_normal(stddev=1 / math.sqrt(feature_size)))
+                gates += gating_biases
+
+            gates = tf.sigmoid(gates)
+            activation = tf.multiply(activation, gates)
+
+        aggregated_model = getattr(video_level_models,
+                                   "WillowMoeModel")
+
+        return aggregated_model().create_model(
+            model_input=activation,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
 
 
 class ContextLearningModelV1(models.BaseModel):
@@ -255,6 +358,26 @@ class ContextLearningModelV3(models.BaseModel):
         feature_size = model_input.get_shape().as_list()[2]
         # model_input: (batch_size * max_frames) x feature_size
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        video_vlad = video_pooling_modules.NetVLAD(1024, max_frames, 512, add_batch_norm, is_training)
+        audio_vlad = video_pooling_modules.NetVLAD(128, max_frames, 64, add_batch_norm, is_training)
+
+        if add_batch_norm:
+            reshaped_input = slim.batch_norm(
+                reshaped_input,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="input_bn")
+
+        with tf.variable_scope("video_VLAD"):
+            # (batch_size * max_frames) x 1024
+            vlad_video = video_vlad.forward(reshaped_input[:, 0:1024])
+
+        with tf.variable_scope("audio_VLAD"):
+            vlad_audio = audio_vlad.forward(reshaped_input[:, 1024:])
+
+        vlad = tf.concat([vlad_video, vlad_audio], 1)
 
         fmm = ClPhdModule(feature_size, max_frames, feature_size * 3,
                          batch_norm=True, is_training=is_training,
