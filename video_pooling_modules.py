@@ -28,6 +28,271 @@ FLAGS = flags.FLAGS
 
 
 ###############################################################################
+# Prototype ###################################################################
+###############################################################################
+class NetVLADetReg(modules.BaseModule):
+    """
+    NetVLAD version from public code in WILLOW paper & public code.
+    https://github.com/antoine77340/Youtube-8M-WILLOW
+    """
+    def __init__(self, feature_size, max_frames, cluster_size, batch_norm, is_training,
+                 det_reg=1e-6, scope_id=None):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.batch_norm = batch_norm
+        self.cluster_size = cluster_size
+        self.det_reg = det_reg
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
+                                                                     else str(self.scope_id)),
+                                          [self.feature_size, self.cluster_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.feature_size)))
+        cluster_weights = tf.get_variable("cluster_weights{}",[self.feature_size, self.cluster_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.feature_size)))
+
+        tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                             cluster_weights)
+
+        # Normalize the columns of cluster weights.
+        norm_cluster_weights = tf.nn.l2_normalize(cluster_weights, axis=1)
+
+        activation = tf.matmul(inputs, cluster_weights)
+
+        if self.batch_norm:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="cluster_bn")
+        else:
+            cluster_biases = tf.get_variable("cluster_biases{}".format("" if self.scope_id is None
+                                                                       else str(self.scope_id)),
+                                             [self.cluster_size],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(self.feature_size)))
+            tf.summary.histogram("cluster_biases", cluster_biases)
+            activation += cluster_biases
+
+        activation = tf.nn.softmax(activation)
+        tf.summary.histogram("cluster_output", activation)
+
+        activation = tf.reshape(activation, [-1, self.max_frames, self.cluster_size])
+
+        a_sum = tf.reduce_sum(activation, -2, keep_dims=True)
+
+        cluster_weights2 = tf.get_variable("cluster_weights2",
+                                           [1, self.feature_size, self.cluster_size],
+                                           initializer=tf.random_normal_initializer(
+                                               stddev=1 / math.sqrt(self.feature_size)))
+
+        a = tf.multiply(a_sum, cluster_weights2)
+
+        activation = tf.transpose(activation, perm=[0, 2, 1])
+
+        reshaped_input = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
+        vlad = tf.matmul(activation, reshaped_input)
+        vlad = tf.transpose(vlad, perm=[0, 2, 1])
+        vlad = tf.subtract(vlad, a)
+        vlad = tf.nn.l2_normalize(vlad, 1)
+        vlad = tf.reshape(vlad, [-1, self.cluster_size * self.feature_size])
+        vlad = tf.nn.l2_normalize(vlad, 1)
+
+        # batch_size x (cluster_size * feature_size)
+        return vlad
+
+
+class NetVLADNccReg(modules.BaseModule):
+    """
+    NetVLAD version from public code in WILLOW paper & public code.
+    https://github.com/antoine77340/Youtube-8M-WILLOW
+    """
+    def __init__(self, feature_size, max_frames, cluster_size, batch_norm, is_training, cor_reg=1e-6, scope_id=None):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.batch_norm = batch_norm
+        self.cluster_size = cluster_size
+        self.cor_reg = cor_reg
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
+                                                                     else str(self.scope_id)),
+                                          [self.feature_size, self.cluster_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.feature_size)))
+
+        tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                             cluster_weights)
+        activation = tf.matmul(inputs, cluster_weights)
+
+        if self.batch_norm:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="cluster_bn")
+        else:
+            cluster_biases = tf.get_variable("cluster_biases{}".format("" if self.scope_id is None
+                                                                       else str(self.scope_id)),
+                                             [self.cluster_size],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(self.feature_size)))
+            tf.summary.histogram("cluster_biases", cluster_biases)
+            activation += cluster_biases
+
+        activation = tf.nn.softmax(activation)
+        tf.summary.histogram("cluster_output", activation)
+
+        activation = tf.reshape(activation, [-1, self.max_frames, self.cluster_size])
+
+        a_sum = tf.reduce_sum(activation, -2, keep_dims=True)
+
+        cluster_weights2 = tf.get_variable("cluster_weights2",
+                                           [1, self.feature_size, self.cluster_size],
+                                           initializer=tf.random_normal_initializer(
+                                               stddev=1 / math.sqrt(self.feature_size)))
+
+        a = tf.multiply(a_sum, cluster_weights2)
+
+        activation = tf.transpose(activation, perm=[0, 2, 1])
+
+        reshaped_input = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
+        vlad = tf.matmul(activation, reshaped_input)
+        vlad = tf.transpose(vlad, perm=[0, 2, 1])
+        vlad = tf.subtract(vlad, a)
+        vlad = tf.nn.l2_normalize(vlad, 1)
+        vlad = tf.reshape(vlad, [-1, self.cluster_size * self.feature_size])
+        vlad = tf.nn.l2_normalize(vlad, 1)
+
+        # batch_size x (cluster_size * feature_size)
+        return vlad
+
+
+class NetVLADBowAttention(modules.BaseModule):
+    """
+    NetVLAD version from public code in WILLOW paper & public code.
+    https://github.com/antoine77340/Youtube-8M-WILLOW
+    """
+    def __init__(self, feature_size, max_frames, cluster_size, batch_norm, is_training, scope_id=None):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.batch_norm = batch_norm
+        self.cluster_size = cluster_size
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
+                                                                     else str(self.scope_id)),
+                                          [self.feature_size, self.cluster_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.feature_size)))
+
+        tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                             cluster_weights)
+        activation = tf.matmul(inputs, cluster_weights)
+
+        if self.batch_norm:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="cluster_bn")
+        else:
+            cluster_biases = tf.get_variable("cluster_biases{}".format("" if self.scope_id is None
+                                                                       else str(self.scope_id)),
+                                             [self.cluster_size],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(self.feature_size)))
+            tf.summary.histogram("cluster_biases", cluster_biases)
+            activation += cluster_biases
+
+        activation = tf.nn.softmax(activation)
+        tf.summary.histogram("cluster_output", activation)
+
+        activation = tf.reshape(activation, [-1, self.max_frames, self.cluster_size])
+
+        a_sum = tf.reduce_sum(activation, -2, keep_dims=True)
+
+        cluster_weights2 = tf.get_variable("cluster_weights2",
+                                           [1, self.feature_size, self.cluster_size],
+                                           initializer=tf.random_normal_initializer(
+                                               stddev=1 / math.sqrt(self.feature_size)))
+
+        a = tf.multiply(a_sum, cluster_weights2)
+
+        activation = tf.transpose(activation, perm=[0, 2, 1])
+
+        reshaped_input = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
+        vlad = tf.matmul(activation, reshaped_input)
+        vlad = tf.transpose(vlad, perm=[0, 2, 1])
+        vlad = tf.subtract(vlad, a)
+        vlad = tf.nn.l2_normalize(vlad, 1)
+        vlad = tf.reshape(vlad, [-1, self.cluster_size * self.feature_size])
+        vlad = tf.nn.l2_normalize(vlad, 1)
+
+        # batch_size x (cluster_size * feature_size)
+        return vlad
+
+
+###############################################################################
+# State-of-Art Image Retrieval Pooling ########################################
+###############################################################################
+class MaxPoolingModule(modules.BaseModule):
+    def __init__(self, feature_size, max_frames):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+
+    def forward(self, inputs, **unused_params):
+        return tf.reduce_max(inputs, 1)
+
+
+class SpocPoolingModule(modules.BaseModule):
+    def __init__(self, feature_size, max_frames):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+
+    def forward(self, inputs, **unused_params):
+        return tf.reduce_mean(inputs, 1)
+
+
+class GemPoolingModule(modules.BaseModule):
+    def __init__(self, feature_size, max_frames, eps=1e-6):
+        """ Initialize class GemPoolingModule.
+        GeM
+        :param feature_size:
+        :param max_frames:
+        """
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.eps = eps
+
+    def forward(self, inputs, **unused_params):
+        """
+
+        :param inputs: batch_size x max_frames x num_features
+        :return: batch_size x feature_size
+        """
+        p = tf.get_variable("p",
+                            shape=[1])
+        # Clip some values.
+        frames = tf.clip_by_value(inputs, clip_value_min=self.eps, clip_value_max=None)
+        frames = tf.pow(frames, p)
+        frames = tf.reduce_mean(frames, 1)
+        frames = tf.pow(frames, 1. / p)
+        return frames
+
+
+###############################################################################
 # Context Learning methods ####################################################
 ###############################################################################
 class ClPhdModule(modules.BaseModule):
@@ -388,34 +653,6 @@ class ClGruModule(modules.BaseModule):
                                            dtype=tf.float32)
         # batch_size x cluster_size
         return state[-1].h
-
-
-###############################################################################
-# CNN Type pooling methods ####################################################
-###############################################################################
-class CnnV1(modules.BaseModule):
-    """
-
-    """
-    def __init__(self, kernel_width, kernel_height, num_filter, is_training, scope_id=None):
-        self.kernel_width = kernel_width
-        self.kernel_height = kernel_height
-        self.num_filter = num_filter
-        self.is_training = is_training
-        self.scope_id = scope_id
-
-    def forward(self, inputs, **unused_params):
-        cnn_activation = slim.conv2d(inputs=inputs,
-                                     num_outputs=self.num_filter,
-                                     kernel_size=[self.kernel_height, self.kernel_width],
-                                     stride=1,
-                                     padding="SAME",
-                                     activation_fn=tf.nn.relu,
-                                     scope="CnnV1_1")
-
-        state = tf.reshape(cnn_activation, shape=[-1, self.num_filter])
-        state = tf.nn.l2_normalize(state, dim=1)
-        return state
 
 
 ###############################################################################

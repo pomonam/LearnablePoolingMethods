@@ -58,6 +58,20 @@ flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
 from video_pooling_modules import ClMoeModel, ClLstmModule, ClLrModule, ClPhdModule
 from attention_modules import ContextGateV1
 
+class PrototypeV1(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     cluster_size=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        pass
+
 
 class ContextLearningModelV1(models.BaseModel):
     def create_model(self,

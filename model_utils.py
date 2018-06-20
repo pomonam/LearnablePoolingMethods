@@ -77,7 +77,7 @@ def FramePooling(frames, method, **unused_params):
     """Pools over the frames of a video.
 
     Args:
-    frames: A tensor with shape [batch_size, num_frames, feature_size].
+    frames: A tensor with shape ≈.
     method: "average", "max", "attention", or "none".
     Returns:
     A tensor with shape [batch_size, feature_size] for average, max, or

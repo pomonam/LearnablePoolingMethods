@@ -34,16 +34,6 @@ import losses
 import readers
 import utils
 
-# from tensorflow.core.framework import variable_pb2
-# from tensorflow.python.framework import ops
-# from tensorflow.python.ops import variables
-# from tensorflow.python.framework.ops import register_proto_function
-#
-# register_proto_function(
-#     ops.GraphKeys.LOCAL_VARIABLES,
-#     proto_type=variable_pb2.VariableDef,
-#     to_proto=variables.Variable.to_proto,
-#     from_proto=variables.Variable.from_proto)
 
 FLAGS = flags.FLAGS
 
