@@ -94,8 +94,9 @@ class PrototypeV1(models.BaseModel):
         # model_input: (batch_size * max_frames) x feature_size
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
-        video_netvlad = video_pooling_modules.NetVLAD(1024, max_frames, cluster_size, add_batch_norm, is_training)
-        audio_netvlad = video_pooling_modules.NetVLAD(128, max_frames, cluster_size / 2, add_batch_norm, is_training)
+        video_temb = video_pooling_modules.TembeddingModule(1024, max_frames, 512, add_batch_norm, is_training)
+        audio_temb = video_pooling_modules.TembeddingModule(128, max_frames, 64, add_batch_norm, is_training)
+
         if add_batch_norm:
             reshaped_input = slim.batch_norm(
                 reshaped_input,
@@ -105,38 +106,34 @@ class PrototypeV1(models.BaseModel):
                 scope="input_bn")
 
         with tf.variable_scope("video_VLAD"):
-            # (batch_size * max_frames) x 1024
-            vlad_video = video_NetVLAD.forward(reshaped_input[:, 0:1024])
+            temb_video = video_temb.forward(reshaped_input[:, 0:1024])
+            # -> batch_size x (cluster_size * feature_size)
+            # video_fc = slim.fully_connected(
+            #     vlad_video,
+            #     1024 * 512)
+            print(temb_video.get_shape())
 
         with tf.variable_scope("audio_VLAD"):
-            vlad_audio = audio_NetVLAD.forward(reshaped_input[:, 1024:])
+            temb_audio = audio_temb.forward(reshaped_input[:, 1024:])
+            # -> batch_size x (cluster_size * feature_size)
+            # audio_fc = slim.fully_connected(
+            #     vlad_audio,
+            #     128 * 64)
 
-        vlad = tf.concat([vlad_video, vlad_audio], 1)
-
+        vlad = tf.concat([temb_video, temb_audio], 1)
         vlad_dim = vlad.get_shape().as_list()[1]
         hidden1_weights = tf.get_variable("hidden1_weights",
                                           [vlad_dim, hidden1_size],
                                           initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)))
-
         activation = tf.matmul(vlad, hidden1_weights)
 
-        if add_batch_norm and relu:
-            activation = slim.batch_norm(
-                activation,
-                center=True,
-                scale=True,
-                is_training=is_training,
-                scope="hidden1_bn")
-
-        else:
-            hidden1_biases = tf.get_variable("hidden1_biases",
-                                             [hidden1_size],
-                                             initializer=tf.random_normal_initializer(stddev=0.01))
-            tf.summary.histogram("hidden1_biases", hidden1_biases)
-            activation += hidden1_biases
-
-        if relu:
-            activation = tf.nn.relu6(activation)
+        activation = slim.batch_norm(
+            activation,
+            center=True,
+            scale=True,
+            is_training=is_training,
+            scope="hidden1_bn")
+        activation = tf.nn.relu6(activation)
 
         if gating:
             gating_weights = tf.get_variable("gating_weights_2",
@@ -145,10 +142,7 @@ class PrototypeV1(models.BaseModel):
                                                  stddev=1 / math.sqrt(hidden1_size)))
             gates = tf.matmul(activation, gating_weights)
 
-            if remove_diag:
-                # Removes diagonals coefficients
-                diagonals = tf.matrix_diag_part(gating_weights)
-                gates = gates - tf.multiply(diagonals, activation)
+
 
             if add_batch_norm:
                 gates = slim.batch_norm(
@@ -171,248 +165,6 @@ class PrototypeV1(models.BaseModel):
 
         return aggregated_model().create_model(
             model_input=activation,
-            vocab_size=vocab_size,
-            is_training=is_training,
-            **unused_params)
-
-
-class ContextLearningModelV1(models.BaseModel):
-    def create_model(self,
-                     model_input,
-                     vocab_size,
-                     num_frames,
-                     iterations=None,
-                     add_batch_norm=None,
-                     sample_random_frames=None,
-                     cluster_size=None,
-                     hidden_size=None,
-                     is_training=True,
-                     **unused_params):
-        iterations = iterations or FLAGS.iterations
-        add_batch_norm = add_batch_norm or FLAGS.netvlad_add_batch_norm
-        random_frames = sample_random_frames or FLAGS.sample_random_frames
-        cluster_size = cluster_size or FLAGS.netvlad_cluster_size
-        hidden1_size = hidden_size or FLAGS.netvlad_hidden_size
-        relu = FLAGS.netvlad_relu
-        gating = FLAGS.gating
-
-        ori_num_frames = num_frames
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        if random_frames:
-            model_input = utils.SampleRandomFrames(model_input, num_frames,
-                                                   iterations)
-        else:
-            model_input = utils.SampleRandomSequence(model_input, num_frames,
-                                                     iterations)
-
-        # model_input: batch_size x max_frames x feature_size
-        max_frames = model_input.get_shape().as_list()[1]
-        feature_size = model_input.get_shape().as_list()[2]
-        # model_input: (batch_size * max_frames) x feature_size
-        reshaped_input = tf.reshape(model_input, [-1, feature_size])
-
-        fmm = ClMoeModel(feature_size, max_frames, feature_size * 3,
-                         batch_norm=True, is_training=is_training,
-                         scope_id=1)
-        with tf.variable_scope("fmm"):
-            fmm_activation = fmm.forward(reshaped_input)
-        # -> (batch_size * num_samples) x num_clusters
-
-        # Context Gating
-        cg_1 = ContextGateV1(feature_size * 3,
-                             is_training)
-        with tf.variable_scope("cg"):
-            cg_1_activation = cg_1.forward(fmm_activation)
-        # -> (batch_size * num_samples) x num_clusters
-        activation = tf.reshape(cg_1_activation, [-1, max_frames, feature_size * 3])
-        # -> batch_size x max_frames x cluster_size
-
-        lstm = ClLstmModule(cluster_size=feature_size * 3,
-                            lstm_size=feature_size * 3,
-                            num_layers=2,
-                            num_frames=ori_num_frames)
-        with tf.variable_scope("lstm"):
-            activation = lstm.forward(activation)
-        # -> batch_size x cluster_size
-
-        cg_2 = ContextGateV1(feature_size * 3, is_training)
-        with tf.variable_scope("cg2"):
-            cg_2_activation = cg_2.forward(activation)
-        # -> batch_size x cluster_size
-
-        aggregated_model = getattr(video_level_models,
-                                   "WillowMoeModel")
-
-        return aggregated_model().create_model(
-            model_input=cg_2_activation,
-            vocab_size=vocab_size,
-            is_training=is_training,
-            **unused_params)
-
-
-class ContextLearningModelV2(models.BaseModel):
-    def create_model(self,
-                     model_input,
-                     vocab_size,
-                     num_frames,
-                     iterations=None,
-                     add_batch_norm=None,
-                     sample_random_frames=None,
-                     cluster_size=None,
-                     hidden_size=None,
-                     is_training=True,
-                     **unused_params):
-        iterations = iterations or FLAGS.iterations
-        add_batch_norm = add_batch_norm or FLAGS.netvlad_add_batch_norm
-        random_frames = sample_random_frames or FLAGS.sample_random_frames
-        cluster_size = cluster_size or FLAGS.netvlad_cluster_size
-        hidden1_size = hidden_size or FLAGS.netvlad_hidden_size
-        relu = FLAGS.netvlad_relu
-        gating = FLAGS.gating
-
-        ori_num_frames = num_frames
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        if random_frames:
-            model_input = utils.SampleRandomFrames(model_input, num_frames,
-                                                   iterations)
-        else:
-            model_input = utils.SampleRandomSequence(model_input, num_frames,
-                                                     iterations)
-
-        # model_input: batch_size x max_frames x feature_size
-        max_frames = model_input.get_shape().as_list()[1]
-        feature_size = model_input.get_shape().as_list()[2]
-        # model_input: (batch_size * max_frames) x feature_size
-        reshaped_input = tf.reshape(model_input, [-1, feature_size])
-
-        fmm = ClLrModule(feature_size, max_frames, feature_size * 3,
-                         batch_norm=True, is_training=is_training,
-                         scope_id=1)
-        with tf.variable_scope("fmm"):
-            fmm_activation = fmm.forward(reshaped_input)
-        # -> (batch_size * num_samples) x num_clusters
-
-        # Context Gating
-        cg_1 = ContextGateV1(feature_size * 3,
-                             is_training)
-        with tf.variable_scope("cg"):
-            cg_1_activation = cg_1.forward(fmm_activation)
-        # -> (batch_size * num_samples) x num_clusters
-        activation = tf.reshape(cg_1_activation, [-1, max_frames, feature_size * 3])
-        # -> batch_size x max_frames x cluster_size
-
-        lstm = ClLstmModule(cluster_size=feature_size * 3,
-                            lstm_size=feature_size * 3,
-                            num_layers=2,
-                            num_frames=ori_num_frames)
-        with tf.variable_scope("lstm"):
-            activation = lstm.forward(activation)
-        # -> batch_size x cluster_size
-
-        cg_2 = ContextGateV1(feature_size * 3, is_training)
-        with tf.variable_scope("cg2"):
-            cg_2_activation = cg_2.forward(activation)
-        # -> batch_size x cluster_size
-
-        aggregated_model = getattr(video_level_models,
-                                   "WillowMoeModel")
-
-        return aggregated_model().create_model(
-            model_input=cg_2_activation,
-            vocab_size=vocab_size,
-            is_training=is_training,
-            **unused_params)
-
-
-class ContextLearningModelV3(models.BaseModel):
-    def create_model(self,
-                     model_input,
-                     vocab_size,
-                     num_frames,
-                     iterations=None,
-                     add_batch_norm=None,
-                     sample_random_frames=None,
-                     cluster_size=None,
-                     hidden_size=None,
-                     is_training=True,
-                     **unused_params):
-        iterations = iterations or FLAGS.iterations
-        add_batch_norm = add_batch_norm or FLAGS.netvlad_add_batch_norm
-        random_frames = sample_random_frames or FLAGS.sample_random_frames
-        cluster_size = cluster_size or FLAGS.netvlad_cluster_size
-        hidden1_size = hidden_size or FLAGS.netvlad_hidden_size
-        relu = FLAGS.netvlad_relu
-        gating = FLAGS.gating
-
-        ori_num_frames = num_frames
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        if random_frames:
-            model_input = utils.SampleRandomFrames(model_input, num_frames,
-                                                   iterations)
-        else:
-            model_input = utils.SampleRandomSequence(model_input, num_frames,
-                                                     iterations)
-
-        # model_input: batch_size x max_frames x feature_size
-        max_frames = model_input.get_shape().as_list()[1]
-        feature_size = model_input.get_shape().as_list()[2]
-        # model_input: (batch_size * max_frames) x feature_size
-        reshaped_input = tf.reshape(model_input, [-1, feature_size])
-
-        video_vlad = video_pooling_modules.NetVLAD(1024, max_frames, 512, add_batch_norm, is_training)
-        audio_vlad = video_pooling_modules.NetVLAD(128, max_frames, 64, add_batch_norm, is_training)
-
-        if add_batch_norm:
-            reshaped_input = slim.batch_norm(
-                reshaped_input,
-                center=True,
-                scale=True,
-                is_training=is_training,
-                scope="input_bn")
-
-        with tf.variable_scope("video_VLAD"):
-            # (batch_size * max_frames) x 1024
-            vlad_video = video_vlad.forward(reshaped_input[:, 0:1024])
-
-        with tf.variable_scope("audio_VLAD"):
-            vlad_audio = audio_vlad.forward(reshaped_input[:, 1024:])
-
-        vlad = tf.concat([vlad_video, vlad_audio], 1)
-
-        fmm = ClPhdModule(feature_size, max_frames, feature_size * 3,
-                         batch_norm=True, is_training=is_training,
-                         scope_id=1)
-        with tf.variable_scope("fmm"):
-            fmm_activation = fmm.forward(reshaped_input)
-        # -> (batch_size * num_samples) x num_clusters
-
-        # Context Gating
-        cg_1 = ContextGateV1(feature_size * 3,
-                             is_training)
-        with tf.variable_scope("cg"):
-            cg_1_activation = cg_1.forward(fmm_activation)
-        # -> (batch_size * num_samples) x num_clusters
-        activation = tf.reshape(cg_1_activation, [-1, max_frames, feature_size * 3])
-        # -> batch_size x max_frames x cluster_size
-
-        lstm = ClLstmModule(cluster_size=feature_size * 3,
-                            lstm_size=feature_size * 3,
-                            num_layers=2,
-                            num_frames=ori_num_frames)
-        with tf.variable_scope("lstm"):
-            activation = lstm.forward(activation)
-        # -> batch_size x cluster_size
-
-        cg_2 = ContextGateV1(feature_size * 3, is_training)
-        with tf.variable_scope("cg2"):
-            cg_2_activation = cg_2.forward(activation)
-        # -> batch_size x cluster_size
-
-        aggregated_model = getattr(video_level_models,
-                                   "WillowMoeModel")
-
-        return aggregated_model().create_model(
-            model_input=cg_2_activation,
             vocab_size=vocab_size,
             is_training=is_training,
             **unused_params)

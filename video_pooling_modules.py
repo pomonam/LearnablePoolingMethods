@@ -30,6 +30,54 @@ FLAGS = flags.FLAGS
 ###############################################################################
 # Prototype ###################################################################
 ###############################################################################
+class TembeddingModule(modules.BaseModule):
+    """
+
+    """
+    def __init__(self, feature_size, max_frames, cluster_size, batch_norm, is_training,
+                 det_reg=1e-6, scope_id=None):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.batch_norm = batch_norm
+        self.cluster_size = cluster_size
+        self.det_reg = det_reg
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
+                                                                     else str(self.scope_id)),
+                                          [self.feature_size, self.cluster_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.feature_size)))
+        tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                             cluster_weights)
+
+        # inputs: (batch_size * max_frames) x feature_size
+        activation = tf.matmul(inputs, cluster_weights)
+        # -> (batch_size * max_frames) x cluster_size
+        activation = slim.batch_norm(
+            activation,
+            center=True,
+            scale=True,
+            is_training=self.is_training,
+            scope="cluster_bn")
+        activation = tf.nn.softmax(activation)
+        # -> (batch_size * max_frames) x cluster_size
+        tf.summary.histogram("cluster_output", activation)
+
+        softmax_weight = tf.multiply(cluster_weights, activation)
+        # -> (batch_size * max_frames) x cluster_size
+
+        temb = tf.subtract(inputs, softmax_weight)
+        temb = tf.nn.l2_normalize(temb, 1)
+        temb = tf.reshape(temb, [-1, self.max_frames, self.cluster_size * self.feature_size])
+        avg_temb = tf.reduce_mean(temb, 1)
+        avg_temb = tf.reshape(avg_temb, [-1, self.cluster_size * self.feature_size])
+        # batch_size x (cluster_size * feature_size)
+        return avg_temb
+
+
 class NetVLADetReg(modules.BaseModule):
     """
     NetVLAD version from public code in WILLOW paper & public code.
@@ -176,7 +224,7 @@ class NetVLADNccReg(modules.BaseModule):
         return vlad
 
 
-class NetVLADBow(modules.BaseModule):
+class NetVLADBowWeight(modules.BaseModule):
     """
     NetVLAD version from public code in WILLOW paper & public code.
     https://github.com/antoine77340/Youtube-8M-WILLOW
@@ -199,7 +247,9 @@ class NetVLADBow(modules.BaseModule):
         tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
                              cluster_weights)
 
+        # input: (batch_size * max_frames) x feature_size
         activation = tf.matmul(inputs, cluster_weights)
+        # -> (batch_size * max_frames) x cluster_size
 
         if self.batch_norm:
             activation = slim.batch_norm(
@@ -218,11 +268,14 @@ class NetVLADBow(modules.BaseModule):
             activation += cluster_biases
 
         activation = tf.nn.softmax(activation)
+        # -> (batch_size * max_frames) x cluster_size
         tf.summary.histogram("cluster_output", activation)
 
         activation = tf.reshape(activation, [-1, self.max_frames, self.cluster_size])
+        # -> batch_size x max_frames x cluster_size
 
         a_sum = tf.reduce_sum(activation, -2, keep_dims=True)
+        # -> batch_size x 1 x cluster_size
 
         cluster_weights2 = tf.get_variable("cluster_weights2",
                                            [1, self.feature_size, self.cluster_size],
@@ -242,7 +295,7 @@ class NetVLADBow(modules.BaseModule):
         vlad = tf.nn.l2_normalize(vlad, 1)
 
         # batch_size x (cluster_size * feature_size)
-        return vlad,
+        return vlad
 
 
 ###############################################################################
@@ -709,16 +762,6 @@ class LstmConcatAverage(modules.BaseModule):
         final_state = tf.concat([context_memory, state, average_state], 1)
 
         return final_state
-
-###############################################################################
-# Transformer #################################################################
-###############################################################################
-class TransformerEncodeModule(modules.BaseModule):
-    def __init__(self):
-        pass
-
-    def forward(self, inputs, **unused_params):
-        pass
     
 
 ###############################################################################
