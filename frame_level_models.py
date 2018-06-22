@@ -55,11 +55,12 @@ flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
 ###############################################################################
 # Prototype models ############################################################
 ###############################################################################
-from video_pooling_modules import ClMoeModel, ClLstmModule, ClLrModule, ClPhdModule
-from attention_modules import ContextGateV1
+from video_pooling_modules import ClMoeModel, ClLstmModule, ClLrModule, ClPhdModule, \
+    SpocPoolingModule
+from attention_modules import ContextGateV1,
 
 
-class PrototypeV1(models.BaseModel):
+class TembedModel(models.BaseModel):
     def create_model(self,
                      model_input,
                      vocab_size,
@@ -94,8 +95,11 @@ class PrototypeV1(models.BaseModel):
         # model_input: (batch_size * max_frames) x feature_size
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
-        video_temb = video_pooling_modules.TembeddingModule(1024, max_frames, 512, add_batch_norm, is_training)
-        audio_temb = video_pooling_modules.TembeddingModule(128, max_frames, 64, add_batch_norm, is_training)
+        video_t_emb = video_pooling_modules.TembeddingModule(1024, max_frames, 512, add_batch_norm, is_training)
+        audio_t_emb = video_pooling_modules.TembeddingModule(128, max_frames, 64, add_batch_norm, is_training)
+
+        video_spoc_pooling = video_pooling_modules.SpocPoolingModule(1024, max_frames)
+        audio_spoc_pooling = video_pooling_modules.SpocPoolingModule(128, max_frames)
 
         if add_batch_norm:
             reshaped_input = slim.batch_norm(
@@ -105,28 +109,28 @@ class PrototypeV1(models.BaseModel):
                 is_training=is_training,
                 scope="input_bn")
 
-        with tf.variable_scope("video_VLAD"):
-            temb_video = video_temb.forward(reshaped_input[:, 0:1024])
-            # -> batch_size x (cluster_size * feature_size)
-            # video_fc = slim.fully_connected(
-            #     vlad_video,
-            #     1024 * 512)
-            print(temb_video.get_shape())
+        with tf.variable_scope("video_t_emb"):
+            t_emb_video = video_t_emb.forward(reshaped_input[:, 0:1024])
+            # -> (batch_size * max_frames) x (feature_size * cluster_size)
+            t_emb_video = tf.reshape(t_emb_video, [-1, max_frames, 1024 * 512])
+            t_emb_video = video_spoc_pooling.forward(t_emb_video)
+            # -> batch_size x (feature_size * cluster_size)
+            print(t_emb_video.get_shape())
 
-        with tf.variable_scope("audio_VLAD"):
-            temb_audio = audio_temb.forward(reshaped_input[:, 1024:])
-            # -> batch_size x (cluster_size * feature_size)
-            # audio_fc = slim.fully_connected(
-            #     vlad_audio,
-            #     128 * 64)
+        with tf.variable_scope("audio_t_emb"):
+            t_emb_audio = audio_t_emb.forward(reshaped_input[:, 1024:])
+            # -> (batch_size * max_frames) x (feature_size * cluster_size)
+            t_emb_audio = tf.reshape(t_emb_audio, [-1, max_frames, 128 * 64])
+            t_emb_audio = audio_spoc_pooling.forward(t_emb_audio)
+            # -> batch_size x (feature_size * cluster_size)
 
-        vlad = tf.concat([temb_video, temb_audio], 1)
-        vlad_dim = vlad.get_shape().as_list()[1]
-        hidden1_weights = tf.get_variable("hidden1_weights",
-                                          [vlad_dim, hidden1_size],
+        t_emb = tf.concat([t_emb_video, t_emb_audio], 1)
+        t_emb_dim = t_emb.get_shape().as_list()[1]
+        # -> batch_size x (feature_size * cluster_size)
+        hidden1_weights = tf.get_variable("hidden_weights",
+                                          [t_emb_dim, vocab_size],
                                           initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)))
-        activation = tf.matmul(vlad, hidden1_weights)
-
+        activation = tf.matmul(t_emb, hidden1_weights)
         activation = slim.batch_norm(
             activation,
             center=True,
@@ -141,8 +145,6 @@ class PrototypeV1(models.BaseModel):
                                              initializer=tf.random_normal_initializer(
                                                  stddev=1 / math.sqrt(hidden1_size)))
             gates = tf.matmul(activation, gating_weights)
-
-
 
             if add_batch_norm:
                 gates = slim.batch_norm(

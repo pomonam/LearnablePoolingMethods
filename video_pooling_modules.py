@@ -31,51 +31,88 @@ FLAGS = flags.FLAGS
 # Prototype ###################################################################
 ###############################################################################
 class TembeddingModule(modules.BaseModule):
-    """
-
-    """
-    def __init__(self, feature_size, max_frames, cluster_size, batch_norm, is_training,
-                 det_reg=1e-6, scope_id=None):
+    def __init__(self,
+                 feature_size,
+                 max_frames,
+                 cluster_size,
+                 batch_norm,
+                 is_training,
+                 det_reg=1e-6,
+                 scope_id=None):
         self.feature_size = feature_size
         self.max_frames = max_frames
         self.is_training = is_training
         self.batch_norm = batch_norm
         self.cluster_size = cluster_size
-        self.det_reg = det_reg
         self.scope_id = scope_id
 
     def forward(self, inputs, **unused_params):
+        # inputs: (batch_size * max_frames) x feature_size
         cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
                                                                      else str(self.scope_id)),
                                           [self.feature_size, self.cluster_size],
                                           initializer=tf.random_normal_initializer(
                                               stddev=1 / math.sqrt(self.feature_size)))
+        # cluster_weights: feature_size x cluster_size
         tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
                              cluster_weights)
+        cluster_weights = tf.reshape(cluster_weights, [1, self.feature_size * self.cluster_size])
+        # -> 1 x (feature_size * cluster_size)
+        tiled_inputs = tf.tile(inputs, [1, self.cluster_size])
+        # -> (batch_size * max_frames) x (feature_size * cluster_size)
+        t_emb = tf.subtract(tiled_inputs, cluster_weights)
+        # -> (batch_size * max_frames) x (feature_size * cluster_size)
+        t_emb = tf.reshape(t_emb, [-1, self.cluster_size, self.feature_size])
+        # -> (batch_size * max_frames) x feature_size x cluster_size
+        t_emb = tf.nn.l2_normalize(t_emb, 2)
+        t_emb = tf.reshape(t_emb, [-1, self.feature_size * self.cluster_size])
+        # -> (batch_size * max_frames) x (feature_size * cluster_size)
 
-        # inputs: (batch_size * max_frames) x feature_size
-        activation = tf.matmul(inputs, cluster_weights)
-        # -> (batch_size * max_frames) x cluster_size
-        activation = slim.batch_norm(
-            activation,
-            center=True,
-            scale=True,
-            is_training=self.is_training,
-            scope="cluster_bn")
-        activation = tf.nn.softmax(activation)
-        # -> (batch_size * max_frames) x cluster_size
-        tf.summary.histogram("cluster_output", activation)
+        return t_emb
 
-        softmax_weight = tf.multiply(cluster_weights, activation)
-        # -> (batch_size * max_frames) x cluster_size
 
-        temb = tf.subtract(inputs, softmax_weight)
-        temb = tf.nn.l2_normalize(temb, 1)
-        temb = tf.reshape(temb, [-1, self.max_frames, self.cluster_size * self.feature_size])
-        avg_temb = tf.reduce_mean(temb, 1)
-        avg_temb = tf.reshape(avg_temb, [-1, self.cluster_size * self.feature_size])
-        # batch_size x (cluster_size * feature_size)
-        return avg_temb
+class TembeddingTempModule(modules.BaseModule):
+    def __init__(self,
+                 feature_size,
+                 max_frames,
+                 cluster_size,
+                 batch_norm,
+                 is_training,
+                 det_reg=1e-6,
+                 scope_id=None):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.batch_norm = batch_norm
+        self.cluster_size = cluster_size
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        # inputs: batch_size x max_frames x (feature_size * cluster_size)
+        reshaped_inputs = tf.identity(inputs)
+        reshaped_inputs = tf.manip.roll(reshaped_inputs, shift=1, axis=[1])
+
+        cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
+                                                                     else str(self.scope_id)),
+                                          [self.feature_size, self.cluster_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.feature_size)))
+        # cluster_weights: feature_size x cluster_size
+        tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                             cluster_weights)
+        cluster_weights = tf.reshape(cluster_weights, [1, self.feature_size * self.cluster_size])
+        # -> 1 x (feature_size * cluster_size)
+        tiled_inputs = tf.tile(inputs, [1, self.cluster_size])
+        # -> (batch_size * max_frames) x (feature_size * cluster_size)
+        t_emb = tf.subtract(tiled_inputs, cluster_weights)
+        # -> (batch_size * max_frames) x (feature_size * cluster_size)
+        t_emb = tf.reshape(t_emb, [-1, self.cluster_size, self.feature_size])
+        # -> (batch_size * max_frames) x feature_size x cluster_size
+        t_emb = tf.nn.l2_normalize(t_emb, 2)
+        t_emb = tf.reshape(t_emb, [-1, self.feature_size * self.cluster_size])
+        # -> (batch_size * max_frames) x (feature_size * cluster_size)
+
+        return t_emb
 
 
 class NetVLADetReg(modules.BaseModule):
