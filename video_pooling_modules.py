@@ -94,6 +94,7 @@ class TembeddingTempModule(modules.BaseModule):
 
         tf.assign(reshaped_inputs[:, 0, :], 0.0)
         t_emb = tf.subtract(inputs, reshaped_inputs)
+        
 
         return t_emb
 
