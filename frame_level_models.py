@@ -56,11 +56,11 @@ flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
 # Prototype models ############################################################
 ###############################################################################
 from video_pooling_modules import ClMoeModel, ClLstmModule, ClLrModule, ClPhdModule, \
-    SpocPoolingModule
-from attention_modules import ContextGateV1,
+    SpocPoolingModule, TembeddingTempModule
+from attention_modules import ContextGateV1
 
 
-class TembedModel(models.BaseModel):
+class TembedModelV1(models.BaseModel):
     def create_model(self,
                      model_input,
                      vocab_size,
@@ -101,6 +101,11 @@ class TembedModel(models.BaseModel):
         video_spoc_pooling = video_pooling_modules.SpocPoolingModule(1024, max_frames)
         audio_spoc_pooling = video_pooling_modules.SpocPoolingModule(128, max_frames)
 
+        video_t_temp_emb = video_pooling_modules.TembeddingTempModule(1024, max_frames, 512,
+                                                                      add_batch_norm, is_training)
+        audio_t_temp_emb = video_pooling_modules.TembeddingTempModule(128, max_frames, 65,
+                                                                      add_batch_norm, is_training)
+
         if add_batch_norm:
             reshaped_input = slim.batch_norm(
                 reshaped_input,
@@ -113,24 +118,54 @@ class TembedModel(models.BaseModel):
             t_emb_video = video_t_emb.forward(reshaped_input[:, 0:1024])
             # -> (batch_size * max_frames) x (feature_size * cluster_size)
             t_emb_video = tf.reshape(t_emb_video, [-1, max_frames, 1024 * 512])
+            t_temp_video = video_t_temp_emb.forward(t_emb_video)
+            # -> batch_size x (max_frames - 1) x (feature_size * cluster_size)
+
             t_emb_video = video_spoc_pooling.forward(t_emb_video)
+            t_temp_video = video_spoc_pooling.forward(t_temp_video)
             # -> batch_size x (feature_size * cluster_size)
+
             print(t_emb_video.get_shape())
+
+        t_video_concat = tf.concat([t_emb_video, t_temp_video], 1)
+        # -> batch_size x (feature_size * cluster_size * 2)
+        t_video_concat_dim = t_video_concat.get_shape().as_list()[1]
+        video_hidden_1 = tf.get_variable("video_hidden_1",
+                                         [t_video_concat_dim, 1024 * 8],
+                                         initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)))
+        video_activation = tf.matmul(t_video_concat_dim, video_hidden_1)
+        video_activation = tf.nn.relu6(video_activation)
 
         with tf.variable_scope("audio_t_emb"):
             t_emb_audio = audio_t_emb.forward(reshaped_input[:, 1024:])
             # -> (batch_size * max_frames) x (feature_size * cluster_size)
             t_emb_audio = tf.reshape(t_emb_audio, [-1, max_frames, 128 * 64])
+            t_temp_audio = audio_t_temp_emb.forward(t_emb_audio)
+            # -> batch_size x (max_frames - 1) x (feature_size * cluster_size)
+
             t_emb_audio = audio_spoc_pooling.forward(t_emb_audio)
+            t_temp_audio = audio_spoc_pooling.forward(t_temp_audio)
             # -> batch_size x (feature_size * cluster_size)
 
-        t_emb = tf.concat([t_emb_video, t_emb_audio], 1)
-        t_emb_dim = t_emb.get_shape().as_list()[1]
+        t_audio_concat = tf.concat([t_emb_audio, t_temp_audio], 1)
+        # -> batch_size x (feature_size * cluster_size * 2)
+        t_audio_concat_dim = t_audio_concat.get_shape().as_list()[1]
+        audio_hidden_1 = tf.get_variable("audio_hidden_1",
+                                         [t_audio_concat_dim, 128 * 8],
+                                         initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)))
+        audio_activation = tf.matmul(t_audio_concat_dim, audio_hidden_1)
+        audio_activation = tf.nn.relu6(audio_activation)
+
+        video_audio_concat = tf.concat([video_activation, audio_activation], 1)
+        # -> batch_size x combined_features
+
+        video_audio_concat_dim = video_audio_concat.get_shape().as_list()[1]
+
         # -> batch_size x (feature_size * cluster_size)
         hidden1_weights = tf.get_variable("hidden_weights",
-                                          [t_emb_dim, vocab_size],
+                                          [video_audio_concat_dim, 1024 * 2],
                                           initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)))
-        activation = tf.matmul(t_emb, hidden1_weights)
+        activation = tf.matmul(video_audio_concat, hidden1_weights)
         activation = slim.batch_norm(
             activation,
             center=True,
