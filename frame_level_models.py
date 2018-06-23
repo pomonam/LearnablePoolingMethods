@@ -132,8 +132,9 @@ class TembedModelV1(models.BaseModel):
         t_video_concat_dim = t_video_concat.get_shape().as_list()[1]
         video_hidden_1 = tf.get_variable("video_hidden_1",
                                          [t_video_concat_dim, 1024 * 8],
-                                         initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)))
-        video_activation = tf.matmul(t_video_concat_dim, video_hidden_1)
+                                         initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)), dtype=tf.float32)
+
+        video_activation = tf.matmul(t_video_concat, video_hidden_1)
         video_activation = tf.nn.relu6(video_activation)
 
         with tf.variable_scope("audio_t_emb"):
@@ -153,7 +154,7 @@ class TembedModelV1(models.BaseModel):
         audio_hidden_1 = tf.get_variable("audio_hidden_1",
                                          [t_audio_concat_dim, 128 * 8],
                                          initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)))
-        audio_activation = tf.matmul(t_audio_concat_dim, audio_hidden_1)
+        audio_activation = tf.matmul(t_audio_concat, audio_hidden_1)
         audio_activation = tf.nn.relu6(audio_activation)
 
         video_audio_concat = tf.concat([video_activation, audio_activation], 1)
@@ -176,7 +177,7 @@ class TembedModelV1(models.BaseModel):
 
         if gating:
             gating_weights = tf.get_variable("gating_weights_2",
-                                             [hidden1_size, hidden1_size],
+                                             [1024 * 2, 1024 * 2],
                                              initializer=tf.random_normal_initializer(
                                                  stddev=1 / math.sqrt(hidden1_size)))
             gates = tf.matmul(activation, gating_weights)
