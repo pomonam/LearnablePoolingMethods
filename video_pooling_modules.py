@@ -63,7 +63,7 @@ class TembeddingModule(modules.BaseModule):
         t_emb = tf.subtract(tiled_inputs, cluster_weights)
         # -> (batch_size * max_frames) x (feature_size * cluster_size)
         t_emb = tf.reshape(t_emb, [-1, self.cluster_size, self.feature_size])
-        # -> (batch_size * max_frames) x feature_size x cluster_size
+        # -> (batch_size * max_frames) x feature_size  x cluster_size
         t_emb = tf.nn.l2_normalize(t_emb, 2)
         t_emb = tf.reshape(t_emb, [-1, self.feature_size * self.cluster_size])
         # -> (batch_size * max_frames) x (feature_size * cluster_size)
@@ -92,25 +92,8 @@ class TembeddingTempModule(modules.BaseModule):
         reshaped_inputs = tf.identity(inputs)
         reshaped_inputs = tf.manip.roll(reshaped_inputs, shift=1, axis=[1])
 
-        cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
-                                                                     else str(self.scope_id)),
-                                          [self.feature_size, self.cluster_size],
-                                          initializer=tf.random_normal_initializer(
-                                              stddev=1 / math.sqrt(self.feature_size)))
-        # cluster_weights: feature_size x cluster_size
-        tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
-                             cluster_weights)
-        cluster_weights = tf.reshape(cluster_weights, [1, self.feature_size * self.cluster_size])
-        # -> 1 x (feature_size * cluster_size)
-        tiled_inputs = tf.tile(inputs, [1, self.cluster_size])
-        # -> (batch_size * max_frames) x (feature_size * cluster_size)
-        t_emb = tf.subtract(tiled_inputs, cluster_weights)
-        # -> (batch_size * max_frames) x (feature_size * cluster_size)
-        t_emb = tf.reshape(t_emb, [-1, self.cluster_size, self.feature_size])
-        # -> (batch_size * max_frames) x feature_size x cluster_size
-        t_emb = tf.nn.l2_normalize(t_emb, 2)
-        t_emb = tf.reshape(t_emb, [-1, self.feature_size * self.cluster_size])
-        # -> (batch_size * max_frames) x (feature_size * cluster_size)
+        tf.assign(reshaped_inputs[:, 0, :], 0.0)
+        t_emb = tf.subtract(inputs, reshaped_inputs)
 
         return t_emb
 
