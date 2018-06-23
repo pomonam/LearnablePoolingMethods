@@ -90,11 +90,9 @@ class TembeddingTempModule(modules.BaseModule):
     def forward(self, inputs, **unused_params):
         # inputs: batch_size x max_frames x (feature_size * cluster_size)
         reshaped_inputs = tf.identity(inputs)
-        reshaped_inputs = tf.manip.roll(reshaped_inputs, shift=1, axis=[1])
+        reshaped_inputs = tf.manip.roll(reshaped_inputs, shift=[1], axis=[1])
 
-        tf.assign(reshaped_inputs[:, 0, :], 0.0)
         t_emb = tf.subtract(inputs, reshaped_inputs)
-        
 
         return t_emb
 
