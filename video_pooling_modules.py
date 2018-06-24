@@ -28,6 +28,49 @@ FLAGS = flags.FLAGS
 
 
 ###############################################################################
+# Triangulation Embedding Methods #############################################
+###############################################################################
+class TriangulationEmbedding(modules.BaseModule):
+    def __init__(self,
+                 feature_size,
+                 max_frames,
+                 cluster_size,
+                 batch_norm,
+                 is_training,
+                 scope_id=None):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.batch_norm = batch_norm
+        self.cluster_size = cluster_size
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        # inputs: (batch_size * max_frames) x feature_size
+        cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
+                                                                     else str(self.scope_id)),
+                                          [self.feature_size, self.cluster_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.feature_size)))
+        # cluster_weights: feature_size x cluster_size
+        tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                             cluster_weights)
+        cluster_weights = tf.reshape(cluster_weights, [1, self.feature_size * self.cluster_size])
+        # -> 1 x (feature_size * cluster_size)
+        tiled_inputs = tf.tile(inputs, [1, self.cluster_size])
+        # -> (batch_size * max_frames) x (feature_size * cluster_size)
+        t_emb = tf.subtract(tiled_inputs, cluster_weights)
+        # -> (batch_size * max_frames) x (feature_size * cluster_size)
+        t_emb = tf.reshape(t_emb, [-1, self.cluster_size, self.feature_size])
+        # -> (batch_size * max_frames) x feature_size  x cluster_size
+        t_emb = tf.nn.l2_normalize(t_emb, 2)
+        t_emb = tf.reshape(t_emb, [-1, self.feature_size * self.cluster_size])
+        # -> (batch_size * max_frames) x (feature_size * cluster_size)
+
+        return t_emb
+
+
+###############################################################################
 # Prototype ###################################################################
 ###############################################################################
 class TembeddingModule(modules.BaseModule):
@@ -315,54 +358,6 @@ class NetVLADBowWeight(modules.BaseModule):
 
         # batch_size x (cluster_size * feature_size)
         return vlad
-
-
-###############################################################################
-# State-of-Art Image Retrieval Pooling ########################################
-###############################################################################
-class MaxPoolingModule(modules.BaseModule):
-    def __init__(self, feature_size, max_frames):
-        self.feature_size = feature_size
-        self.max_frames = max_frames
-
-    def forward(self, inputs, **unused_params):
-        return tf.reduce_max(inputs, 1)
-
-
-class SpocPoolingModule(modules.BaseModule):
-    def __init__(self, feature_size, max_frames):
-        self.feature_size = feature_size
-        self.max_frames = max_frames
-
-    def forward(self, inputs, **unused_params):
-        return tf.reduce_mean(inputs, 1)
-
-
-class GemPoolingModule(modules.BaseModule):
-    def __init__(self, feature_size, max_frames, eps=1e-6):
-        """ Initialize class GemPoolingModule.
-        GeM
-        :param feature_size:
-        :param max_frames:
-        """
-        self.feature_size = feature_size
-        self.max_frames = max_frames
-        self.eps = eps
-
-    def forward(self, inputs, **unused_params):
-        """
-
-        :param inputs: batch_size x max_frames x num_features
-        :return: batch_size x feature_size
-        """
-        p = tf.get_variable("p",
-                            shape=[1])
-        # Clip some values.
-        frames = tf.clip_by_value(inputs, clip_value_min=self.eps, clip_value_max=None)
-        frames = tf.pow(frames, p)
-        frames = tf.reduce_mean(frames, 1)
-        frames = tf.pow(frames, 1. / p)
-        return frames
 
 
 ###############################################################################

@@ -21,6 +21,7 @@ import model_utils as utils
 import tensorflow.contrib.slim as slim
 import video_pooling_modules
 import attention_modules
+import aggregation_modules
 import video_level_models
 import math
 import models
@@ -89,9 +90,9 @@ class TembedModelV1(models.BaseModel):
                      is_training=True,
                      **unused_params):
         iterations = iterations or FLAGS.iterations
-        add_batch_norm = add_batch_norm or FLAGS.tembed_v1_batch_norm
         random_frames = sample_random_frames or FLAGS.sample_random_frames
         gating = FLAGS.gating
+        add_batch_norm = add_batch_norm or FLAGS.tembed_v1_batch_norm
         video_anchor_size = FLAGS.tembed_v1_video_anchor_size
         audio_anchor_size = FLAGS.tembed_v1_audio_anchor_size
         video_concat_hidden_size = FLAGS.tembed_v1_video_concat_hidden_size
@@ -123,8 +124,8 @@ class TembedModelV1(models.BaseModel):
                                                              add_batch_norm,
                                                              is_training)
 
-        video_spoc_pooling = video_pooling_modules.SpocPoolingModule(1024, max_frames)
-        audio_spoc_pooling = video_pooling_modules.SpocPoolingModule(128, max_frames)
+        video_spoc_pooling = aggregation_modules.SpocPoolingModule(1024, max_frames)
+        audio_spoc_pooling = aggregation_modules.SpocPoolingModule(128, max_frames)
 
         video_t_temp_emb = video_pooling_modules.TembeddingTempModule(1024, max_frames,
                                                                       video_anchor_size,
@@ -248,12 +249,13 @@ flags.DEFINE_integer("tembed_v2_video_anchor_size", 64,
                      "Size for anchor points for video features.")
 flags.DEFINE_integer("tembed_v2_audio_anchor_size", 32,
                      "Size for anchor points for audio features.")
-flags.DEFINE_integer("tembed_v2_video_concat_hidden_size", 1024,
-                     "Hidden weights for concatenated (t-embedded video features.")
-flags.DEFINE_integer("tembed_v2_audio_concat_hidden_size", 128,
-                     "Hidden weights for concatenated (t-embedded audio features.")
-flags.DEFINE_integer("tembed_v2_full_concat_hidden_size", 1024,
+flags.DEFINE_integer("tembed_v2_distrib_concat_hidden_size", 1024,
+                     "Hidden weights for concatenated (t-embedded distribution features.")
+flags.DEFINE_integer("tembed_v2_temporal_concat_hidden_size", 128,
+                     "Hidden weights for concatenated (t-embedded temporal features.")
+flags.DEFINE_integer("tembed_v2_full_concat_hidden_size", 2048,
                      "Hidden weights for concatenated (t-embedded video, audio features.")
+
 
 class TembedModelV2(models.BaseModel):
     def create_model(self,
@@ -268,11 +270,14 @@ class TembedModelV2(models.BaseModel):
                      is_training=True,
                      **unused_params):
         iterations = iterations or FLAGS.iterations
-        add_batch_norm = add_batch_norm or FLAGS.netvlad_add_batch_norm
         random_frames = sample_random_frames or FLAGS.sample_random_frames
-        cluster_size = cluster_size or FLAGS.netvlad_cluster_size
-        hidden1_size = hidden_size or FLAGS.netvlad_hidden_size
         gating = FLAGS.gating
+        add_batch_norm = add_batch_norm or FLAGS.tembed_v2_batch_norm
+        video_anchor_size = FLAGS.tembed_v2_video_anchor_size
+        audio_anchor_size = FLAGS.tembed_v2_audio_anchor_size
+        distrib_concat_hidden_size = FLAGS.tembed_v2_distrib_concat_hidden_size
+        temporal_concat_hidden_size = FLAGS.tembed_v2_temporal_concat_hidden_size
+        full_concat_hidden_size = FLAGS.tembed_v2_full_concat_hidden_size
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         if random_frames:
@@ -288,16 +293,26 @@ class TembedModelV2(models.BaseModel):
         # model_input: (batch_size * max_frames) x feature_size
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
-        video_t_emb = video_pooling_modules.TembeddingModule(1024, max_frames, 64, add_batch_norm, is_training)
-        audio_t_emb = video_pooling_modules.TembeddingModule(128, max_frames, 32, add_batch_norm, is_training)
+        video_t_emb = video_pooling_modules.TembeddingModule(1024, max_frames,
+                                                             video_anchor_size,
+                                                             add_batch_norm,
+                                                             is_training)
+        audio_t_emb = video_pooling_modules.TembeddingModule(128, max_frames,
+                                                             audio_anchor_size,
+                                                             add_batch_norm,
+                                                             is_training)
 
         video_spoc_pooling = video_pooling_modules.SpocPoolingModule(1024, max_frames)
         audio_spoc_pooling = video_pooling_modules.SpocPoolingModule(128, max_frames)
 
-        video_t_temp_emb = video_pooling_modules.TembeddingTempModule(1024, max_frames, 64,
-                                                                      add_batch_norm, is_training)
-        audio_t_temp_emb = video_pooling_modules.TembeddingTempModule(128, max_frames, 32,
-                                                                      add_batch_norm, is_training)
+        video_t_temp_emb = video_pooling_modules.TembeddingTempModule(1024, max_frames,
+                                                                      video_anchor_size,
+                                                                      add_batch_norm,
+                                                                      is_training)
+        audio_t_temp_emb = video_pooling_modules.TembeddingTempModule(128, max_frames,
+                                                                      audio_anchor_size,
+                                                                      add_batch_norm,
+                                                                      is_training)
 
         if add_batch_norm:
             reshaped_input = slim.batch_norm(
@@ -310,7 +325,7 @@ class TembedModelV2(models.BaseModel):
         with tf.variable_scope("video_t_emb"):
             t_emb_video = video_t_emb.forward(reshaped_input[:, 0:1024])
             # -> (batch_size * max_frames) x (feature_size * cluster_size)
-            t_emb_video = tf.reshape(t_emb_video, [-1, max_frames, 1024 * 64])
+            t_emb_video = tf.reshape(t_emb_video, [-1, max_frames, 1024 * video_anchor_size])
             t_temp_video = video_t_temp_emb.forward(t_emb_video)
             # -> batch_size x (max_frames - 1) x (feature_size * cluster_size)
 
@@ -323,7 +338,7 @@ class TembedModelV2(models.BaseModel):
         with tf.variable_scope("audio_t_emb"):
             t_emb_audio = audio_t_emb.forward(reshaped_input[:, 1024:])
             # -> (batch_size * max_frames) x (feature_size * cluster_size)
-            t_emb_audio = tf.reshape(t_emb_audio, [-1, max_frames, 128 * 32])
+            t_emb_audio = tf.reshape(t_emb_audio, [-1, max_frames, 128 * audio_anchor_size])
             t_temp_audio = audio_t_temp_emb.forward(t_emb_audio)
             # -> batch_size x (max_frames - 1) x (feature_size * cluster_size)
 
@@ -334,24 +349,27 @@ class TembedModelV2(models.BaseModel):
         t_distrib_concat = tf.concat([t_emb_video, t_emb_audio], 1)
         t_distrib_concat_dim = t_distrib_concat.get_shape().as_list()[1]
         t_distrib_hidden = tf.get_variable("distrib_concat",
-                                           [t_distrib_concat_dim, 1024],
-                                           initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(1024)))
+                                           [t_distrib_concat_dim, distrib_concat_hidden_size],
+                                           initializer=tf.random_normal_initializer(
+                                               stddev=1 / math.sqrt(distrib_concat_hidden_size)))
         distrib_activation = tf.matmul(t_distrib_concat, t_distrib_hidden)
         distrib_activation = tf.nn.relu6(distrib_activation)
 
         t_temp_concat = tf.concat([t_temp_video, t_temp_audio], 1)
         t_temp_concat_dim = t_temp_concat.get_shape().as_list()[1]
         t_temp_hidden = tf.get_variable("temp_concat",
-                                        [t_temp_concat_dim, 1024],
-                                        initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(1024)))
+                                        [t_temp_concat_dim, temporal_concat_hidden_size],
+                                        initializer=tf.random_normal_initializer(
+                                            stddev=1 / math.sqrt(temporal_concat_hidden_size)))
         temp_activation = tf.matmul(t_temp_concat, t_temp_hidden)
         temp_activation = tf.nn.relu6(temp_activation)
 
         t_concat = tf.concat([distrib_activation, temp_activation], 1)
         t_concat_dim = t_concat.get_shape().as_list()[1]
         concat_hidden_1 = tf.get_variable("concat_hidden_1",
-                                          [t_concat_dim, 1024 * 2],
-                                          initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(1024 * 2)))
+                                          [t_concat_dim, full_concat_hidden_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(full_concat_hidden_size)))
         activation = tf.matmul(t_concat, concat_hidden_1)
         activation = tf.nn.relu6(activation)
 
@@ -365,9 +383,9 @@ class TembedModelV2(models.BaseModel):
 
         if gating:
             gating_weights = tf.get_variable("gating_weights_2",
-                                             [1024 * 2, 1024 * 2],
+                                             [full_concat_hidden_size, full_concat_hidden_size],
                                              initializer=tf.random_normal_initializer(
-                                                 stddev=1 / math.sqrt(hidden1_size)))
+                                                 stddev=1 / math.sqrt(full_concat_hidden_size)))
             gates = tf.matmul(activation, gating_weights)
 
             if add_batch_norm:
@@ -379,8 +397,9 @@ class TembedModelV2(models.BaseModel):
                     scope="gating_bn")
             else:
                 gating_biases = tf.get_variable("gating_biases",
-                                                [cluster_size],
-                                                initializer=tf.random_normal(stddev=1 / math.sqrt(feature_size)))
+                                                [full_concat_hidden_size],
+                                                initializer=tf.random_normal(
+                                                    stddev=1 / math.sqrt(full_concat_hidden_size)))
                 gates += gating_biases
 
             gates = tf.sigmoid(gates)
