@@ -22,8 +22,8 @@ import os
 # yaml settings. cloudml-4gpu.yaml, cloudml-gpu.yaml, cloudml-gpu-distributed.yaml
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
-MODEL_NAME = "ContextLearningModelV3"
-MODEL_VERSION = 1
+MODEL_NAME = "TembedModelV1"
+MODEL_VERSION = ""
 # Does it require frame-level models?
 FRAME_LEVEL = True
 # What features? e.g. RGB, audio
@@ -55,6 +55,8 @@ def main():
         command += "--frame_features=False "
         local_command += "-- --train_data_pattern='gs://youtube8m-ml-us-east1/2/video/train/*.tfrecord' "
         local_command += "--frame_features=False "
+    command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
+    local_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
     command += "--model={} ".format(MODEL_NAME)
     local_command += "--model={} ".format(MODEL_NAME)
     command += "--feature_names='{}' ".format(FEATURES)
