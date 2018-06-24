@@ -254,6 +254,7 @@ class LogisticMultiLayerModel(models.BaseModel):
             weights_regularizer=slim.l2_regularizer(l2_penalty))
         return {"predictions": output, "features": fc2}
 
+
 ###############################################################################
 # Starter code models #########################################################
 ###############################################################################

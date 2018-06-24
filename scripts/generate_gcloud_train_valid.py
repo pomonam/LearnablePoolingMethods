@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Generate command line arguments for Google Cloud MLE training."""
+"""
+Generate command line arguments for Google Cloud MLE training.
+Run command: BUCKET_NAME=gs://${USER}_yt8m_train_bucket
+"""
+
 
 import os
 
@@ -22,8 +26,8 @@ import os
 # yaml settings. cloudml-4gpu.yaml, cloudml-gpu.yaml, cloudml-gpu-distributed.yaml
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
-MODEL_NAME = "TembedModelV1"
-MODEL_VERSION = ""
+MODEL_NAME = "TembedModelV2"
+MODEL_VERSION = "-1"
 # Does it require frame-level models?
 FRAME_LEVEL = True
 # What features? e.g. RGB, audio
