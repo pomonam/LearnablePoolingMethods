@@ -2,3 +2,11 @@ TempV2
 JOB_NAME=yt8m_train_$(date +%Y%m%d_%H%M%S); gcloud --verbosity=debug ml-engine jobs submit training $JOB_NAME --package-path=youtube-8m --module-name=youtube-8m.train --staging-bucket=$BUCKET_NAME --region=us-east1 --config=youtube-8m/cloudml_config/cloudml-gpu.yaml -- --train_data_pattern='gs://youtube8m-ml-us-east1/2/frame/train/*.tfrecord' --frame_features=True --base_learning_rate=0.0002 --model=TembedModelV2 --feature_names='rgb,audio' --feature_sizes='1024,128' --batch_size=128 --train_dir=$BUCKET_NAME/TembedModelV2 --base_learning_rate=0.0002 --start_new_model
 
 
+TempV3-1
+Max pooling, ...
+JOB_NAME=yt8m_train_$(date +%Y%m%d_%H%M%S); gcloud --verbosity=debug ml-engine jobs submit training $JOB_NAME --package-path=youtube-8m --module-name=youtube-8m.train --staging-bucket=$BUCKET_NAME --region=us-east1 --config=youtube-8m/cloudml_config/cloudml-gpu.yaml -- --train_data_pattern='gs://youtube8m-ml-us-east1/2/frame/train/*.tfrecord' --frame_features=True --base_learning_rate=0.0002 --model=TembedModelV3 --feature_names='rgb,audio' --feature_sizes='1024,128' --batch_size=128 --train_dir=$BUCKET_NAME/TembedModelV31 --base_learning_rate=0.0002 --start_new_model
+
+
+TempV4-2
+More weights
+JOB_NAME=yt8m_train_$(date +%Y%m%d_%H%M%S); gcloud --verbosity=debug ml-engine jobs submit training $JOB_NAME --package-path=youtube-8m --module-name=youtube-8m.train --staging-bucket=$BUCKET_NAME --region=us-east1 --config=youtube-8m/cloudml_config/cloudml-gpu.yaml -- --train_data_pattern='gs://youtube8m-ml-us-east1/2/frame/train/*.tfrecord' --frame_features=True --base_learning_rate=0.0002 --model=TembedModelV3 --feature_names='rgb,audio' --feature_sizes='1024,128' --batch_size=128 --train_dir=$BUCKET_NAME/TembedModelV31 --base_learning_rate=0.0002 --start_new_model -tembed_v3_video_anchor_size=256 -tembed_v3_audio_anchor_size=32 -tembed_v3_distrib_concat_hidden_size=1024 -tembed_v3_temporal_concat_hidden_size=1024 -tembed_v3_full_concat_hidden_size=3072

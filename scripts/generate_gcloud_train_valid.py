@@ -1,4 +1,4 @@
-# Copyright 2018 Juhan, Ruijian All Rights Reserved.
+# Copyright 2018 Deep Topology All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ import os
 # yaml settings. cloudml-4gpu.yaml, cloudml-gpu.yaml, cloudml-gpu-distributed.yaml
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
-MODEL_NAME = "TembedModelV2"
-MODEL_VERSION = "-1"
+MODEL_NAME = "TembedModelV3"
+MODEL_VERSION = "1"
 # Does it require frame-level models?
 FRAME_LEVEL = True
 # What features? e.g. RGB, audio
@@ -38,6 +38,11 @@ BATCH_SIZE = 128
 BASE_LEARNING_RATE = 0.0002
 # Initialize a new model?
 START_NEW_MODEL = True
+EXTRA = "-tembed_v3_video_anchor_size=64 " \
+        "-tembed_v3_audio_anchor_size=8 " \
+        "-tembed_v3_distrib_concat_hidden_size=4096 " \
+        "-tembed_v3_temporal_concat_hidden_size=4096 " \
+        "-tembed_v3_full_concat_hidden_size=8192"
 
 
 def main():
@@ -77,12 +82,14 @@ def main():
         command += "--start_new_model "
         local_command += "--start_new_model "
     local_command += "--runtime-version=1.8"
+    command += EXTRA
+    local_command += EXTRA
     return command, local_command
 
 
 if __name__ == "__main__":
     current_directory = os.getcwd()
-    current_directory = current_directory.split("\\")[:-2]
+    current_directory = "/".join(current_directory.split("/")[:-2])
     print("Run the following command here: {}".format(current_directory))
     c, lc = main()
     print("Local: \n{}".format(lc))

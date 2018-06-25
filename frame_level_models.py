@@ -416,6 +416,159 @@ class TembedModelV2(models.BaseModel):
 
 
 ###############################################################################
+# Triangulation Embedding Model V2 ############################################
+###############################################################################
+# Triangulation Embedding methods Version 2
+
+# Flags
+flags.DEFINE_bool("tembed_v3_batch_norm", True,
+                  "True iff add batch normalization.")
+flags.DEFINE_integer("tembed_v3_video_anchor_size", 128,
+                     "Size for anchor points for video features.")
+flags.DEFINE_integer("tembed_v3_audio_anchor_size", 32,
+                     "Size for anchor points for audio features.")
+flags.DEFINE_integer("tembed_v3_distrib_concat_hidden_size", 1024,
+                     "Hidden weights for concatenated (t-embedded distribution features.")
+flags.DEFINE_integer("tembed_v3_temporal_concat_hidden_size", 1024,
+                     "Hidden weights for concatenated (t-embedded temporal features.")
+flags.DEFINE_integer("tembed_v3_full_concat_hidden_size", 2048,
+                     "Hidden weights for concatenated (t-embedded video, audio features.")
+
+
+class TembedModelV3(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     cluster_size=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.iterations
+        random_frames = sample_random_frames or FLAGS.sample_random_frames
+        gating = FLAGS.gating
+        add_batch_norm = add_batch_norm or FLAGS.tembed_v3_batch_norm
+        video_anchor_size = FLAGS.tembed_v3_video_anchor_size
+        audio_anchor_size = FLAGS.tembed_v3_audio_anchor_size
+        distrib_concat_hidden_size = FLAGS.tembed_v3_distrib_concat_hidden_size
+        temporal_concat_hidden_size = FLAGS.tembed_v3_temporal_concat_hidden_size
+        full_concat_hidden_size = FLAGS.tembed_v3_full_concat_hidden_size
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        if random_frames:
+            model_input = utils.SampleRandomFrames(model_input, num_frames,
+                                                   iterations)
+        else:
+            model_input = utils.SampleRandomSequence(model_input, num_frames,
+                                                     iterations)
+
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        # model_input: (batch_size * max_frames) x feature_size
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        video_t_emb = video_pooling_modules.TembeddingModule(1024, max_frames,
+                                                             video_anchor_size,
+                                                             add_batch_norm,
+                                                             is_training)
+        audio_t_emb = video_pooling_modules.TembeddingModule(128, max_frames,
+                                                             audio_anchor_size,
+                                                             add_batch_norm,
+                                                             is_training)
+
+        video_spoc_pooling = aggregation_modules.MaxPoolingModule(1024, max_frames)
+        audio_spoc_pooling = aggregation_modules.MaxPoolingModule(128, max_frames)
+
+        video_t_temp_emb = video_pooling_modules.TembeddingTempModule(1024, max_frames,
+                                                                      video_anchor_size,
+                                                                      add_batch_norm,
+                                                                      is_training)
+        audio_t_temp_emb = video_pooling_modules.TembeddingTempModule(128, max_frames,
+                                                                      audio_anchor_size,
+                                                                      add_batch_norm,
+                                                                      is_training)
+
+        if add_batch_norm:
+            reshaped_input = slim.batch_norm(
+                reshaped_input,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="input_bn")
+
+        with tf.variable_scope("video_t_emb"):
+            t_emb_video = video_t_emb.forward(reshaped_input[:, 0:1024])
+            # -> (batch_size * max_frames) x (feature_size * cluster_size)
+            t_emb_video = tf.reshape(t_emb_video, [-1, max_frames, 1024 * video_anchor_size])
+            t_temp_video = video_t_temp_emb.forward(t_emb_video)
+            # -> batch_size x (max_frames - 1) x (feature_size * cluster_size)
+
+            t_emb_video = video_spoc_pooling.forward(t_emb_video)
+            t_temp_video = video_spoc_pooling.forward(t_temp_video)
+            # -> batch_size x (feature_size * cluster_size)
+
+            print(t_emb_video.get_shape())
+
+        with tf.variable_scope("audio_t_emb"):
+            t_emb_audio = audio_t_emb.forward(reshaped_input[:, 1024:])
+            # -> (batch_size * max_frames) x (feature_size * cluster_size)
+            t_emb_audio = tf.reshape(t_emb_audio, [-1, max_frames, 128 * audio_anchor_size])
+            t_temp_audio = audio_t_temp_emb.forward(t_emb_audio)
+            # -> batch_size x (max_frames - 1) x (feature_size * cluster_size)
+
+            t_emb_audio = audio_spoc_pooling.forward(t_emb_audio)
+            t_temp_audio = audio_spoc_pooling.forward(t_temp_audio)
+            # -> batch_size x (feature_size * cluster_size)
+
+        t_distrib_concat = tf.concat([t_emb_video, t_emb_audio], 1)
+        t_distrib_concat_dim = t_distrib_concat.get_shape().as_list()[1]
+        t_distrib_hidden = tf.get_variable("distrib_concat",
+                                           [t_distrib_concat_dim, distrib_concat_hidden_size],
+                                           initializer=tf.random_normal_initializer(
+                                               stddev=1 / math.sqrt(distrib_concat_hidden_size)))
+        distrib_activation = tf.matmul(t_distrib_concat, t_distrib_hidden)
+        distrib_activation = tf.nn.relu6(distrib_activation)
+
+        t_temp_concat = tf.concat([t_temp_video, t_temp_audio], 1)
+        t_temp_concat_dim = t_temp_concat.get_shape().as_list()[1]
+        t_temp_hidden = tf.get_variable("temp_concat",
+                                        [t_temp_concat_dim, temporal_concat_hidden_size],
+                                        initializer=tf.random_normal_initializer(
+                                            stddev=1 / math.sqrt(temporal_concat_hidden_size)))
+        temp_activation = tf.matmul(t_temp_concat, t_temp_hidden)
+        temp_activation = tf.nn.relu6(temp_activation)
+
+        t_concat = tf.concat([distrib_activation, temp_activation], 1)
+        t_concat_dim = t_concat.get_shape().as_list()[1]
+        concat_hidden_1 = tf.get_variable("concat_hidden_1",
+                                          [t_concat_dim, full_concat_hidden_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(full_concat_hidden_size)))
+        activation = tf.matmul(t_concat, concat_hidden_1)
+        activation = tf.nn.relu6(activation)
+
+        activation = slim.batch_norm(
+            activation,
+            center=True,
+            scale=True,
+            is_training=is_training,
+            scope="hidden1_bn")
+        activation = tf.nn.relu6(activation)
+        aggregated_model = getattr(video_level_models,
+                                   "WillowMoeModel")
+
+        return aggregated_model().create_model(
+            model_input=activation,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
+
+
+###############################################################################
 # Baseline (Benchmark) models #################################################
 ###############################################################################
 # Flags for WillowModel
