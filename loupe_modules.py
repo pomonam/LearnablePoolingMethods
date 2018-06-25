@@ -327,7 +327,7 @@ class NetFV(PoolingBaseModel):
     """Creates a NetFV class.
     """
     def __init__(self, feature_size, max_samples, cluster_size, output_dim,
-                 gating=True, add_batch_norm=True, is_training=True):
+                 gating=True, add_batch_norm=True, is_training=True, scope_id=None):
         super(self.__class__, self).__init__(
             feature_size=feature_size,
             max_samples=max_samples,
@@ -336,6 +336,7 @@ class NetFV(PoolingBaseModel):
             gating=gating,
             add_batch_norm=add_batch_norm,
             is_training=is_training)
+        self.scope_id = scope_id
 
     def forward(self, inputs, **unused_params):
         """Forward pass of a NetFV block.
@@ -350,12 +351,12 @@ class NetFV(PoolingBaseModel):
         fv: the pooled vector of size: 'batch_size' x 'output_dim'
         """
 
-        cluster_weights = tf.get_variable("cluster_weights",
+        cluster_weights = tf.get_variable("cluster_weights{}".format(self.scope_id),
                                           [self.feature_size, self.cluster_size],
                                           initializer=tf.random_normal_initializer(
                                               stddev=1 / math.sqrt(self.feature_size)))
 
-        covar_weights = tf.get_variable("covar_weights",
+        covar_weights = tf.get_variable("covar_weights{}".format(self.scope_id),
                                         [self.feature_size, self.cluster_size],
                                         initializer=tf.random_normal_initializer(
                                             mean=1.0, stddev=1 / math.sqrt(self.feature_size)))
@@ -371,9 +372,9 @@ class NetFV(PoolingBaseModel):
                 center=True,
                 scale=True,
                 is_training=self.is_training,
-                scope="cluster_bn")
+                scope="cluster_bn{}".format(self.scope_id))
         else:
-            cluster_biases = tf.get_variable("cluster_biases",
+            cluster_biases = tf.get_variable("cluster_biases{}".format(self.scope_id),
                                              [self.cluster_size],
                                              initializer=tf.random_normal_initializer(
                                                  stddev=1 / math.sqrt(self.feature_size)))
@@ -386,7 +387,7 @@ class NetFV(PoolingBaseModel):
 
         a_sum = tf.reduce_sum(activation, -2, keep_dims=True)
 
-        cluster_weights2 = tf.get_variable("cluster_weights2",
+        cluster_weights2 = tf.get_variable("cluster_weights2{}".format(self.scope_id),
                                            [1, self.feature_size, self.cluster_size],
                                            initializer=tf.random_normal_initializer(
                                                stddev=1 / math.sqrt(self.feature_size)))
@@ -428,14 +429,10 @@ class NetFV(PoolingBaseModel):
 
         fv = tf.concat([fv1, fv2], 1)
 
-        hidden1_weights = tf.get_variable("hidden1_weights",
+        hidden1_weights = tf.get_variable("hidden1_weights{}".format(self.scope_id),
                                           [2 * self.cluster_size * self.feature_size, self.output_dim],
                                           initializer=tf.random_normal_initializer(
                                               stddev=1 / math.sqrt(self.cluster_size)))
 
         fv = tf.matmul(fv, hidden1_weights)
-
-        if self.gating:
-            fv = super(self.__class__, self).context_gating(fv)
-
         return fv

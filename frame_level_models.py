@@ -36,6 +36,7 @@ import tensorflow.contrib.slim as slim
 import video_pooling_modules
 import attention_modules
 import aggregation_modules
+import loupe_modules
 import video_level_models
 import math
 import models
@@ -430,9 +431,9 @@ class TembedModelV2(models.BaseModel):
 
 
 ###############################################################################
-# Triangulation Embedding Model V2 ############################################
+# Triangulation Embedding Model V3 ############################################
 ###############################################################################
-# Triangulation Embedding methods Version 2
+# Triangulation Embedding methods Version 3
 
 # Flags
 flags.DEFINE_bool("tembed_v3_batch_norm", True,
@@ -572,6 +573,139 @@ class TembedModelV3(models.BaseModel):
             is_training=is_training,
             scope="hidden1_bn")
         activation = tf.nn.relu6(activation)
+        aggregated_model = getattr(video_level_models,
+                                   "WillowMoeModel")
+
+        return aggregated_model().create_model(
+            model_input=activation,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
+
+
+###############################################################################
+# Triangulation Embedding Model V4 ############################################
+###############################################################################
+# Triangulation Embedding methods Version 4
+# Fusion-based
+
+# Flags
+flags.DEFINE_bool("tembed_v4_batch_norm", True,
+                  "True iff add batch normalization.")
+
+flags.DEFINE_integer("tembed_v4_video_anchor_size", 128,
+                     "Size for anchor points for video features.")
+flags.DEFINE_integer("tembed_v4_audio_anchor_size", 16,
+                     "Size for anchor points for audio features.")
+
+
+
+class TembedModelV4(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     cluster_size=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.iterations
+        random_frames = sample_random_frames or FLAGS.sample_random_frames
+        add_batch_norm = add_batch_norm or FLAGS.tembed_v3_batch_norm
+        video_anchor_size = FLAGS.tembed_v4_video_anchor_size
+        audio_anchor_size = FLAGS.tembed_v4_audio_anchor_size
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        if random_frames:
+            model_input = utils.SampleRandomFrames(model_input, num_frames,
+                                                   iterations)
+        else:
+            model_input = utils.SampleRandomSequence(model_input, num_frames,
+                                                     iterations)
+
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        # model_input: (batch_size * max_frames) x feature_size
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        video_t_emb = video_pooling_modules.TriangulationEmbedding(1024,
+                                                                   max_frames,
+                                                                   video_anchor_size,
+                                                                   add_batch_norm,
+                                                                   is_training)
+        audio_t_emb = video_pooling_modules.TriangulationEmbedding(128,
+                                                             max_frames,
+                                                             audio_anchor_size,
+                                                             add_batch_norm,
+                                                             is_training)
+
+        video_mean_max_pool = aggregation_modules.MaxMeanPoolingModule(1024 * video_anchor_size, max_frames,
+                                                                       l2_normalize=True)
+        audio_mean_max_pool = aggregation_modules.MaxMeanPoolingModule(128 * audio_anchor_size, max_frames,
+                                                                       l2_normalize=True)
+
+        video_t_temp_emb = video_pooling_modules.TriangulationTemporalEmbedding(1024,
+                                                                                max_frames,
+                                                                                video_anchor_size,
+                                                                                add_batch_norm,
+                                                                                is_training)
+        audio_t_temp_emb = video_pooling_modules.TriangulationTemporalEmbedding(128,
+                                                                                max_frames,
+                                                                                audio_anchor_size,
+                                                                                add_batch_norm,
+                                                                                is_training)
+
+        if add_batch_norm:
+            reshaped_input = slim.batch_norm(
+                reshaped_input,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="input_bn")
+
+        with tf.variable_scope("video_t_emb"):
+            t_emb_video = video_t_emb.forward(reshaped_input[:, 0:1024])
+            # -> (batch_size * max_frames) x (feature_size * cluster_size)
+            t_emb_video = tf.reshape(t_emb_video, [-1, max_frames, 1024 * video_anchor_size])
+            t_temp_video = video_t_temp_emb.forward(t_emb_video)
+            # -> batch_size x (max_frames - 1) x (feature_size * cluster_size)
+            video_concat = tf.concat([t_emb_video, t_temp_video], 1)
+            reshaped_video_concat = tf.reshape(video_concat, [-1, 1024 * video_anchor_size])
+            video_fisher = video_fisher_pool.forward(reshaped_video_concat)
+            # -> batch_size x output_dim
+
+        with tf.variable_scope("audio_t_emb"):
+            t_emb_audio = audio_t_emb.forward(reshaped_input[:, 1024:])
+            # -> (batch_size * max_frames) x (feature_size * cluster_size)
+            t_emb_audio = tf.reshape(t_emb_audio, [-1, max_frames, 128 * audio_anchor_size])
+            t_temp_audio = audio_t_temp_emb.forward(t_emb_audio)
+            # -> batch_size x (max_frames - 1) x (feature_size * cluster_size)
+            audio_concat = tf.concat([t_emb_audio, t_temp_audio], 1)
+            reshaped_audio_concat = tf.reshape(audio_concat, [-1, 128 * audio_anchor_size])
+            audio_fisher = audio_fisher_pool.forward(reshaped_audio_concat)
+            # -> batch_size x output_dim
+
+        video_audio_concat = tf.concat([video_fisher, audio_fisher], 1)
+        video_audio_concat_dim = video_audio_concat.get_shape().as_list()[1]
+        hidden_weights_1 = tf.get_variable("hidden_weights_1",
+                                           [video_audio_concat_dim, 1024],
+                                           initializer=tf.random_normal_initializer(
+                                               stddev=1 / math.sqrt(1024)))
+
+        activation = tf.matmul(video_audio_concat, hidden_weights_1)
+        activation = tf.nn.relu6(activation)
+
+        hidden_weights_2 = tf.get_variable("hidden_weights_2",
+                                           [1024, 1024],
+                                           initializer=tf.random_normal_initializer(
+                                               stddev=1 / math.sqrt(1024)))
+        activation = tf.matmul(activation, hidden_weights_2)
+        activation = tf.nn.relu6(activation)
+
         aggregated_model = getattr(video_level_models,
                                    "WillowMoeModel")
 

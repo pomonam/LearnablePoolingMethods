@@ -26,23 +26,24 @@ import os
 # yaml settings. cloudml-4gpu.yaml, cloudml-gpu.yaml, cloudml-gpu-distributed.yaml
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
-MODEL_NAME = "TembedModelV3"
+MODEL_NAME = "TembedModelV4"
 MODEL_VERSION = "1"
 # Does it require frame-level models?
 FRAME_LEVEL = True
 # What features? e.g. RGB, audio
 FEATURES = "rgb,audio"
 # Batch size.
-BATCH_SIZE = 128
+BATCH_SIZE = 16
 # Base LR.
 BASE_LEARNING_RATE = 0.0002
 # Initialize a new model?
 START_NEW_MODEL = True
-EXTRA = "-tembed_v3_video_anchor_size=64 " \
-        "-tembed_v3_audio_anchor_size=8 " \
-        "-tembed_v3_distrib_concat_hidden_size=4096 " \
-        "-tembed_v3_temporal_concat_hidden_size=4096 " \
-        "-tembed_v3_full_concat_hidden_size=8192"
+EXTRA = ""
+# EXTRA = "-tembed_v3_video_anchor_size=64 " \
+#         "-tembed_v3_audio_anchor_size=8 " \
+#         "-tembed_v3_distrib_concat_hidden_size=4096 " \
+#         "-tembed_v3_temporal_concat_hidden_size=4096 " \
+#         "-tembed_v3_full_concat_hidden_size=8192"
 
 
 def main():
