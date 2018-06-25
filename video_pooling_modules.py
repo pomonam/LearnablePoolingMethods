@@ -55,23 +55,24 @@ class TriangulationEmbedding(modules.BaseModule):
         :param inputs: (batch_size * max_frames) x feature_size
         :return: (batch_size * max_frames) x (feature_size * anchor_size)
         """
-        anchor_weights = tf.get_variable("anchor_weights{}".format("" if self.scope_id is None
-                                                                     else str(self.scope_id)),
+        anchor_weights = tf.get_variable("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
                                          [self.feature_size, self.anchor_size],
                                          initializer=tf.random_normal_initializer(
                                               stddev=1 / math.sqrt(self.anchor_size)))
         tf.summary.histogram("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
                              anchor_weights)
+        anchor_weights = tf.transpose(anchor_weights)
         anchor_weights = tf.reshape(anchor_weights, [1, self.feature_size * self.anchor_size])
+
         # Tile inputs to subtract them with all anchors.
         tiled_inputs = tf.tile(inputs, [1, self.anchor_size])
         # -> (batch_size * max_frames) x (feature_size * anchor_size)
         t_emb = tf.subtract(tiled_inputs, anchor_weights)
         # -> (batch_size * max_frames) x (feature_size * anchor_size)
 
-        t_emb = tf.reshape(t_emb, [-1, self.feature_size, self.anchor_size])
+        t_emb = tf.reshape(t_emb, [-1, self.anchor_size, self.feature_size])
         # Normalize the inputs for each frame.
-        t_emb = tf.nn.l2_normalize(t_emb, 1)
+        t_emb = tf.nn.l2_normalize(t_emb, 2)
         t_emb = tf.reshape(t_emb, [-1, self.feature_size * self.anchor_size])
         # -> (batch_size * max_frames) x (feature_size * cluster_size)
 
@@ -98,13 +99,19 @@ class TriangulationTemporalEmbedding(modules.BaseModule):
 
     def forward(self, inputs, **unused_params):
         """ Forward method for TriangulationTemporalEmbedding.
-        :param inputs: batch_size x max_frames x (feature_size * cluster_size)
-        :return:
+        :param inputs: batch_size x max_frames x (feature_size * anchor_size)
+        :return: batch_size x (max_frames -1) x (feature_size * anchor_size)
         """
         cloned_inputs = tf.identity(inputs)
         # Shift the input to the right.
         cloned_inputs = tf.manip.roll(cloned_inputs, shift=1, axis=1)
         temp_info = tf.subtract(inputs, cloned_inputs)
+
+        temp_info_reshaped = tf.reshape(temp_info, [-1, self.anchor_size, self.feature_size])
+        temp_info_reshaped = tf.nn.l2_normalize(temp_info_reshaped, 2)
+        temp_info = tf.reshape(temp_info_reshaped, [-1, self.max_frames,
+                                                    self.feature_size * self.anchor_size])
+
         stacks = tf.unstack(temp_info, axis=1)
         del stacks[0]
         temp_info = tf.stack(stacks, 1)
