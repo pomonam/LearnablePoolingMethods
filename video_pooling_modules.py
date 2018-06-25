@@ -61,6 +61,7 @@ class TriangulationEmbedding(modules.BaseModule):
                                               stddev=1 / math.sqrt(self.anchor_size)))
         tf.summary.histogram("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
                              anchor_weights)
+        # Transpose weights for proper subtraction; See investigation.
         anchor_weights = tf.transpose(anchor_weights)
         anchor_weights = tf.reshape(anchor_weights, [1, self.feature_size * self.anchor_size])
 
@@ -80,9 +81,7 @@ class TriangulationEmbedding(modules.BaseModule):
 
 
 class TriangulationTemporalEmbedding(modules.BaseModule):
-    """ Triangulation embedding which calculates the difference in between frames.
-
-    """
+    """ Triangulation embedding which calculates the difference in between frames. """
     def __init__(self,
                  feature_size,
                  max_frames,
