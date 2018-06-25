@@ -105,6 +105,9 @@ class TriangulationTemporalEmbedding(modules.BaseModule):
         # Shift the input to the right.
         cloned_inputs = tf.manip.roll(cloned_inputs, shift=1, axis=1)
         temp_info = tf.subtract(inputs, cloned_inputs)
+        stacks = tf.unstack(temp_info, axis=1)
+        del stacks[0]
+        temp_info = tf.stack(stacks, 1)
 
         return temp_info
 
