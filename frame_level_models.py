@@ -785,7 +785,7 @@ class TriangulationModelV1(models.BaseModel):
         activation = tf.concat([agg_video_activation, agg_audio_activation], 1)
 
         aggregated_model = getattr(video_level_models,
-                                   "WillowMoeModel")
+                                   "NN")
 
         return aggregated_model().create_model(
             model_input=activation,

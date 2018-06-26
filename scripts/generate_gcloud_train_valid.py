@@ -14,7 +14,7 @@
 
 """
 Generate command line arguments for Google Cloud MLE training.
-Run command: BUCKET_NAME=gs://${USER}_yt8m_train_bucket
+Run command: BUCKET_NAME=gs://jnjktishjmsj_yt8m_train_bucket
 """
 
 
@@ -27,7 +27,7 @@ import os
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
 MODEL_NAME = "TriangulationModelV1"
-MODEL_VERSION = "-1"
+MODEL_VERSION = "-7"
 # Does it require frame-level models?
 FRAME_LEVEL = True
 # What features? e.g. RGB, audio
@@ -38,7 +38,7 @@ BATCH_SIZE = 32
 BASE_LEARNING_RATE = 0.0003
 # Initialize a new model?
 START_NEW_MODEL = True
-EXTRA = "-learning_rate_decay=0.8"
+EXTRA = "-learning_rate_decay=0.7"
 # EXTRA = "-tembed_v3_video_anchor_size=64 " \
 #         "-tembed_v3_audio_anchor_size=8 " \
 #         "-tembed_v3_distrib_concat_hidden_size=4096 " \

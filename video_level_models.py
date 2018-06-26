@@ -210,14 +210,13 @@ class NN(models.BaseModel):
                      num_mixtures=None,
                      l2_penalty=1e-8,
                      **unused_params):
-        hidden_size = FLAGS.hidden_size
         h1 = model_input
         num_layer = 3
 
         for _ in range(num_layer):
             h1 = slim.fully_connected(
                 h1,
-                hidden_size,
+                vocab_size,
                 activation_fn=None,
                 biases_initializer=None,
                 weights_regularizer=slim.l2_regularizer(l2_penalty))
