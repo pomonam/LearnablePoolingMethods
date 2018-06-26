@@ -59,9 +59,7 @@ class NnAggregationModule(modules.BaseModule):
 # State-of-Art Image Retrieval Aggregation ####################################
 ###############################################################################
 class MaxMeanPoolingModule(modules.BaseModule):
-    def __init__(self, feature_size, max_frames, l2_normalize=True):
-        self.feature_size = feature_size
-        self.max_frames = max_frames
+    def __init__(self, l2_normalize=True):
         self.l2_normalize = l2_normalize
 
     def forward(self, inputs, **unused_params):
@@ -75,6 +73,7 @@ class MaxMeanPoolingModule(modules.BaseModule):
         if self.l2_normalize:
             max_pooled = tf.nn.l2_normalize(max_pooled, 1)
             avg_pooled = tf.nn.l2_normalize(avg_pooled, 1)
+        # -> batch_size x num_features
 
         concat = tf.concat([max_pooled, avg_pooled], 1)
         return concat
