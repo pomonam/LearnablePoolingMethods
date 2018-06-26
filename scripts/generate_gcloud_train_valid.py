@@ -27,7 +27,7 @@ import os
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
 MODEL_NAME = "TriangulationModelV1"
-MODEL_VERSION = "-7"
+MODEL_VERSION = "-9"
 # Does it require frame-level models?
 FRAME_LEVEL = True
 # What features? e.g. RGB, audio
@@ -35,7 +35,7 @@ FEATURES = "rgb,audio"
 # Batch size.
 BATCH_SIZE = 32
 # Base LR.
-BASE_LEARNING_RATE = 0.0003
+BASE_LEARNING_RATE = 0.0002
 # Initialize a new model?
 START_NEW_MODEL = True
 EXTRA = "-learning_rate_decay=0.7"

@@ -89,12 +89,14 @@ class MaxPoolingModule(modules.BaseModule):
 
 
 class SpocPoolingModule(modules.BaseModule):
-    def __init__(self, feature_size, max_frames):
-        self.feature_size = feature_size
-        self.max_frames = max_frames
+    def __init__(self, l2_normalize=True):
+        self.l2_normalize = l2_normalize
 
     def forward(self, inputs, **unused_params):
-        return tf.reduce_mean(inputs, 1)
+        mean_pool = tf.reduce_mean(inputs, 1)
+        if self.l2_normalize:
+            maen_pool = tf.nn.l2_normalize(mean_pool)
+        return mean_pool
 
 
 class GemPoolingModule(modules.BaseModule):
