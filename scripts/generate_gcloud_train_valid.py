@@ -14,7 +14,7 @@
 
 """
 Generate command line arguments for Google Cloud MLE training.
-Run command: BUCKET_NAME=gs://jnjktishjmsj_yt8m_train_bucket
+Run command: BUCKET_NAME=gs://dtp1_yt8m_train_bucket
 """
 
 
@@ -26,14 +26,14 @@ import os
 # yaml settings. cloudml-4gpu.yaml, cloudml-gpu.yaml, cloudml-gpu-distributed.yaml
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
-MODEL_NAME = "TriangulationModelV1"
-MODEL_VERSION = "-9"
+MODEL_NAME = "TriangulationRelationalModel"
+MODEL_VERSION = "-3"
 # Does it require frame-level models?
 FRAME_LEVEL = True
 # What features? e.g. RGB, audio
 FEATURES = "rgb,audio"
 # Batch size.
-BATCH_SIZE = 32
+BATCH_SIZE = 8
 # Base LR.
 BASE_LEARNING_RATE = 0.0002
 # Initialize a new model?

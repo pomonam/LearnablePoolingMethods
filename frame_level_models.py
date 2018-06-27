@@ -38,6 +38,7 @@ import attention_modules
 import aggregation_modules
 import loupe_modules
 import video_level_models
+import rnn_modules
 import math
 import models
 
@@ -65,8 +66,6 @@ flags.DEFINE_string("video_level_classifier_model", "MoeModel",
                     "Some Frame-Level models can be decomposed into a "
                     "generalized pooling operation followed by a "
                     "classifier layer")
-flags.DEFINE_integer("lstm_cells", 1024, "Number of LSTM cells.")
-flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
 
 
 ###############################################################################
@@ -74,18 +73,12 @@ flags.DEFINE_integer("lstm_layers", 2, "Number of LSTM layers.")
 ###############################################################################
 
 # Flags
-flags.DEFINE_bool("tembed_v1_batch_norm", True,
+flags.DEFINE_bool("batch_norm", True,
                   "True iff add batch normalization.")
-flags.DEFINE_integer("tembed_v1_video_anchor_size", 64,
+flags.DEFINE_integer("audio_triangulation_anchor_size_v1", 4,
                      "Size for anchor points for video features.")
-flags.DEFINE_integer("tembed_v1_audio_anchor_size", 16,
+flags.DEFINE_integer("video_triangulation_anchor_size_v1", 16,
                      "Size for anchor points for audio features.")
-flags.DEFINE_integer("tembed_v1_video_concat_hidden_size", 1024,
-                     "Hidden weights for concatenated (t-embedded video features.")
-flags.DEFINE_integer("tembed_v1_audio_concat_hidden_size", 128,
-                     "Hidden weights for concatenated (t-embedded audio features.")
-flags.DEFINE_integer("tembed_v1_full_concat_hidden_size", 1024,
-                     "Hidden weights for concatenated (t-embedded video, audio features.")
 
 
 class TriangulationRelationalModel(models.BaseModel):
@@ -101,23 +94,15 @@ class TriangulationRelationalModel(models.BaseModel):
                      **unused_params):
         iterations = iterations or FLAGS.iterations
         random_frames = sample_random_frames or FLAGS.sample_random_frames
-        gating = FLAGS.gating
-        add_batch_norm = add_batch_norm or FLAGS.tembed_v1_batch_norm
-        video_anchor_size = FLAGS.audio_triangulation_anchor_size
-        audio_anchor_size = FLAGS.video_triangulation_anchor_size
-        video_concat_hidden_size = FLAGS.tembed_v1_video_concat_hidden_size
-        audio_concat_hidden_size = FLAGS.tembed_v1_audio_concat_hidden_size
-        full_concat_hidden_size = FLAGS.tembed_v1_full_concat_hidden_size
+        add_batch_norm = add_batch_norm or FLAGS.batch_norm
+        video_anchor_size = FLAGS.video_triangulation_anchor_size_v1
+        audio_anchor_size = FLAGS.audio_triangulation_anchor_size_v1
 
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+
         if random_frames:
-            model_input = utils.SampleRandomFrames(model_input,
-                                                   num_frames,
+            num_frames_2 = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+            model_input = utils.SampleRandomFrames(model_input, num_frames_2,
                                                    iterations)
-        else:
-            model_input = utils.SampleRandomSequence(model_input,
-                                                     num_frames,
-                                                     iterations)
 
         # model_input: batch_size x max_frames x feature_size
         max_frames = model_input.get_shape().as_list()[1]
@@ -125,26 +110,27 @@ class TriangulationRelationalModel(models.BaseModel):
         # model_input: (batch_size * max_frames) x feature_size
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
-        video_t_emb = video_pooling_modules.TriangulationEmbedding(1024, max_frames,
-                                                             video_anchor_size,
-                                                             add_batch_norm,
-                                                             is_training)
-        audio_t_emb = video_pooling_modules.TriangulationEmbedding(128, max_frames,
-                                                             audio_anchor_size,
-                                                             add_batch_norm,
-                                                             is_training)
+        video_t_emb = video_pooling_modules.TriangulationEmbedding(1024,
+                                                                   max_frames,
+                                                                   video_anchor_size,
+                                                                   add_batch_norm,
+                                                                   is_training)
+        audio_t_emb = video_pooling_modules.TriangulationEmbedding(128,
+                                                                   max_frames,
+                                                                   audio_anchor_size,
+                                                                   add_batch_norm,
+                                                                   is_training)
 
-        video_spoc_pooling = aggregation_modules.SpocPoolingModule(1024, max_frames)
-        audio_spoc_pooling = aggregation_modules.SpocPoolingModule(128, max_frames)
-
-        video_t_temp_emb = video_pooling_modules.TriangulationTemporalEmbedding(1024, max_frames,
-                                                                      video_anchor_size,
-                                                                      add_batch_norm,
-                                                                      is_training)
-        audio_t_temp_emb = video_pooling_modules.TriangulationTemporalEmbedding(128, max_frames,
-                                                                      audio_anchor_size,
-                                                                      add_batch_norm,
-                                                                      is_training)
+        video_lstm = rnn_modules.LstmLastHiddenModule(lstm_size=1024 * video_anchor_size,
+                                                      lstm_layers=2,
+                                                      output_dim=1024 * video_anchor_size,
+                                                      num_frames=num_frames,
+                                                      scope_id=None)
+        audio_lstm = rnn_modules.LstmLastHiddenModule(lstm_size=128 * audio_anchor_size,
+                                                      lstm_layers=2,
+                                                      output_dim=128 * audio_anchor_size,
+                                                      num_frames=num_frames,
+                                                      scope_id=None)
 
         if add_batch_norm:
             reshaped_input = slim.batch_norm(
@@ -158,84 +144,49 @@ class TriangulationRelationalModel(models.BaseModel):
             t_emb_video = video_t_emb.forward(reshaped_input[:, 0:1024])
             # -> (batch_size * max_frames) x (feature_size * cluster_size)
             t_emb_video = tf.reshape(t_emb_video, [-1, max_frames, 1024 * video_anchor_size])
-            t_temp_video = video_t_temp_emb.forward(t_emb_video)
-            # -> batch_size x (max_frames - 1) x (feature_size * cluster_size)
-
-            t_emb_video = video_spoc_pooling.forward(t_emb_video)
-            t_temp_video = video_spoc_pooling.forward(t_temp_video)
-            # -> batch_size x (feature_size * cluster_size)
-
-        t_video_concat = tf.concat([t_emb_video, t_temp_video], 1)
-        # -> batch_size x (feature_size * cluster_size * 2)
-        t_video_concat_dim = t_video_concat.get_shape().as_list()[1]
-        video_hidden_1 = tf.get_variable("video_hidden_1",
-                                         [t_video_concat_dim, video_concat_hidden_size],
-                                         initializer=tf.random_normal_initializer(
-                                             stddev=1 / math.sqrt(video_concat_hidden_size)),
-                                         dtype=tf.float32)
-        video_activation = tf.matmul(t_video_concat, video_hidden_1)
-        video_activation = tf.nn.relu6(video_activation)
+            lstm_video_output = video_lstm.forward(t_emb_video)
 
         with tf.variable_scope("audio_t_emb"):
             t_emb_audio = audio_t_emb.forward(reshaped_input[:, 1024:])
             # -> (batch_size * max_frames) x (feature_size * cluster_size)
             t_emb_audio = tf.reshape(t_emb_audio, [-1, max_frames, 128 * audio_anchor_size])
-            t_temp_audio = audio_t_temp_emb.forward(t_emb_audio)
-            # -> batch_size x (max_frames - 1) x (feature_size * cluster_size)
+            lstm_audio_output = audio_lstm.forward(t_emb_audio)
 
-            t_emb_audio = audio_spoc_pooling.forward(t_emb_audio)
-            t_temp_audio = audio_spoc_pooling.forward(t_temp_audio)
-            # -> batch_size x (feature_size * cluster_size)
+        lstm_output = tf.concat([lstm_video_output, lstm_audio_output], 1)
+        # -> batch_size * output_dim
 
-        t_audio_concat = tf.concat([t_emb_audio, t_temp_audio], 1)
-        # -> batch_size x (feature_size * cluster_size * 2)
-        t_audio_concat_dim = t_audio_concat.get_shape().as_list()[1]
-        audio_hidden_1 = tf.get_variable("audio_hidden_1",
-                                         [t_audio_concat_dim, audio_concat_hidden_size],
-                                         initializer=tf.random_normal_initializer(
-                                             stddev=1 / math.sqrt(audio_concat_hidden_size)))
-        audio_activation = tf.matmul(t_audio_concat, audio_hidden_1)
-        audio_activation = tf.nn.relu6(audio_activation)
+        lstm_output_dim = lstm_output.get_shape().as_list()[1]
+        lstm_hidden_1 = tf.get_variable("lstm_hidden_1",
+                                        [lstm_output_dim, 2048],
+                                        initializer=tf.random_normal_initializer(
+                                            stddev=1 / math.sqrt(2048)))
+        activation = tf.matmul(lstm_output, lstm_hidden_1)
+        if add_batch_norm:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="activation_1_bn")
+        activation = tf.nn.leaky_relu(activation)
+        if is_training:
+            activation = tf.nn.dropout(activation, keep_prob=0.5)
 
-        video_audio_concat = tf.concat([video_activation, audio_activation], 1)
-
-        video_audio_concat_dim = video_audio_concat.get_shape().as_list()[1]
-        # -> batch_size x (feature_size * cluster_size)
-        hidden1_weights = tf.get_variable("hidden_weights",
-                                          [video_audio_concat_dim, full_concat_hidden_size],
-                                          initializer=tf.random_normal_initializer(
-                                              stddev=1 / math.sqrt(full_concat_hidden_size)))
-        activation = tf.matmul(video_audio_concat, hidden1_weights)
-        activation = slim.batch_norm(
-            activation,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="hidden1_bn")
-        activation = layers.PReLU(activation)
-
-        if gating:
-            gating_weights = tf.get_variable("gating_weights_2",
-                                             [full_concat_hidden_size, full_concat_hidden_size],
-                                             initializer=tf.random_normal_initializer(
-                                                 stddev=1 / math.sqrt(full_concat_hidden_size)))
-            gates = tf.matmul(activation, gating_weights)
-
-            if add_batch_norm:
-                gates = slim.batch_norm(
-                    gates,
-                    center=True,
-                    scale=True,
-                    is_training=is_training,
-                    scope="gating_bn")
-            else:
-                gating_biases = tf.get_variable("gating_biases",
-                                                [full_concat_hidden_size],
-                                                initializer=tf.random_normal(
-                                                    stddev=1 / math.sqrt(full_concat_hidden_size)))
-                gates += gating_biases
-            gates = tf.sigmoid(gates)
-            activation = tf.multiply(activation, gates)
+        lstm_hidden_2 = tf.get_variable("lstm_hidden_2",
+                                        [2048, 2048],
+                                        initializer=tf.random_normal_initializer(
+                                            stddev=1 / math.sqrt(2048)))
+        activation = tf.matmul(activation, lstm_hidden_2)
+        if add_batch_norm:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="activation_2_bn")
+        activation = tf.nn.leaky_relu(activation)
+        if is_training:
+            activation = tf.nn.dropout(activation, keep_prob=0.5)
 
         aggregated_model = getattr(video_level_models,
                                    "WillowMoeModel")
@@ -1309,194 +1260,4 @@ class WillowModel(models.BaseModel):
             model_input=activation,
             vocab_size=vocab_size,
             is_training=is_training,
-            **unused_params)
-
-
-###############################################################################
-# Starter code models #########################################################
-###############################################################################
-class FrameLevelLogisticModel(models.BaseModel):
-    def create_model(self,
-                     model_input,
-                     vocab_size,
-                     num_frames,
-                     **unused_params):
-        """Creates a model which uses a logistic classifier over the average of the
-        frame-level features.
-        This class is intended to be an example for implementors of frame level
-        models. If you want to train a model over averaged features it is more
-        efficient to average them beforehand rather than on the fly.
-        Args:
-          model_input: A 'batch_size' x 'max_frames' x 'num_features' matrix of
-                       input features.
-          vocab_size: The number of classes in the dataset.
-          num_frames: A vector of length 'batch' which indicates the number of
-               frames for each video (before padding).
-        Returns:
-          A dictionary with a tensor containing the probability predictions of the
-          model in the 'predictions' key. The dimensions of the tensor are
-          'batch_size' x 'num_classes'.
-        """
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        feature_size = model_input.get_shape().as_list()[2]
-
-        denominators = tf.reshape(
-            tf.tile(num_frames, [1, feature_size]), [-1, feature_size])
-        avg_pooled = tf.reduce_sum(model_input,
-                                   axis=[1]) / denominators
-
-        output = slim.fully_connected(
-            avg_pooled, vocab_size, activation_fn=tf.nn.sigmoid,
-            weights_regularizer=slim.l2_regularizer(1e-8))
-        return {"predictions": output}
-
-
-class DbofModel(models.BaseModel):
-    """Creates a Deep Bag of Frames model.
-      The model projects the features for each frame into a higher dimensional
-      'clustering' space, pools across frames in that space, and then
-      uses a configurable video-level model to classify the now aggregated features.
-      The model will randomly sample either frames or sequences of frames during
-      training to speed up convergence.
-      Args:
-        model_input: A 'batch_size' x 'max_frames' x 'num_features' matrix of
-                     input features.
-        vocab_size: The number of classes in the dataset.
-        num_frames: A vector of length 'batch' which indicates the number of
-             frames for each video (before padding).
-      Returns:
-        A dictionary with a tensor containing the probability predictions of the
-        model in the 'predictions' key. The dimensions of the tensor are
-        'batch_size' x 'num_classes'.
-      """
-    def create_model(self,
-                     model_input,
-                     vocab_size,
-                     num_frames,
-                     iterations=None,
-                     add_batch_norm=None,
-                     sample_random_frames=None,
-                     cluster_size=None,
-                     hidden_size=None,
-                     is_training=True,
-                     **unused_params):
-        iterations = iterations or FLAGS.iterations
-        add_batch_norm = add_batch_norm or FLAGS.dbof_add_batch_norm
-        random_frames = sample_random_frames or FLAGS.sample_random_frames
-        cluster_size = cluster_size or FLAGS.dbof_cluster_size
-        hidden1_size = hidden_size or FLAGS.dbof_hidden_size
-
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        if random_frames:
-            model_input = utils.SampleRandomFrames(model_input, num_frames,
-                                                   iterations)
-        else:
-            model_input = utils.SampleRandomSequence(model_input, num_frames,
-                                                     iterations)
-        max_frames = model_input.get_shape().as_list()[1]
-        feature_size = model_input.get_shape().as_list()[2]
-        reshaped_input = tf.reshape(model_input, [-1, feature_size])
-        tf.summary.histogram("input_hist", reshaped_input)
-
-        if add_batch_norm:
-            reshaped_input = slim.batch_norm(
-                reshaped_input,
-                center=True,
-                scale=True,
-                is_training=is_training,
-                scope="input_bn")
-
-        cluster_weights = tf.get_variable("cluster_weights",
-                                          [feature_size, cluster_size],
-                                          initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(feature_size)))
-        tf.summary.histogram("cluster_weights", cluster_weights)
-        activation = tf.matmul(reshaped_input, cluster_weights)
-        if add_batch_norm:
-            activation = slim.batch_norm(
-                activation,
-                center=True,
-                scale=True,
-                is_training=is_training,
-                scope="cluster_bn")
-        else:
-            cluster_biases = tf.get_variable("cluster_biases",
-                                             [cluster_size],
-                                             initializer=tf.random_normal(stddev=1 / math.sqrt(feature_size)))
-            tf.summary.histogram("cluster_biases", cluster_biases)
-            activation += cluster_biases
-        activation = tf.nn.relu6(activation)
-        tf.summary.histogram("cluster_output", activation)
-
-        activation = tf.reshape(activation, [-1, max_frames, cluster_size])
-        activation = utils.FramePooling(activation, FLAGS.dbof_pooling_method)
-
-        hidden1_weights = tf.get_variable("hidden1_weights",
-                                          [cluster_size, hidden1_size],
-                                          initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)))
-        tf.summary.histogram("hidden1_weights", hidden1_weights)
-        activation = tf.matmul(activation, hidden1_weights)
-        if add_batch_norm:
-            activation = slim.batch_norm(
-                activation,
-                center=True,
-                scale=True,
-                is_training=is_training,
-                scope="hidden1_bn")
-        else:
-            hidden1_biases = tf.get_variable("hidden1_biases",
-                                             [hidden1_size],
-                                             initializer=tf.random_normal_initializer(stddev=0.01))
-            tf.summary.histogram("hidden1_biases", hidden1_biases)
-            activation += hidden1_biases
-        activation = tf.nn.relu6(activation)
-        tf.summary.histogram("hidden1_output", activation)
-
-        aggregated_model = getattr(video_level_models,
-                                   FLAGS.video_level_classifier_model)
-        return aggregated_model().create_model(
-            model_input=activation,
-            vocab_size=vocab_size,
-            **unused_params)
-
-
-class LstmModel(models.BaseModel):
-    def create_model(self,
-                     model_input,
-                     vocab_size,
-                     num_frames,
-                     **unused_params):
-        """Creates a model which uses a stack of LSTMs to represent the video.
-        Args:
-          model_input: A 'batch_size' x 'max_frames' x 'num_features' matrix of
-                       input features.
-          vocab_size: The number of classes in the dataset.
-          num_frames: A vector of length 'batch' which indicates the number of
-               frames for each video (before padding).
-        Returns:
-          A dictionary with a tensor containing the probability predictions of the
-          model in the 'predictions' key. The dimensions of the tensor are
-          'batch_size' x 'num_classes'.
-        """
-        lstm_size = FLAGS.lstm_cells
-        number_of_layers = FLAGS.lstm_layers
-
-        stacked_lstm = tf.contrib.rnn.MultiRNNCell(
-            [
-                tf.contrib.rnn.BasicLSTMCell(
-                    lstm_size, forget_bias=1.0)
-                for _ in range(number_of_layers)
-            ])
-
-        loss = 0.0
-
-        outputs, state = tf.nn.dynamic_rnn(stacked_lstm, model_input,
-                                           sequence_length=num_frames,
-                                           dtype=tf.float32)
-
-        aggregated_model = getattr(video_level_models,
-                                   FLAGS.video_level_classifier_model)
-
-        return aggregated_model().create_model(
-            model_input=state[-1].h,
-            vocab_size=vocab_size,
             **unused_params)

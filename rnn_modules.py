@@ -28,50 +28,28 @@ import models
 
 
 class LstmLastHiddenModule(modules.BaseModule):
-    def __init__(self, lstm_size, lstm_layers, output_dim, scope_id=None):
+    def __init__(self, lstm_size, lstm_layers, num_frames, output_dim, scope_id=None):
         self.lstm_size = lstm_size
         self.lstm_layers = lstm_layers
         self.output_dim = output_dim
+        self.num_frames = num_frames
         self.scope_id = scope_id
 
     def forward(self, inputs, **unused_params):
         """ Forward method for LstmLastHiddenModule.
         :param inputs: batch_size x max_frames x num_features
-        :return: batch_size x num_classes
+        :return: batch_size x output_dim
         """
-
-"""Creates a model which uses a stack of LSTMs to represent the video.
-        Args:
-          model_input: A 'batch_size' x 'max_frames' x 'num_features' matrix of
-                       input features.
-          vocab_size: The number of classes in the dataset.
-          num_frames: A vector of length 'batch' which indicates the number of
-               frames for each video (before padding).
-        Returns:
-          A dictionary with a tensor containing the probability predictions of the
-          model in the 'predictions' key. The dimensions of the tensor are
-          'batch_size' x 'num_classes'.
-        """
-        lstm_size = FLAGS.lstm_cells
-        number_of_layers = FLAGS.lstm_layers
-
         stacked_lstm = tf.contrib.rnn.MultiRNNCell(
             [
                 tf.contrib.rnn.BasicLSTMCell(
-                    lstm_size, forget_bias=1.0)
-                for _ in range(number_of_layers)
+                    self.lstm_size, forget_bias=1.0)
+                for _ in range(self.lstm_layers)
+
             ])
 
-        loss = 0.0
-
-        outputs, state = tf.nn.dynamic_rnn(stacked_lstm, model_input,
-                                           sequence_length=num_frames,
+        outputs, state = tf.nn.dynamic_rnn(stacked_lstm, inputs,
+                                           sequence_length=self.num_frames,
                                            dtype=tf.float32)
 
-        aggregated_model = getattr(video_level_models,
-                                   FLAGS.video_level_classifier_model)
-
-        return aggregated_model().create_model(
-            model_input=state[-1].h,
-            vocab_size=vocab_size,
-            **unused_params)
+        return state[-1].h
