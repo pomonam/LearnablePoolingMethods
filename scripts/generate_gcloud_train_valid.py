@@ -26,14 +26,14 @@ import os
 # yaml settings. cloudml-4gpu.yaml, cloudml-gpu.yaml, cloudml-gpu-distributed.yaml
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
-MODEL_NAME = "TriangulationRelationalModel"
-MODEL_VERSION = "-3"
+MODEL_NAME = "WeightedTriangulationModel"
+MODEL_VERSION = "-4"
 # Does it require frame-level models?
 FRAME_LEVEL = True
 # What features? e.g. RGB, audio
 FEATURES = "rgb,audio"
 # Batch size.
-BATCH_SIZE = 8
+BATCH_SIZE = 64
 # Base LR.
 BASE_LEARNING_RATE = 0.0002
 # Initialize a new model?

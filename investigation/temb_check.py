@@ -11,8 +11,6 @@ inputs = tf.constant(np.arange(feature_size * anchor_size, feature_size * anchor
 anchor_weights = tf.constant(np.arange(feature_size * anchor_size), dtype=tf.float32, shape=[feature_size, anchor_size])
 anchor_weights_reshape = tf.reshape(tf.transpose(anchor_weights), [1, feature_size * anchor_size])
 
-
-
 tiled_inputs = tf.tile(inputs, [1, anchor_size])
 t_emb = tf.subtract(tiled_inputs, anchor_weights_reshape)
 t_emb_reshape = tf.reshape(t_emb, [-1, anchor_size, feature_size])
@@ -21,6 +19,8 @@ t_emb_final = tf.reshape(t_emb_norm, [-1, feature_size * anchor_size])
 
 t_emb_reshape2 = tf.reshape(t_emb_final, [-1, max_frames, feature_size * anchor_size])
 
+t_emb_reshape3 = tf.reshape(t_emb_final, [-1, anchor_size])
+
 
 t_emb_cloned = tf.identity(t_emb_reshape2)
 cloned_input = tf.manip.roll(t_emb_cloned, shift=1, axis=1)
@@ -28,6 +28,7 @@ input_subtract = tf.subtract(t_emb_reshape2, cloned_input)
 input_subtract_reshape = tf.reshape(input_subtract, [-1, anchor_size, feature_size])
 input_subtract_norm = tf.nn.l2_normalize(input_subtract_reshape, 2)
 input_subtract_norm_reshape = tf.reshape(input_subtract_norm, [-1, max_frames, feature_size * anchor_size])
+
 
 stacks = tf.unstack(input_subtract_norm_reshape, axis=1)
 del stacks[0]
@@ -64,6 +65,11 @@ with tf.Session():
     print(input_subtract_norm_reshape.eval())
     print("temp info: ")
     print(temp_info.eval())
+
+    print("test")
+    print(t_emb_reshape3.eval())
+    print("test2")
+    print(t_emb_reshape4.eval())
 print(t_emb_final)
 print(t_emb_reshape2)
 print(input_subtract_norm_reshape)

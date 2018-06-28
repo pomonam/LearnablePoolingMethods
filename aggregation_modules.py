@@ -95,7 +95,7 @@ class SpocPoolingModule(modules.BaseModule):
     def forward(self, inputs, **unused_params):
         mean_pool = tf.reduce_mean(inputs, 1)
         if self.l2_normalize:
-            maen_pool = tf.nn.l2_normalize(mean_pool)
+            mean_pool = tf.nn.l2_normalize(mean_pool)
         return mean_pool
 
 

@@ -80,6 +80,110 @@ class TriangulationEmbedding(modules.BaseModule):
         return t_emb
 
 
+class WeightedTriangulationEmbedding(modules.BaseModule):
+    """ Weighted Triangulation embedding for each frame.
+
+    References:
+    Triangulation embedding and democratic aggregation for image search.
+    """
+    def __init__(self,
+                 feature_size,
+                 max_frames,
+                 anchor_size,
+                 batch_norm,
+                 is_training,
+                 scope_id=None):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.batch_norm = batch_norm
+        self.anchor_size = anchor_size
+        self.is_training = is_training
+        self.det_reg = True
+        self.det_reg_lambda = 1e-5
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        """ Forward method for Triangulation Embedding.
+        :param inputs: (batch_size * max_frames) x feature_size
+        :return: (batch_size * max_frames) x (feature_size * anchor_size)
+        """
+        # Assignment soft-max weights calculation.
+        # assignment_weights = tf.get_variable("assignment_weights".format("" if self.scope_id is None
+        #                                                                  else str(self.scope_id)),
+        #                                      [self.feature_size, self.anchor_size],
+        #                                      initializer=tf.random_normal_initializer(
+        #                                          stddev=1 / math.sqrt(self.anchor_size)))
+        # tf.summary.histogram("assignment_weights{}".format("" if self.scope_id is None
+        #                                                    else str(self.scope_id)),
+        #                      assignment_weights)
+        #
+        # assignment_activation = tf.matmul(inputs, assignment_weights)
+        #
+        # if self.batch_norm:
+        #     assignment_activation = slim.batch_norm(
+        #         assignment_weights,
+        #         center=True,
+        #         scale=True,
+        #         is_training=self.is_training,
+        #         scope="assignment_bn")
+        # else:
+        #     assignment_bias = tf.get_variable("assignment_bias{}".format("" if self.scope_id is None
+        #                                                                  else str(self.scope_id)),
+        #                                      [self.anchor_size],
+        #                                       initializer=tf.random_normal_initializer(
+        #                                          stddev=1 / math.sqrt(self.anchor_size)))
+        #     tf.summary.histogram("assignment_bias{}".format("" if self.scope_id is None
+        #                                                     else str(self.scope_id)), assignment_bias)
+        #     assignment_activation += assignment_bias
+        #
+        # assignment_activation = tf.nn.sigmoid(assignment_activation)
+        # tf.summary.histogram("assignment_activation", assignment_activation)
+        # # -> (batch_size * max_frames) x anchor_size
+        #
+        # assignment_activation = tf.reshape(assignment_activation, [-1, self.max_frames, self.anchor_size])
+        # assignment_activation = tf.reduce_sum(assignment_activation, 2)
+        # # -> batch_size x max_frames
+
+        # Anchor weights calculation.
+        anchor_weights = tf.get_variable("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                                         [self.feature_size, self.anchor_size],
+                                         initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.anchor_size)))
+        tf.summary.histogram("anchor_weights{}".format("" if self.scope_id is None
+                                                       else str(self.scope_id)), anchor_weights)
+
+        # Calculate orthogonal regularization.
+        if self.det_reg:
+            anchor_weights_t = tf.transpose(anchor_weights)
+            det_reg = tf.matmul(anchor_weights_t, anchor_weights)
+            identity = tf.identity(det_reg)
+            det_reg = tf.subtract(det_reg, identity)
+            det_reg = tf.reduce_sum(tf.abs(det_reg))
+            det_reg = det_reg * self.det_reg_lambda
+        else:
+            det_reg = None
+
+        # Transpose weights for proper subtraction; See investigation report.
+        anchor_weights = tf.transpose(anchor_weights)
+        anchor_weights = tf.reshape(anchor_weights, [1, self.feature_size * self.anchor_size])
+
+        # Tile inputs to subtract them with all anchors.
+        tiled_inputs = tf.tile(inputs, [1, self.anchor_size])
+        # -> (batch_size * max_frames) x (feature_size * anchor_size)
+        t_emb = tf.subtract(tiled_inputs, anchor_weights)
+        # -> (batch_size * max_frames) x (feature_size * anchor_size)
+
+        t_emb = tf.reshape(t_emb, [-1, self.anchor_size, self.feature_size])
+        # Normalize the inputs for each frame.
+        t_emb = tf.nn.l2_normalize(t_emb, 2)
+        t_emb = tf.reshape(t_emb, [-1, self.feature_size * self.anchor_size])
+        t_emb = tf.nn.l2_normalize(t_emb, 1)
+        # -> (batch_size * max_frames) x (feature_size * anchor_size)
+        t_emb = tf.reshape(t_emb, [-1, self.max_frames, self.feature_size * self.anchor_size])
+        # t_emb = tf.multiply(assignment_activation, t_emb)
+        return t_emb, det_reg
+
+
 class TriangulationTemporalEmbedding(modules.BaseModule):
     """ Triangulation embedding which calculates the difference in between frames. """
     def __init__(self,

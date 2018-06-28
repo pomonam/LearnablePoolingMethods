@@ -73,6 +73,196 @@ flags.DEFINE_string("video_level_classifier_model", "MoeModel",
 ###############################################################################
 
 # Flags
+flags.DEFINE_integer("wtm_video_anchor_size", 64,
+                     "Size for anchor points for video features.")
+flags.DEFINE_integer("wtm_audio_anchor_size", 64,
+                     "Size for anchor points for audio features.")
+
+
+class WeightedTriangulationModel(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.iterations
+        random_frames = sample_random_frames or FLAGS.sample_random_frames
+        add_batch_norm = add_batch_norm or FLAGS.batch_norm
+        video_anchor_size = FLAGS.wtm_video_anchor_size
+        audio_anchor_size = FLAGS.wtm_audio_anchor_size
+
+        if random_frames:
+            num_frames_2 = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+            model_input = utils.SampleRandomFrames(model_input, num_frames_2,
+                                                   iterations)
+
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        # model_input: (batch_size * max_frames) x feature_size
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        video_t_emb = video_pooling_modules.WeightedTriangulationEmbedding(1024,
+                                                                           max_frames,
+                                                                           video_anchor_size,
+                                                                           add_batch_norm,
+                                                                           is_training)
+        audio_t_emb = video_pooling_modules.WeightedTriangulationEmbedding(128,
+                                                                   max_frames,
+                                                                   audio_anchor_size,
+                                                                   add_batch_norm,
+                                                                   is_training)
+
+        mean_pool = aggregation_modules.SpocPoolingModule(l2_normalize=False)
+
+        video_t_temp_emb = video_pooling_modules.TriangulationTemporalEmbedding(1024, max_frames,
+                                                                                video_anchor_size,
+                                                                                add_batch_norm,
+                                                                                is_training)
+        audio_t_temp_emb = video_pooling_modules.TriangulationTemporalEmbedding(128, max_frames,
+                                                                                audio_anchor_size,
+                                                                                add_batch_norm,
+                                                                                is_training)
+
+        if add_batch_norm:
+            reshaped_input = slim.batch_norm(
+                reshaped_input,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="input_bn")
+
+        with tf.variable_scope("video_t_emb"):
+            t_emb_video, det_reg_v = video_t_emb.forward(reshaped_input[:, 0:1024])
+            # -> batch_size x max_frames x (feature_size * cluster_size)
+            t_emb_temp_video = video_t_temp_emb.forward(t_emb_video)
+
+            v_distrib_pool = mean_pool.forward(t_emb_video)
+            v_temp_pool = mean_pool.forward(t_emb_temp_video)
+
+        with tf.variable_scope("audio_t_emb"):
+            t_emb_audio, det_reg_a = audio_t_emb.forward(reshaped_input[:, 1024:])
+            # -> batch_size x max_frames x (feature_size * cluster_size)
+            t_emb_temp_audio = audio_t_temp_emb.forward(t_emb_audio)
+
+            a_distrib_pool = mean_pool.forward(t_emb_audio)
+            a_temp_pool = mean_pool.forward(t_emb_temp_audio)
+
+        if det_reg_v is not None and det_reg_a is not None:
+            det_reg = det_reg_v + det_reg_a
+        else:
+            det_reg = 0
+
+        video_concat = tf.concat([v_distrib_pool, v_temp_pool], 1)
+
+        video_concat_dim = video_concat.get_shape().as_list()[1]
+        video_hidden_1 = tf.get_variable("video_hidden_1",
+                                       [video_concat_dim, 1024],
+                                       initializer=tf.random_normal_initializer(
+                                           stddev=1 / math.sqrt(1024)))
+
+        video_hidden_2 = tf.get_variable("video_hidden_2",
+                                         [1024, 1024],
+                                         initializer=tf.random_normal_initializer(
+                                             stddev=1 / math.sqrt(1024)))
+
+        video_activation = tf.matmul(video_concat, video_hidden_1)
+        if add_batch_norm:
+            video_activation = slim.batch_norm(
+                video_activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="video_activation_1_bn")
+        video_activation = tf.nn.leaky_relu(video_activation)
+
+        video_activation = tf.matmul(video_activation, video_hidden_2)
+        if add_batch_norm:
+            video_activation = slim.batch_norm(
+                video_activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="video_activation_2_bn")
+        video_activation = tf.nn.leaky_relu(video_activation)
+
+        audio_concat = tf.concat([a_distrib_pool, a_temp_pool], 1)
+
+        audio_concat_dim = audio_concat.get_shape().as_list()[1]
+        audio_hidden_1 = tf.get_variable("audio_hidden_1",
+                                       [audio_concat_dim, 128],
+                                       initializer=tf.random_normal_initializer(
+                                           stddev=1 / math.sqrt(128)))
+
+        audio_hidden_2 = tf.get_variable("audio_hidden_2",
+                                       [128, 128],
+                                       initializer=tf.random_normal_initializer(
+                                           stddev=1 / math.sqrt(128)))
+
+        audio_activation = tf.matmul(audio_concat, audio_hidden_1)
+        if add_batch_norm:
+            audio_activation = slim.batch_norm(
+                audio_activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="audio_activation_1_bn")
+        audio_activation = tf.nn.leaky_relu(audio_activation)
+
+        audio_activation = tf.matmul(audio_activation, audio_hidden_2)
+        if add_batch_norm:
+            audio_activation = slim.batch_norm(
+                audio_activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="audio_activation_2_bn")
+        audio_activation = tf.nn.leaky_relu(audio_activation)
+
+        total_activation = tf.concat([video_activation, audio_activation], 1)
+
+        # Context Gating
+        input_dim = total_activation.get_shape().as_list()[1]
+        gating_weights = tf.get_variable("gating_weights",
+                                         [input_dim, input_dim],
+                                         initializer=tf.random_normal_initializer(
+                                             stddev=1 / math.sqrt(input_dim)))
+
+        gates = tf.matmul(total_activation, gating_weights)
+
+        if add_batch_norm:
+            gates = slim.batch_norm(
+                gates,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="gating_bn")
+        else:
+            gating_biases = tf.get_variable("gating_biases",
+                                            [input_dim],
+                                            initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(input_dim)))
+            gates += gating_biases
+
+        gates = tf.sigmoid(gates)
+        activation = tf.multiply(total_activation, gates)
+
+        aggregated_model = getattr(video_level_models,
+                                   "WillowMoeModel")
+
+        return aggregated_model().create_model(
+            model_input=activation,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            det_reg=det_reg,
+            **unused_params)
+
+
+# Flags
 flags.DEFINE_bool("batch_norm", True,
                   "True iff add batch normalization.")
 flags.DEFINE_integer("audio_triangulation_anchor_size_v1", 4,
@@ -98,7 +288,6 @@ class TriangulationRelationalModel(models.BaseModel):
         video_anchor_size = FLAGS.video_triangulation_anchor_size_v1
         audio_anchor_size = FLAGS.audio_triangulation_anchor_size_v1
 
-
         if random_frames:
             num_frames_2 = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
             model_input = utils.SampleRandomFrames(model_input, num_frames_2,
@@ -122,12 +311,12 @@ class TriangulationRelationalModel(models.BaseModel):
                                                                    is_training)
 
         video_lstm = rnn_modules.LstmLastHiddenModule(lstm_size=1024 * video_anchor_size,
-                                                      lstm_layers=2,
+                                                      lstm_layers=1,
                                                       output_dim=1024 * video_anchor_size,
                                                       num_frames=num_frames,
                                                       scope_id=None)
         audio_lstm = rnn_modules.LstmLastHiddenModule(lstm_size=128 * audio_anchor_size,
-                                                      lstm_layers=2,
+                                                      lstm_layers=1,
                                                       output_dim=128 * audio_anchor_size,
                                                       num_frames=num_frames,
                                                       scope_id=None)
@@ -141,16 +330,21 @@ class TriangulationRelationalModel(models.BaseModel):
                 scope="input_bn")
 
         with tf.variable_scope("video_t_emb"):
-            t_emb_video = video_t_emb.forward(reshaped_input[:, 0:1024])
+            t_emb_video, det_reg_v = video_t_emb.forward(reshaped_input[:, 0:1024])
             # -> (batch_size * max_frames) x (feature_size * cluster_size)
             t_emb_video = tf.reshape(t_emb_video, [-1, max_frames, 1024 * video_anchor_size])
             lstm_video_output = video_lstm.forward(t_emb_video)
 
         with tf.variable_scope("audio_t_emb"):
-            t_emb_audio = audio_t_emb.forward(reshaped_input[:, 1024:])
+            t_emb_audio, det_reg_a = audio_t_emb.forward(reshaped_input[:, 1024:])
             # -> (batch_size * max_frames) x (feature_size * cluster_size)
             t_emb_audio = tf.reshape(t_emb_audio, [-1, max_frames, 128 * audio_anchor_size])
             lstm_audio_output = audio_lstm.forward(t_emb_audio)
+
+        if det_reg_v is not None and det_reg_a is not None:
+            det_reg = det_reg_a + det_reg_v
+        else:
+            det_reg = 0
 
         lstm_output = tf.concat([lstm_video_output, lstm_audio_output], 1)
         # -> batch_size * output_dim
@@ -195,6 +389,7 @@ class TriangulationRelationalModel(models.BaseModel):
             model_input=activation,
             vocab_size=vocab_size,
             is_training=is_training,
+            det_reg=det_reg,
             **unused_params)
 
 
