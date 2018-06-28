@@ -217,7 +217,7 @@ class TembedModelV1(models.BaseModel):
             scale=True,
             is_training=is_training,
             scope="hidden1_bn")
-        activation = layers.PReLU(activation)
+        activation = tf.nn.relu6(activation)
 
         if gating:
             gating_weights = tf.get_variable("gating_weights_2",
