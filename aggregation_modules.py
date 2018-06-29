@@ -92,7 +92,7 @@ class MaxPoolingModule(modules.BaseModule):
         """
         return tf.reduce_max(inputs, 1)
 
-
+      
 class MeanPooling(modules.BaseModule):
     """ Average pooling method. """
     def __init__(self, l2_normalize=False):
@@ -108,7 +108,7 @@ class MeanPooling(modules.BaseModule):
         """
         return tf.reduce_mean(inputs, 1)
 
-
+      
 class GemPoolingModule(modules.BaseModule):
     """ Generalized Mean Pooling. """
     def __init__(self, l2_normalize=False, eps=1e-6):

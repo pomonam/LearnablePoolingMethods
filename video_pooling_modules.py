@@ -20,7 +20,10 @@ import tensorflow.contrib.slim as slim
 import module_utils
 import modules
 import math
-
+import numbers
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.ops import standard_ops
+from tensorflow.python.framework import ops
 
 ###############################################################################
 # Necessary FLAGS #############################################################
@@ -79,10 +82,6 @@ class TriangulationEmbedding(modules.BaseModule):
         # -> (batch_size * max_frames) x (feature_size * cluster_size)
 
         return t_emb
-
-
-clss
-
 
 class WeightedTriangulationEmbedding(modules.BaseModule):
     """ Weighted Triangulation embedding for each frame.

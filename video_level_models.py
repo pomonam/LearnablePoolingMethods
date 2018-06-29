@@ -64,6 +64,7 @@ class WillowMoeModel(models.BaseModel):
                      is_training,
                      num_mixtures=None,
                      l2_penalty=1e-8,
+                     det_reg=None,
                      **unused_params):
         """Creates a Mixture of (Logistic) Experts model.
          It also includes the possibility of gating the probabilities
@@ -135,7 +136,11 @@ class WillowMoeModel(models.BaseModel):
             gating = attention_modules.ContextGateV1(vocab_size, batch_norm=True, is_training=is_training)
             probabilities = gating.forward(probabilities)
 
-        return {"predictions": probabilities}
+        if det_reg is not None:
+            return {"predictions": probabilities,
+                    "regularization_loss": det_reg}
+        else:
+            return {"predictions": probabilities}
 
 
 class Moe2LayerModel(models.BaseModel):
@@ -210,14 +215,13 @@ class NN(models.BaseModel):
                      num_mixtures=None,
                      l2_penalty=1e-8,
                      **unused_params):
-        hidden_size = FLAGS.hidden_size
         h1 = model_input
         num_layer = 3
 
         for _ in range(num_layer):
             h1 = slim.fully_connected(
                 h1,
-                hidden_size,
+                vocab_size,
                 activation_fn=None,
                 biases_initializer=None,
                 weights_regularizer=slim.l2_regularizer(l2_penalty))
