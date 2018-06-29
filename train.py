@@ -270,6 +270,11 @@ def build_graph(reader,
     tower_predictions = []
     tower_label_losses = []
     tower_reg_losses = []
+
+    # Orthogonal regularization:
+    netvlad_rgb_scope_val       = None
+    netvlad_audio_scope_val     = None
+
     for i in range(num_towers):
         # For some reason these 'with' statements can't be combined onto the same
         # line. They have to be nested.
@@ -298,7 +303,15 @@ def build_graph(reader,
                     else:
                         reg_loss = tf.constant(0.0)
 
-                    reg_losses = tf.losses.get_regularization_losses()
+                    reg_losses  = tf.losses.get_regularization_losses()
+
+                    # Orthogonal regularization:
+                    for f in reg_losses:
+                        if "netvlad_rgb_scope" in f.name:
+                            netvlad_rgb_scope_val   = f
+                        if "netvlad_audio_scope" in f.name:
+                            netvlad_audio_scope_val = f
+
                     if reg_losses:
                         reg_loss += tf.add_n(reg_losses)
 
@@ -323,6 +336,13 @@ def build_graph(reader,
                                                             colocate_gradients_with_ops=False)
                     tower_gradients.append(gradients)
     label_loss = tf.reduce_mean(tf.stack(tower_label_losses))
+
+    # Orthogonal regularization:
+    if netvlad_rgb_scope_val is not None:
+        tf.summary.scalar("rgb_orth_sum", netvlad_rgb_scope_val)
+    if netvlad_audio_scope_val is not None:
+        tf.summary.scalar("audio_orth_sum", netvlad_audio_scope_val)
+
     tf.summary.scalar("label_loss", label_loss)
     if regularization_penalty != 0:
         reg_loss = tf.reduce_mean(tf.stack(tower_reg_losses))

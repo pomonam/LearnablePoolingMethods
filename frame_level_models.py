@@ -67,7 +67,6 @@ flags.DEFINE_string("video_level_classifier_model", "MoeModel",
                     "generalized pooling operation followed by a "
                     "classifier layer")
 
-
 ###############################################################################
 # Prototype models ############################################################
 ###############################################################################
@@ -1335,9 +1334,16 @@ flags.DEFINE_bool("gating", True,
                   "Gating for NetVLAD")
 flags.DEFINE_bool("gating_remove_diag", False,
                   "Remove diag for self gating")
+flags.DEFINE_float("audio_det_reg", 5e-3,
+                    "The coefficient that determines the strength of the "
+                    "determinant regularization penalty (of the VLAD cluster"
+                    "centres, for audio features).")
+flags.DEFINE_float("rgb_det_reg", 5e-3,
+                    "The coefficient that determines the strength of the "
+                    "determinant regularization penalty (of the VLAD cluster"
+                    "centres, for rgb features).")
 
-
-class WillowModel(models.BaseModel):
+class WillowModelReg(models.BaseModel):
     """
     WILLOW model from V1 dataset.
     https://github.com/antoine77340/Youtube-8M-WILLOW
@@ -1376,8 +1382,10 @@ class WillowModel(models.BaseModel):
         # model_input: (batch_size * max_frames) x feature_size
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
-        video_NetVLAD = video_pooling_modules.NetVLAD(1024, max_frames, cluster_size, add_batch_norm, is_training)
-        audio_NetVLAD = video_pooling_modules.NetVLAD(128, max_frames, cluster_size / 2, add_batch_norm, is_training)
+        video_NetVLAD = video_pooling_modules.NetVLADetReg(1024, max_frames, cluster_size, add_batch_norm, is_training,
+                                                           FLAGS.rgb_det_reg, "netvlad_rgb_scope")
+        audio_NetVLAD = video_pooling_modules.NetVLADetReg(128, max_frames, cluster_size / 4, add_batch_norm, is_training,
+                                                           FLAGS.audio_det_reg, "netvlad_audio_scope")
         if add_batch_norm:
             reshaped_input = slim.batch_norm(
                 reshaped_input,

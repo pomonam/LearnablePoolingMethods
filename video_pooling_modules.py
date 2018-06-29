@@ -19,7 +19,10 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import modules
 import math
-
+import numbers
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.ops import standard_ops
+from tensorflow.python.framework import ops
 
 ###############################################################################
 # Necessary FLAGS #############################################################
@@ -232,7 +235,7 @@ class NetVLADetReg(modules.BaseModule):
     https://github.com/antoine77340/Youtube-8M-WILLOW
     """
     def __init__(self, feature_size, max_frames, cluster_size, batch_norm, is_training,
-                 det_reg=1e-6, scope_id=None):
+                 det_reg=None, scope_id=None):
         self.feature_size = feature_size
         self.max_frames = max_frames
         self.is_training = is_training
@@ -242,20 +245,15 @@ class NetVLADetReg(modules.BaseModule):
         self.scope_id = scope_id
 
     def forward(self, inputs, **unused_params):
+
         cluster_weights = tf.get_variable("cluster_weights{}".format("" if self.scope_id is None
                                                                      else str(self.scope_id)),
                                           [self.feature_size, self.cluster_size],
                                           initializer=tf.random_normal_initializer(
                                               stddev=1 / math.sqrt(self.feature_size)))
-        cluster_weights = tf.get_variable("cluster_weights{}",[self.feature_size, self.cluster_size],
-                                          initializer=tf.random_normal_initializer(
-                                              stddev=1 / math.sqrt(self.feature_size)))
 
         tf.summary.histogram("cluster_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
                              cluster_weights)
-
-        # Normalize the columns of cluster weights.
-        norm_cluster_weights = tf.nn.l2_normalize(cluster_weights, axis=1)
 
         activation = tf.matmul(inputs, cluster_weights)
 
@@ -282,11 +280,20 @@ class NetVLADetReg(modules.BaseModule):
 
         a_sum = tf.reduce_sum(activation, -2, keep_dims=True)
 
-        cluster_weights2 = tf.get_variable("cluster_weights2",
-                                           [1, self.feature_size, self.cluster_size],
-                                           initializer=tf.random_normal_initializer(
-                                               stddev=1 / math.sqrt(self.feature_size)))
+        if self.det_reg is None:
+            cluster_weights2 = tf.get_variable("cluster_weights2",
+                                               [self.feature_size, self.cluster_size],
+                                               initializer=tf.random_normal_initializer(
+                                                   stddev=1 / math.sqrt(self.feature_size)))
+        else:
+            cluster_weights2 = tf.get_variable("cluster_weights2",
+                                               [self.feature_size, self.cluster_size],
+                                               initializer=tf.random_normal_initializer(
+                                                   stddev=1 / math.sqrt(self.feature_size)),
+                                               regularizer = self.orthogonal_regularizer(self.det_reg,
+                                                      self.scope_id))
 
+        cluster_weights2 = tf.expand_dims(cluster_weights2, axis=0)
         a = tf.multiply(a_sum, cluster_weights2)
 
         activation = tf.transpose(activation, perm=[0, 2, 1])
@@ -302,6 +309,44 @@ class NetVLADetReg(modules.BaseModule):
         # batch_size x (cluster_size * feature_size)
         return vlad
 
+    def orthogonal_regularizer(self, scale, scope=None):
+        """Returns a function that can be used to apply orthogonal regularization, according to:
+            https://arxiv.org/pdf/1609.07093.pdf
+        Args:
+          scale: A scalar multiplier `Tensor`. 0.0 disables the regularizer.
+          scope: An optional scope name.
+        Returns:
+          A function with signature `orthogonal_sum(weights)` that applies orthogonal regularization.
+        Raises:
+          ValueError: If scale is negative or if scale is not a float.
+        """
+        if isinstance(scale, numbers.Integral):
+            raise ValueError('scale cannot be an integer: %s' % (scale,))
+        if isinstance(scale, numbers.Real):
+            if scale < 0.:
+                raise ValueError('Setting a scale less than 0 on a regularizer: %g.' %
+                                 scale)
+            if scale == 0.:
+                logging.info('Scale of 0 disables regularizer.')
+                return lambda _: None
+
+        def orthogonal_sum(weights):
+            """Applies orthogonal regularization to weights."""
+            with ops.name_scope(scope, 'orthogonal_regularizer', [weights]) as name:
+                tensor_scale = ops.convert_to_tensor(scale,
+                                                 dtype=weights.dtype.base_dtype,
+                                                 name='scale')
+
+                anchor_weights_t    = tf.transpose(weights)
+                det_reg             = tf.matmul(anchor_weights_t, weights)
+                identity            = tf.eye(tf.shape(det_reg)[0])
+                det_reg             = tf.subtract(det_reg, identity)
+                det_reg             = tf.reduce_sum(tf.abs(det_reg))
+                det_reg             = tf.Print(det_reg, [det_reg])
+
+                return standard_ops.multiply(tensor_scale, det_reg, name=name)
+
+        return orthogonal_sum
 
 class NetVLADNccReg(modules.BaseModule):
     """
