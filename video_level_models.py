@@ -143,67 +143,35 @@ class WillowMoeModel(models.BaseModel):
             return {"predictions": probabilities}
 
 
-class Moe2LayerModel(models.BaseModel):
-    """A softmax over a mixture of logistic models (with L2 regularization)."""
-
+class ClassLearningThreeNnModel(models.BaseModel):
     def create_model(self,
                      model_input,
                      vocab_size,
-                     num_mixtures=None,
+                     is_training,
                      l2_penalty=1e-8,
+                     ortho_reg=0,
                      **unused_params):
-        """Creates a Mixture of (Logistic) Experts model.
-        The model consists of a per-class softmax distribution over a
-        configurable number of logistic classifiers. One of the classifiers in the
-        mixture is not trained, and always predicts 0.
-        Args:
-          model_input: 'batch_size' x 'num_features' matrix of input features.
-          vocab_size: The number of classes in the dataset.
-          num_mixtures: The number of mixtures (excluding a dummy 'expert' that
-            always predicts the non-existence of an entity).
-          l2_penalty: How much to penalize the squared magnitudes of parameter
-            values.
-        Returns:
-          A dictionary with a tensor containing the probability predictions of the
-          model in the 'predictions' key. The dimensions of the tensor are
-          batch_size x num_classes.
-        """
-        num_mixtures = num_mixtures or FLAGS.moe_num_mixtures
-        dim_gate = FLAGS.dim_gate
+        fc1 = slim.fully_connected(
+            model_input, vocab_size, activation_fn=None, biases_initializer=None,
+            weights_regularizer=slim.l2_regularizer(l2_penalty))
+        fc1 = tf.contrib.layers.layer_norm(inputs=fc1, center=True, scale=True, activation_fn=tf.nn.leaky_relu)
+        if is_training:
+            fc1 = tf.nn.dropout(fc1, keep_prob=0.5)
 
-        gate_activations = slim.fully_connected(
-            model_input,
-            dim_gate,
-            activation_fn=None,
-            weights_regularizer=slim.l2_regularizer(l2_penalty),
-            scope="gates0")
+        fc2 = slim.fully_connected(
+            fc1, vocab_size, activation_fn=None, biases_initializer=None,
+            weights_regularizer=slim.l2_regularizer(l2_penalty))
+        fc2 = tf.contrib.layers.layer_norm(inputs=fc2, center=True, scale=True, activation_fn=tf.nn.leaky_relu)
+        if is_training:
+            fc2 = tf.nn.dropout(fc2, keep_prob=0.5)
 
-        gate_activations = slim.fully_connected(
-            gate_activations,
-            vocab_size * (num_mixtures + 1),
-            activation_fn=None,
-            biases_initializer=None,
-            weights_regularizer=slim.l2_regularizer(l2_penalty),
-            scope="gates")
-        expert_activations = slim.fully_connected(
-            model_input,
-            vocab_size * num_mixtures,
-            activation_fn=None,
-            weights_regularizer=slim.l2_regularizer(l2_penalty),
-            scope="experts")
+        fc3 = slim.fully_connected(
+            fc2, vocab_size, activation_fn=tf.nn.sigmoid, biases_initializer=tf.constant_initializer(0.1),
+            weights_regularizer=slim.l2_regularizer(l2_penalty))
 
-        gating_distribution = tf.nn.softmax(tf.reshape(
-            gate_activations,
-            [-1, num_mixtures + 1]))  # (Batch * #Labels) x (num_mixtures + 1)
-        expert_distribution = tf.nn.sigmoid(tf.reshape(
-            expert_activations,
-            [-1, num_mixtures]))  # (Batch * #Labels) x num_mixtures
+        return {"predictions": fc3,
+                "regularization_loss": ortho_reg}
 
-        final_probabilities_by_class_and_batch = tf.reduce_sum(
-            gating_distribution[:, :num_mixtures] * expert_distribution, 1)
-        final_probabilities = tf.reshape(final_probabilities_by_class_and_batch,
-                                         [-1, vocab_size])
-        return {"predictions": final_probabilities}
 
 
 class NN(models.BaseModel):
@@ -271,91 +239,3 @@ class LogisticMultiLayerModel(models.BaseModel):
             fc2, vocab_size, activation_fn=tf.nn.sigmoid,
             weights_regularizer=slim.l2_regularizer(l2_penalty))
         return {"predictions": output, "features": fc2}
-
-
-###############################################################################
-# Starter code models #########################################################
-###############################################################################
-class LogisticModel(models.BaseModel):
-    """Logistic model with L2 regularization."""
-
-    def create_model(self,
-                     model_input,
-                     vocab_size,
-                     l2_penalty=1e-8,
-                     **unused_params):
-        """Creates a logistic model.
-
-        Args:
-          model_input: 'batch' x 'num_features' matrix of input features.
-          vocab_size: The number of classes in the dataset.
-
-        Returns:
-          A dictionary with a tensor containing the probability predictions of the
-          model in the 'predictions' key. The dimensions of the tensor are
-          batch_size x num_classes.
-        """
-        output = slim.fully_connected(
-            model_input, vocab_size, activation_fn=tf.nn.sigmoid,
-            weights_regularizer=slim.l2_regularizer(l2_penalty))
-        return {"predictions": output}
-
-
-class MoeModel(models.BaseModel):
-    """
-    A softmax over a mixture of logistic models (with L2 regularization).
-    """
-
-    def create_model(self,
-                     model_input,
-                     vocab_size,
-                     num_mixtures=None,
-                     l2_penalty=1e-8,
-                     **unused_params):
-        """
-        Creates a Mixture of (Logistic) Experts model.
-
-         The model consists of a per-class softmax distribution over a
-         configurable number of logistic classifiers. One of the classifiers in the
-         mixture is not trained, and always predicts 0.
-
-        Args:
-          model_input: 'batch_size' x 'num_features' matrix of input features.
-          vocab_size: The number of classes in the dataset.
-          num_mixtures: The number of mixtures (excluding a dummy 'expert' that
-            always predicts the non-existence of an entity).
-          l2_penalty: How much to penalize the squared magnitudes of parameter
-            values.
-        Returns:
-          A dictionary with a tensor containing the probability predictions of the
-          model in the 'predictions' key. The dimensions of the tensor are
-          batch_size x num_classes.
-        """
-        num_mixtures = num_mixtures or FLAGS.moe_num_mixtures
-
-        gate_activations = slim.fully_connected(
-            model_input,
-            vocab_size * (num_mixtures + 1),
-            activation_fn=None,
-            biases_initializer=None,
-            weights_regularizer=slim.l2_regularizer(l2_penalty),
-            scope="gates")
-        expert_activations = slim.fully_connected(
-            model_input,
-            vocab_size * num_mixtures,
-            activation_fn=None,
-            weights_regularizer=slim.l2_regularizer(l2_penalty),
-            scope="experts")
-
-        gating_distribution = tf.nn.softmax(tf.reshape(
-            gate_activations,
-            [-1, num_mixtures + 1]))  # (Batch * #Labels) x (num_mixtures + 1)
-        expert_distribution = tf.nn.sigmoid(tf.reshape(
-            expert_activations,
-            [-1, num_mixtures]))  # (Batch * #Labels) x num_mixtures
-
-        final_probabilities_by_class_and_batch = tf.reduce_sum(
-            gating_distribution[:, :num_mixtures] * expert_distribution, 1)
-        final_probabilities = tf.reshape(final_probabilities_by_class_and_batch,
-                                         [-1, vocab_size])
-        return {"predictions": final_probabilities}
