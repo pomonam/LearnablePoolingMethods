@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Modules for feature pooling and aggregation."""
+""" Modules for feature pooling and aggregation. """
 
 import tensorflow as tf
 import modules
