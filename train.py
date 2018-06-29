@@ -272,8 +272,8 @@ def build_graph(reader,
     tower_reg_losses = []
 
     # Orthogonal regularization:
-    netvlad_rgb_scope_val       = None
-    netvlad_audio_scope_val     = None
+    netvlad_rgb_scope_val = None
+    netvlad_audio_scope_val = None
 
     for i in range(num_towers):
         # For some reason these 'with' statements can't be combined onto the same
@@ -303,12 +303,12 @@ def build_graph(reader,
                     else:
                         reg_loss = tf.constant(0.0)
 
-                    reg_losses  = tf.losses.get_regularization_losses()
+                    reg_losses = tf.losses.get_regularization_losses()
 
                     # Orthogonal regularization:
                     for f in reg_losses:
                         if "netvlad_rgb_scope" in f.name:
-                            netvlad_rgb_scope_val   = f
+                            netvlad_rgb_scope_val = f
                         if "netvlad_audio_scope" in f.name:
                             netvlad_audio_scope_val = f
 
@@ -607,7 +607,6 @@ class Trainer(object):
                     num_epochs=FLAGS.num_epochs)
 
         return tf.train.Saver(max_to_keep=0, keep_checkpoint_every_n_hours=0.25)
-
 
 
 def get_reader():

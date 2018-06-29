@@ -12,54 +12,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Modules for aggregating features."""
+"""Modules for feature pooling and aggregation."""
 
-from tensorflow import flags
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
 import modules
-import math
 
 
-###############################################################################
-# NN Based Aggregation ########################################################
-###############################################################################
-class NnAggregationModule(modules.BaseModule):
-    def __init__(self, feature_size, max_frames, scope_id):
-        self.feature_size = feature_size
-        self.max_frames = max_frames
-        self.scope_id = scope_id
+class IndirectClusterMaxMeanPoolModule(modules.BaseModule):
+    """
+    Max-Mean pooling method. Mean is computed from weighted average
+    inspired from self-attention mechanism (indirect clustering)
+    """
+    def __init__(self, l2_normalize):
+        """ Initialize IndirectClusterMaxMeanPoolModule
+        :param l2_normalize: bool
+        """
+        self.l2_normalize = l2_normalize
 
     def forward(self, inputs, **unused_params):
-        """ Neural Network based aggregation.
-        :param inputs: batch_size x num_frames x feature_size
+        """ Forward method for max & mean pooling with indirect clustering (self-attention).
+        :param inputs: batch_size x max_frames x num_features
         :return: batch_size x feature_size
         """
-        reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
-        reshaped_inputs_dim = reshaped_inputs.get_shape().as_list()[0]
+        attention = tf.matmul(inputs, tf.transpose(inputs, perm=[0, 2, 1]))
+        # -> batch_size x max_frames x max_frames
+        attention = tf.expand_dims(attention, -1)
+        attention = tf.reduce_sum(attention, axis=2)
+        # -> batch_size x max_frames
 
-        aggregation_weights_1 = tf.get_variable("aggregation_weights_1{}".format(self.scope_id),
-                                              [self.feature_size, reshaped_inputs_dim],
-                                              initializer=tf.random_normal_initializer(
-                                                  stddev=1 / math.sqrt(reshaped_inputs_dim)))
-        activation = tf.matmul(reshaped_inputs, aggregation_weights_1)
-        activation = tf.nn.relu(activation)
+        mean_pool = tf.reduce_mean(inputs * attention, axis=1)
+        max_pool = tf.reduce_max(inputs, axis=1)
+        # -> batch_size x num_features
 
-        aggregation_weights_2 = tf.get_variable("aggregation_weights_2{}".format(self.scope_id),
-                                              [reshaped_inputs_dim, reshaped_inputs_dim],
-                                              initializer=tf.random_normal_initializer(
-                                                  stddev=1 / math.sqrt(reshaped_inputs_dim)))
-        activation = tf.matmul(activation, aggregation_weights_2)
-        activation = tf.nn.relu(activation)
+        if self.l2_normalize:
+            mean_pool = tf.nn.l2_normalize(mean_pool, 1)
+            max_pool = tf.nn.l2_normalize(max_pool, 1)
 
-        return tf.reduce_mean(inputs * activation, 1)
+        concat_pool = tf.concat([mean_pool, max_pool], 1)
+        return concat_pool
 
 
-###############################################################################
-# State-of-Art Image Retrieval Aggregation ####################################
-###############################################################################
 class MaxMeanPoolingModule(modules.BaseModule):
+    """ Max-Mean pooling method. """
     def __init__(self, l2_normalize=True):
+        """ Initialize MaxMeanPoolingModule.
+        :param l2_normalize: bool
+        """
         self.l2_normalize = l2_normalize
 
     def forward(self, inputs, **unused_params):
@@ -80,39 +78,49 @@ class MaxMeanPoolingModule(modules.BaseModule):
 
 
 class MaxPoolingModule(modules.BaseModule):
-    def __init__(self, feature_size, max_frames):
-        self.feature_size = feature_size
-        self.max_frames = max_frames
-
-    def forward(self, inputs, **unused_params):
-        return tf.reduce_max(inputs, 1)
-
-
-class SpocPoolingModule(modules.BaseModule):
-    def __init__(self, l2_normalize=True):
+    """ Max pooling method. """
+    def __init__(self, l2_normalize=False):
+        """ Initialize MaxPoolingModule.
+        :param l2_normalize: bool
+        """
         self.l2_normalize = l2_normalize
 
     def forward(self, inputs, **unused_params):
-        mean_pool = tf.reduce_mean(inputs, 1)
-        if self.l2_normalize:
-            mean_pool = tf.nn.l2_normalize(mean_pool)
-        return mean_pool
-
-
-class GemPoolingModule(modules.BaseModule):
-    def __init__(self, feature_size, max_frames, eps=1e-6):
-        """ Initialize class GemPoolingModule.
-        GeM
-        :param feature_size:
-        :param max_frames:
+        """ Forward method for max pooling.
+        :param inputs: batch_size x max_frames x num_features
+        :return: batch_size x feature_size
         """
-        self.feature_size = feature_size
-        self.max_frames = max_frames
-        self.eps = eps
+        return tf.reduce_max(inputs, 1)
+
+      
+class MeanPooling(modules.BaseModule):
+    """ Average pooling method. """
+    def __init__(self, l2_normalize=False):
+        """ Initialize MeanPooling.
+        :param l2_normalize: bool
+        """
+        self.l2_normalize = l2_normalize
 
     def forward(self, inputs, **unused_params):
+        """ Forward method for mean pooling.
+        :param inputs: batch_size x max_frames x num_features
+        :return: batch_size x feature_size
         """
+        return tf.reduce_mean(inputs, 1)
 
+      
+class GemPoolingModule(modules.BaseModule):
+    """ Generalized Mean Pooling. """
+    def __init__(self, l2_normalize=False, eps=1e-6):
+        """ Initialize GemPoolingModule.
+        :param l2_normalize: bool
+        """
+        self.l2_normalize = l2_normalize
+        self.eps = eps
+
+    # TODO: Implementation is incorrect / incomplete.
+    def forward(self, inputs, **unused_params):
+        """ Forward method for GeM pooling
         :param inputs: batch_size x max_frames x num_features
         :return: batch_size x feature_size
         """
