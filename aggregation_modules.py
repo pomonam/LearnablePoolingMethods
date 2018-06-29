@@ -18,6 +18,40 @@ import tensorflow as tf
 import modules
 
 
+class IndirectClusterMaxMeanPoolModule(modules.BaseModule):
+    """
+    Max-Mean pooling method. Mean is computed from weighted average
+    inspired from self-attention mechanism (indirect clustering)
+    """
+    def __init__(self, l2_normalize):
+        """ Initialize IndirectClusterMaxMeanPoolModule
+        :param l2_normalize: bool
+        """
+        self.l2_normalize = l2_normalize
+
+    def forward(self, inputs, **unused_params):
+        """ Forward method for max & mean pooling with indirect clustering (self-attention).
+        :param inputs: batch_size x max_frames x num_features
+        :return: batch_size x feature_size
+        """
+        attention = tf.matmul(inputs, tf.transpose(inputs, perm=[0, 2, 1]))
+        # -> batch_size x max_frames x max_frames
+        attention = tf.expand_dims(attention, -1)
+        attention = tf.reduce_sum(attention, axis=2)
+        # -> batch_size x max_frames
+
+        mean_pool = tf.reduce_mean(inputs * attention, axis=1)
+        max_pool = tf.reduce_max(inputs, axis=1)
+        # -> batch_size x num_features
+
+        if self.l2_normalize:
+            mean_pool = tf.nn.l2_normalize(mean_pool, 1)
+            max_pool = tf.nn.l2_normalize(max_pool, 1)
+
+        concat_pool = tf.concat([mean_pool, max_pool], 1)
+        return concat_pool
+
+
 class MaxMeanPoolingModule(modules.BaseModule):
     """ Max-Mean pooling method. """
     def __init__(self, l2_normalize=True):
