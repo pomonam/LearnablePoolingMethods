@@ -15,15 +15,11 @@
 """Modules for pooling frame-level features."""
 
 from tensorflow import flags
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.ops import standard_ops
-from tensorflow.python.framework import ops
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-import modules_util
+import module_utils
 import modules
 import math
-import numbers
 
 
 ###############################################################################
@@ -83,6 +79,9 @@ class TriangulationEmbedding(modules.BaseModule):
         # -> (batch_size * max_frames) x (feature_size * cluster_size)
 
         return t_emb
+
+
+clss
 
 
 class WeightedTriangulationEmbedding(modules.BaseModule):
@@ -230,7 +229,6 @@ class TriangulationTemporalEmbedding(modules.BaseModule):
 ###############################################################################
 # NetVLAD Prototype ###########################################################
 ###############################################################################
-
 class NetVladOrthoReg(modules.BaseModule):
     """ NetVLAD from WILLOW's model with orthogonal regularization. """
     def __init__(self, feature_size, max_frames, cluster_size, batch_norm, is_training,
@@ -301,7 +299,7 @@ class NetVladOrthoReg(modules.BaseModule):
                                                [self.feature_size, self.cluster_size],
                                                initializer=tf.random_normal_initializer(
                                                    stddev=1 / math.sqrt(self.feature_size)),
-                                               regularizer=modules_util.orthogonal_regularizer(self.det_reg,
+                                               regularizer=module_utils.orthogonal_regularizer(self.det_reg,
                                                                                                self.scope_id))
 
         cluster_weights2 = tf.expand_dims(cluster_weights2, axis=0)
