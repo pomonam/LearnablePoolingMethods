@@ -1334,11 +1334,11 @@ flags.DEFINE_bool("gating", True,
                   "Gating for NetVLAD")
 flags.DEFINE_bool("gating_remove_diag", False,
                   "Remove diag for self gating")
-flags.DEFINE_float("audio_det_reg", 5e-3,
+flags.DEFINE_float("audio_det_reg", 1e-3,
                     "The coefficient that determines the strength of the "
                     "determinant regularization penalty (of the VLAD cluster"
                     "centres, for audio features).")
-flags.DEFINE_float("rgb_det_reg", 5e-3,
+flags.DEFINE_float("rgb_det_reg", 1e-3,
                     "The coefficient that determines the strength of the "
                     "determinant regularization penalty (of the VLAD cluster"
                     "centres, for rgb features).")

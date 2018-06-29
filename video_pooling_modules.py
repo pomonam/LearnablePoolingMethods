@@ -337,12 +337,15 @@ class NetVLADetReg(modules.BaseModule):
                                                  dtype=weights.dtype.base_dtype,
                                                  name='scale')
 
-                anchor_weights_t    = tf.transpose(weights)
-                det_reg             = tf.matmul(anchor_weights_t, weights)
+                norm_weights        = tf.nn.l2_normalize(weights, axis=1)
+                anchor_weights_t    = tf.transpose(norm_weights)
+                det_reg             = tf.matmul(anchor_weights_t, norm_weights)
                 identity            = tf.eye(tf.shape(det_reg)[0])
                 det_reg             = tf.subtract(det_reg, identity)
                 det_reg             = tf.reduce_sum(tf.abs(det_reg))
-                det_reg             = tf.Print(det_reg, [det_reg])
+
+                # Print sum value before scaling
+                det_reg             = tf.Print(det_reg, [det_reg], "Orthogonal sum for \"{}\" :".format(name))
 
                 return standard_ops.multiply(tensor_scale, det_reg, name=name)
 
