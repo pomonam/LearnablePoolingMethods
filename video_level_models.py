@@ -173,69 +173,36 @@ class ClassLearningThreeNnModel(models.BaseModel):
                 "regularization_loss": ortho_reg}
 
 
-
-class NN(models.BaseModel):
-    """A softmax over a mixture of logistic models (with L2 regularization)."""
-
+class ClassLearningFourNnModel(models.BaseModel):
     def create_model(self,
                      model_input,
                      vocab_size,
-                     num_mixtures=None,
+                     is_training,
                      l2_penalty=1e-8,
+                     ortho_reg=0,
                      **unused_params):
-        h1 = model_input
-        num_layer = 3
-
-        for _ in range(num_layer):
-            h1 = slim.fully_connected(
-                h1,
-                vocab_size,
-                activation_fn=None,
-                biases_initializer=None,
-                weights_regularizer=slim.l2_regularizer(l2_penalty))
-
-            h1 = tf.contrib.layers.layer_norm(inputs=h1, center=True, scale=True, activation_fn=tf.nn.relu)
-
-        predictions = tf.nn.sigmoid(
-            slim.fully_connected(
-                h1,
-                vocab_size,
-                activation_fn=None,
-                biases_initializer=None,
-                weights_regularizer=slim.l2_regularizer(l2_penalty),
-                scope="predictions_layer")
-        )
-
-        return {"predictions": predictions}
-
-
-class LogisticMultiLayerModel(models.BaseModel):
-    """Logistic model with L2 regularization."""
-    def create_model(self, model_input, vocab_size, l2_penalty=1e-8, **unused_params):
-        """Creates a Multi-layer bottleneck logistic model.
-        Args:
-          model_input: 'batch' x 'num_features' matrix of input features.
-          vocab_size: The number of classes in the dataset.
-        Returns:
-          A dictionary with a tensor containing the probability predictions of the
-          model in the 'predictions' key. The dimensions of the tensor are
-          batch_size x num_classes."""
-
-        hidden_size = FLAGS.hidden_size
-        bottleneck_size = FLAGS.bottleneck_size
-        print(hidden_size, bottleneck_size)
-
         fc1 = slim.fully_connected(
-            model_input, hidden_size, activation_fn=None, biases_initializer=None,
+            model_input, vocab_size, activation_fn=None, biases_initializer=None,
             weights_regularizer=slim.l2_regularizer(l2_penalty))
-        fc1 = tf.contrib.layers.layer_norm(inputs=fc1, center=True, scale=True, activation_fn=tf.nn.relu)
+        fc1 = tf.contrib.layers.layer_norm(inputs=fc1, center=True, scale=True, activation_fn=tf.nn.leaky_relu)
+        # if is_training:
+        #     fc1 = tf.nn.dropout(fc1, keep_prob=0.5)
 
         fc2 = slim.fully_connected(
-            fc1, bottleneck_size, activation_fn=None, biases_initializer=None,
+            fc1, vocab_size, activation_fn=None, biases_initializer=None,
             weights_regularizer=slim.l2_regularizer(l2_penalty))
-        fc2 = tf.contrib.layers.layer_norm(inputs=fc2, center=True, scale=True, activation_fn=tf.nn.relu)
+        fc2 = tf.contrib.layers.layer_norm(inputs=fc2, center=True, scale=True, activation_fn=tf.nn.leaky_relu)
+        # if is_training:
+        #     fc2 = tf.nn.dropout(fc2, keep_prob=0.5)
 
-        output = slim.fully_connected(
-            fc2, vocab_size, activation_fn=tf.nn.sigmoid,
+        fc3 = slim.fully_connected(
+            fc2, vocab_size, activation_fn=None, biases_initializer=None,
             weights_regularizer=slim.l2_regularizer(l2_penalty))
-        return {"predictions": output, "features": fc2}
+        fc3 = tf.contrib.layers.layer_norm(inputs=fc3, center=True, scale=True, activation_fn=tf.nn.leaky_relu)
+
+        fc4 = slim.fully_connected(
+            fc3, vocab_size, activation_fn=tf.nn.sigmoid, biases_initializer=tf.constant_initializer(0.1),
+            weights_regularizer=slim.l2_regularizer(l2_penalty))
+
+        return {"predictions": fc4,
+                "regularization_loss": ortho_reg}

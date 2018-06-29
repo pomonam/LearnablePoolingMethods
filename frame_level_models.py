@@ -260,7 +260,7 @@ class SoftAttentionTriangulationModel(models.BaseModel):
         activation = tf.concat([video_activation, audio_activation], 1)
 
         aggregated_model = getattr(video_level_models,
-                                   "ClassLearningThreeNnModel")
+                                   "ClassLearningFourNnModel")
 
         return aggregated_model().create_model(
             model_input=activation,
