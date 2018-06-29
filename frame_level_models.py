@@ -68,9 +68,207 @@ flags.DEFINE_string("video_level_classifier_model", "MoeModel",
                     "generalized pooling operation followed by a "
                     "classifier layer")
 
+
 ###############################################################################
 # Triangulation Prototype models ##############################################
 ###############################################################################
+# All flags start with 'sftm_' to differentiate from original flags.
+flags.DEFINE_integer("sftm_iterations", 30,
+                     "Number of frames per batch.")
+flags.DEFINE_integer("sftm_add_batch_norm", True,
+                     "Add batch normalization.")
+flags.DEFINE_bool("sftm_sample_random_frames", True,
+                  "Iff true, sftm samples random frames.")
+flags.DEFINE_integer("sftm_video_anchor_size", 128,
+                     "Number of anchors for video features.")
+flags.DEFINE_integer("sftm_audio_anchor_size", 16,
+                     "Number of anchors for video features.")
+flags.DEFINE_integer("sftm_video_bottleneck", 1024,
+                     "Size of bottleneck weights for video features.")
+flags.DEFINE_integer("sftm_audio_bottleneck", 128,
+                     "Size of bottleneck weights for audio features.")
+flags.DEFINE_string("sftm_video_level_classifier_model", "MoeModel",
+                    "Some Frame-Level models can be decomposed into a "
+                    "generalized pooling operation followed by a "
+                    "classifier layer")
+
+
+class SoftAttentionTriangulationModel(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.sftm_iterations
+        add_batch_norm = add_batch_norm or FLAGS.sftm_add_batch_norm
+        video_anchor_size = FLAGS.sftm_video_anchor_size
+        audio_anchor_size = FLAGS.sftm_audio_anchor_size
+        video_bottleneck = FLAGS.sftm_video_bottleneck
+        audio_bottleneck = FLAGS.sftm_audio_bottleneck
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        # model_input: (batch_size * max_frames) x feature_size
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        video_features = reshaped_input[:, 0:1024]
+        audio_features = reshaped_input[:, 1024:]
+
+        if add_batch_norm:
+            video_features = slim.batch_norm(
+                video_features,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="video_bn")
+            audio_features = slim.batch_norm(
+                audio_features,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="audio_bn")
+
+        # Initialize all modules.
+        video_d_module = video_pooling_modules.TriangulationEmbedding(1024,
+                                                                      max_frames,
+                                                                      video_anchor_size,
+                                                                      add_batch_norm,
+                                                                      is_training)
+        audio_d_module = video_pooling_modules.TriangulationEmbedding(128,
+                                                                      max_frames,
+                                                                      audio_anchor_size,
+                                                                      add_batch_norm,
+                                                                      is_training)
+        cluster_pool = aggregation_modules.IndirectClusterMaxMeanPoolModule(l2_normalize=False)
+        video_t_module = video_pooling_modules.TriangulationTemporalEmbedding(1024,
+                                                                              max_frames,
+                                                                              video_anchor_size,
+                                                                              add_batch_norm,
+                                                                              is_training)
+        audio_t_module = video_pooling_modules.TriangulationTemporalEmbedding(128,
+                                                                              max_frames,
+                                                                              audio_anchor_size,
+                                                                              add_batch_norm,
+                                                                              is_training)
+
+        with tf.variable_scope("video_triangulation_embedding"):
+            video_d = video_d_module.forward(video_features)
+            # -> batch_size x max_frames x (feature_size * anchor_size)
+            video_t = video_t_module.forward(video_d)
+            agg_video_d = cluster_pool.forward(video_d)
+            agg_video_t = cluster_pool.forward(video_t)
+
+        with tf.variable_scope("audio_triangulation_embedding"):
+            audio_d = audio_d_module.forward(audio_features)
+            # -> batch_size x max_frames x (feature_size * anchor_size)
+            audio_t = audio_t_module.forward(audio_d)
+            agg_audio_d = cluster_pool.forward(audio_d)
+            agg_audio_t = cluster_pool.forward(audio_t)
+
+        # Projection to a lower dimension space for better discrimination.
+        agg_video_dim = agg_video_d.get_shape().as_list()[1]
+        video_d_projection = tf.get_variable("video_d_projection",
+                                             [agg_video_dim, video_bottleneck],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(video_bottleneck)))
+        video_t_projection = tf.get_variable("video_t_projection",
+                                             [agg_video_dim, video_bottleneck],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(video_bottleneck)))
+        agg_audio_dim = agg_audio_d.get_shape().as_list()[1]
+        audio_d_projection = tf.get_variable("audio_d_projection",
+                                             [agg_audio_dim, audio_bottleneck],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(audio_bottleneck)))
+        audio_t_projection = tf.get_variable("audio_t_projection",
+                                             [agg_audio_dim, audio_bottleneck],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(audio_bottleneck)))
+
+        video_d_activation = tf.matmul(agg_video_d, video_d_projection)
+        video_t_activation = tf.matmul(agg_video_t, video_t_projection)
+        audio_d_activation = tf.matmul(agg_audio_d, audio_d_projection)
+        audio_t_activation = tf.matmul(agg_audio_t, audio_t_projection)
+
+        if add_batch_norm:
+            video_d_activation = slim.batch_norm(
+                video_d_activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="video_d_activation_bn")
+            video_t_activation = slim.batch_norm(
+                video_t_activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="video_t_activation_bn")
+            audio_d_activation = slim.batch_norm(
+                audio_d_activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="audio_d_activation_bn")
+            audio_t_activation = slim.batch_norm(
+                audio_t_activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="audio_t_activation_bn")
+
+        # Fuse distribution and temporal features.
+        video_activation = tf.concat([video_d_activation, video_t_activation], 1)
+        audio_activation = tf.concat([audio_d_activation, audio_t_activation], 1)
+
+        video_activation_dim = video_activation.get_shape().as_list()[1]
+        video_activation_weights = tf.get_variable("video_projection",
+                                            [video_activation_dim, video_bottleneck],
+                                            initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(video_bottleneck)))
+        audio_activation_dim = audio_activation.get_shape().as_list()[1]
+        audio_activation_weights = tf.get_variable("audio_projection",
+                                                   [audio_activation_dim, audio_bottleneck],
+                                                   initializer=tf.random_normal_initializer(
+                                                       stddev=1 / math.sqrt(audio_bottleneck)))
+
+        video_activation = tf.matmul(video_activation, video_activation_weights)
+        audio_activation = tf.matmul(audio_activation, audio_activation_weights)
+
+        if add_batch_norm:
+            video_activation = slim.batch_norm(
+                video_activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="video_activation_bn")
+            audio_activation = slim.batch_norm(
+                audio_activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="audio_activation_bn")
+
+        # Fuse video and audio features.
+        activation = tf.concat([video_activation, audio_activation], 1)
+
+        aggregated_model = getattr(video_level_models,
+                                   "ClassLearningThreeNnModel")
+
+        return aggregated_model().create_model(
+            model_input=activation,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
+
+
 class RegularizedTriangulationModel(models.BaseModel):
     def create_model(self,
                      model_input,
@@ -125,7 +323,7 @@ class RegularizedTriangulationModel(models.BaseModel):
             scope="input_bn")
 
         with tf.variable_scope("video_t_emb"):
-            video_d, orthogonal_reg_v = video_d_module.forward(reshaped_input[:, 0:1024])
+            video_d, ortho_reg_v = video_d_module.forward(reshaped_input[:, 0:1024])
             # -> batch_size x max_frames x (feature_size * anchor_size)
             video_t = video_t_module.forward(video_d)
 
@@ -133,14 +331,14 @@ class RegularizedTriangulationModel(models.BaseModel):
             agg_video_t = mean_max_pool.forward(video_t)
 
         with tf.variable_scope("audio_t_emb"):
-            audio_d, orthogonal_reg_a = audio_d_module.forward(reshaped_input[:, 1024:])
+            audio_d, ortho_reg_a = audio_d_module.forward(reshaped_input[:, 1024:])
             # -> batch_size x max_frames x (feature_size * anchor_size)
             video_t = audio_t_module.forward(audio_d)
 
             agg_audio_d = mean_max_pool.forward(audio_d)
             agg_audio_t = mean_max_pool.forward(video_t)
 
-        orthogonal_reg = orthogonal_reg_v + orthogonal_reg_a
+        orthogonal_reg = ortho_reg_v + ortho_reg_a
 
         # Video Distribution Projection.
         agg_video_d_dim = agg_video_d.get_shape().as_list()[1]
@@ -1140,6 +1338,7 @@ flags.DEFINE_float("rgb_det_reg", 1e-3,
                     "The coefficient that determines the strength of the "
                     "determinant regularization penalty (of the VLAD cluster"
                     "centres, for rgb features).")
+
 
 class WillowModelReg(models.BaseModel):
     """ WILLOW model with orthogonal regularization for robust features. """
