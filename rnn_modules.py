@@ -51,3 +51,38 @@ class LstmLastHiddenModule(modules.BaseModule):
                                            dtype=tf.float32)
         # Only output the hidden state at the end.
         return state[-1].h
+
+
+class LstmConcatAverageModule(modules.BaseModule):
+    """ LSTM layers with stores the average of previous layers. """
+    def __init__(self, lstm_size, num_layers, max_frame):
+        """ Initialize LSTM average concatenation module.
+        :param lstm_size: int
+        :param num_layers: int
+        :param max_frame: num_frames x 1
+        """
+        self.lstm_size = lstm_size
+        self.num_layers = num_layers
+        self.max_frame = max_frame
+
+    def forward(self, inputs, **unused_params):
+        """ Forward method for LstmConcatAverageModule.
+        :param inputs: batch_size x max_frames x num_features
+        :return: batch_size x output_dim
+        """
+        stacked_lstm = tf.contrib.rnn.MultiRNNCell(
+            [
+                tf.contrib.rnn.BasicLSTMCell(
+                    self.lstm_size, forget_bias=1.0, state_is_tuple=False)
+                for _ in range(self.num_layers)
+            ], state_is_tuple=False)
+
+        outputs, state = tf.nn.dynamic_rnn(stacked_lstm, inputs,
+                                           sequence_length=self.max_frame,
+                                           dtype=tf.float32)
+
+        context_memory = tf.nn.l2_normalize(tf.reduce_sum(outputs, axis=1), dim=1)
+        average_state = tf.nn.l2_normalize(tf.reduce_sum(inputs, axis=1), dim=1)
+        final_state = tf.concat([context_memory, state, average_state], 1)
+
+        return final_state
