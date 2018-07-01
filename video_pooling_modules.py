@@ -205,11 +205,11 @@ class TriangulationTemporalEmbedding(modules.BaseModule):
 
     def forward(self, inputs, **unused_params):
         """ Forward method for TriangulationTemporalEmbedding.
-        :param inputs: batch_size x max_frames x (feature_size * anchor_size)
+        :param inputs: (batch_size * max_frames) x (feature_size * anchor_size)
         :return: batch_size x (max_frames -1) x (feature_size * anchor_size)
         """
         cloned_inputs = tf.identity(inputs)
-        # Shift the input to the right.
+        # Shift the input to the right (to subtract frame T-1 from frame T):
         cloned_inputs = tf.manip.roll(cloned_inputs, shift=1, axis=1)
         temp_info = tf.subtract(inputs, cloned_inputs)
 
@@ -221,7 +221,6 @@ class TriangulationTemporalEmbedding(modules.BaseModule):
         stacks = tf.unstack(temp_info, axis=1)
         del stacks[0]
         temp_info = tf.stack(stacks, 1)
-
         return temp_info
 
 

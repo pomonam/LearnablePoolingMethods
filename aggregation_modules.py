@@ -31,10 +31,11 @@ class IndirectClusterMaxMeanPoolModule(modules.BaseModule):
 
     def forward(self, inputs, **unused_params):
         """ Forward method for max & mean pooling with indirect clustering (self-attention).
+            Where
         :param inputs: batch_size x max_frames x num_features
         :return: batch_size x feature_size
         """
-        attention = tf.matmul(inputs, tf.transpose(inputs, perm=[0, 2, 1]))
+        attention   = tf.matmul(inputs, tf.transpose(inputs, perm=[0, 2, 1]))
         # -> batch_size x max_frames x max_frames
         attention = tf.expand_dims(attention, -1)
         attention = tf.reduce_sum(attention, axis=2)

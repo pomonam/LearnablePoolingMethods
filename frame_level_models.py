@@ -72,20 +72,23 @@ flags.DEFINE_string("video_level_classifier_model", "MoeModel",
 ###############################################################################
 # Triangulation Prototype models ##############################################
 ###############################################################################
+
+# NOTE: These are the best achievable parameters for a P100 GPU (16gb RAM), V100 are to be decided...
+#
 # All flags start with 'sftm_' to differentiate from original flags.
-flags.DEFINE_integer("sftm_iterations", 30,
+flags.DEFINE_integer("sftm_iterations", 64,
                      "Number of frames per batch.")
-flags.DEFINE_integer("sftm_add_batch_norm", True,
+flags.DEFINE_bool("sftm_add_batch_norm", True,
                      "Add batch normalization.")
 flags.DEFINE_bool("sftm_sample_random_frames", True,
                   "Iff true, sftm samples random frames.")
 flags.DEFINE_integer("sftm_video_anchor_size", 128,
                      "Number of anchors for video features.")
 flags.DEFINE_integer("sftm_audio_anchor_size", 16,
-                     "Number of anchors for video features.")
-flags.DEFINE_integer("sftm_video_bottleneck", 1024,
+                     "Number of anchors for audio features.")
+flags.DEFINE_integer("sftm_video_bottleneck", 100,
                      "Size of bottleneck weights for video features.")
-flags.DEFINE_integer("sftm_audio_bottleneck", 128,
+flags.DEFINE_integer("sftm_audio_bottleneck", 16,
                      "Size of bottleneck weights for audio features.")
 flags.DEFINE_string("sftm_video_level_classifier_model", "MoeModel",
                     "Some Frame-Level models can be decomposed into a "
@@ -111,13 +114,13 @@ class SoftAttentionTriangulationModel(models.BaseModel):
         video_bottleneck = FLAGS.sftm_video_bottleneck
         audio_bottleneck = FLAGS.sftm_audio_bottleneck
 
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        num_frames      = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input     = utils.SampleRandomFrames(model_input, num_frames, iterations)
         # model_input: batch_size x max_frames x feature_size
-        max_frames = model_input.get_shape().as_list()[1]
-        feature_size = model_input.get_shape().as_list()[2]
+        max_frames      = model_input.get_shape().as_list()[1]
+        feature_size    = model_input.get_shape().as_list()[2]
         # model_input: (batch_size * max_frames) x feature_size
-        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+        reshaped_input  = tf.reshape(model_input, [-1, feature_size])
 
         video_features = reshaped_input[:, 0:1024]
         audio_features = reshaped_input[:, 1024:]
@@ -163,6 +166,10 @@ class SoftAttentionTriangulationModel(models.BaseModel):
             video_d = video_d_module.forward(video_features)
             # -> batch_size x max_frames x (feature_size * anchor_size)
             video_t = video_t_module.forward(video_d)
+
+            # -> batch_size x max_frames x (feature_size * anchor_size)
+            video_d     = tf.reshape(video_d, [-1, max_frames, 1024 * video_anchor_size])
+
             agg_video_d = cluster_pool.forward(video_d)
             agg_video_t = cluster_pool.forward(video_t)
 
@@ -170,6 +177,10 @@ class SoftAttentionTriangulationModel(models.BaseModel):
             audio_d = audio_d_module.forward(audio_features)
             # -> batch_size x max_frames x (feature_size * anchor_size)
             audio_t = audio_t_module.forward(audio_d)
+
+            # -> batch_size x max_frames x (feature_size * anchor_size)
+            audio_d = tf.reshape(audio_d, [-1, max_frames, 128 * audio_anchor_size])
+
             agg_audio_d = cluster_pool.forward(audio_d)
             agg_audio_t = cluster_pool.forward(audio_t)
 
@@ -261,7 +272,6 @@ class SoftAttentionTriangulationModel(models.BaseModel):
 
         aggregated_model = getattr(video_level_models,
                                    "ClassLearningFourNnModel")
-
         return aggregated_model().create_model(
             model_input=activation,
             vocab_size=vocab_size,
@@ -1330,11 +1340,11 @@ flags.DEFINE_bool("gating", True,
                   "Gating for NetVLAD")
 flags.DEFINE_bool("gating_remove_diag", False,
                   "Remove diag for self gating")
-flags.DEFINE_float("audio_det_reg", 1e-3,
+flags.DEFINE_float("audio_det_reg", 1e-4,
                     "The coefficient that determines the strength of the "
                     "determinant regularization penalty (of the VLAD cluster"
                     "centres, for audio features).")
-flags.DEFINE_float("rgb_det_reg", 1e-3,
+flags.DEFINE_float("rgb_det_reg", 1e-4,
                     "The coefficient that determines the strength of the "
                     "determinant regularization penalty (of the VLAD cluster"
                     "centres, for rgb features).")
