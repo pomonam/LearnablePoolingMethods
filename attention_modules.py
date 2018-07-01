@@ -13,24 +13,12 @@
 # limitations under the License.
 
 from tensorflow.python.ops import nn
-from tensorflow import flags
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import math
 import modules
 
-###############################################################################
-# Necessary FLAGS #############################################################
-###############################################################################
-FLAGS = flags.FLAGS
 
-flags.DEFINE_integer("CGV3_cluster_size", 7200,
-                     "Number of units in the Context Gate V3 cluster layer.")
-
-
-###############################################################################
-# Vocabulary Correlation ######################################################
-###############################################################################
 class PnGateModule(modules.BaseModule):
     def __init__(self, vocab_size, is_training, scope_id=None):
         """ Initialize class PnGateModule.
@@ -193,15 +181,10 @@ class CorNNGateModule(modules.BaseModule):
         return fc3_out
 
 
-###############################################################################
-# Attention / Context Gate for vocabularies ###################################
-###############################################################################
 class ContextGateV1(modules.BaseModule):
     """
     Given the weight W, calculate sigmoid(WX + b) o X. o is an element-wise
     multiplication.
-
-    Citation: Learnable pooling with Context Gating for video classification.
     """
     def __init__(self, vocab_size, is_training, batch_norm=True, scope_id=None):
         """ Initialize a class ContextGateV1. The idea and implementation is adopted from WILLOW.
