@@ -111,7 +111,7 @@ class TriangulationCnnModule(modules.BaseModule):
         self.max_frames = max_frames
         self.batch_norm = batch_norm
         self.num_filters = num_filters
-        self.anchor_size = self.anchor_size
+        self.anchor_size = anchor_size
         self.is_training = is_training
         self.scope_id = scope_id
 
@@ -227,7 +227,8 @@ class TriangulationTemporalEmbedding(modules.BaseModule):
         temp_info = tf.subtract(inputs, cloned_inputs)
 
         temp_info_reshaped = tf.reshape(temp_info, [-1, self.anchor_size, self.feature_size])
-        temp_info_reshaped = tf.nn.l2_normalize(temp_info_reshaped, 2)
+        # No normalization
+        # temp_info_reshaped = tf.nn.l2_normalize(temp_info_reshaped, 2)
         temp_info = tf.reshape(temp_info_reshaped, [-1, self.max_frames,
                                                     self.feature_size * self.anchor_size])
 

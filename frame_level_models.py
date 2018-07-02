@@ -22,6 +22,7 @@ import model_utils as utils
 import tensorflow.contrib.slim as slim
 import video_pooling_modules
 import aggregation_modules
+import loupe_modules
 import video_level_models
 import rnn_modules
 import math
@@ -110,6 +111,141 @@ class TriangulationCnnClusterModel(models.BaseModel):
                 is_training=is_training,
                 scope="audio_bn")
 
+        video_d_module = video_pooling_modules.TriangulationEmbedding(1024,
+                                                                      max_frames,
+                                                                      video_anchor_size,
+                                                                      add_batch_norm,
+                                                                      is_training)
+        audio_d_module = video_pooling_modules.TriangulationEmbedding(128,
+                                                                      max_frames,
+                                                                      audio_anchor_size,
+                                                                      add_batch_norm,
+                                                                      is_training)
+
+        video_d_cnn_module = video_pooling_modules.TriangulationCnnModule(1024,
+                                                                          max_frames,
+                                                                          64,
+                                                                          video_anchor_size,
+                                                                          add_batch_norm,
+                                                                          is_training,
+                                                                          "video_d")
+
+        video_t_cnn_module = video_pooling_modules.TriangulationCnnModule(1024,
+                                                                          max_frames,
+                                                                          64,
+                                                                          video_anchor_size,
+                                                                          add_batch_norm,
+                                                                          is_training,
+                                                                          "video_t")
+
+        ic_mean_pool = aggregation_modules.IndirectClusterMeanPoolModule(l2_normalize=False)
+        mean_pool = aggregation_modules.MeanPooling(l2_normalize=False)
+
+        video_t_module = video_pooling_modules.TriangulationTemporalEmbedding(1024,
+                                                                              max_frames,
+                                                                              video_anchor_size,
+                                                                              add_batch_norm,
+                                                                              is_training)
+        audio_t_module = video_pooling_modules.TriangulationTemporalEmbedding(128,
+                                                                              max_frames,
+                                                                              audio_anchor_size,
+                                                                              add_batch_norm,
+                                                                              is_training)
+
+        audio_d_cnn_module = video_pooling_modules.TriangulationCnnModule(128,
+                                                                          max_frames,
+                                                                          64,
+                                                                          audio_anchor_size,
+                                                                          add_batch_norm,
+                                                                          is_training,
+                                                                          "audio_d")
+
+        audio_t_cnn_module = video_pooling_modules.TriangulationCnnModule(128,
+                                                                          max_frames,
+                                                                          64,
+                                                                          audio_anchor_size,
+                                                                          add_batch_norm,
+                                                                          is_training,
+                                                                          "audio_t")
+
+        with tf.variable_scope("video_triangulation_embedding"):
+            video_d = video_d_module.forward(video_features)
+            # -> batch_size x max_frames x (feature_size * anchor_size)
+            video_d = tf.reshape(video_d, [-1, max_frames, 1024 * video_anchor_size])
+            video_d_cnn = video_d_cnn_module.forward(video_d)
+            # -> (batch_size * max_frames) x (anchor_size * num_filters)
+            video_d_cnn = tf.reshape(video_d_cnn, [-1, max_frames], 64 * video_anchor_size)
+            agg_video_d = ic_mean_pool.forward(video_d, video_d_cnn)
+            # -> batch_size x (anchor_size * num_filters)
+
+            video_t = video_t_module.forward(video_d)
+            # -> batch_size x (max_frames - 1) x (feature_size * anchor_size)
+            video_t_cnn = video_t_cnn_module.forward(video_t)
+            # -> (batch_size * (max_frames - 1)) x (anchor_size * num_filters)
+            agg_video_t = mean_pool.forward(video_t_cnn)
+
+            if add_batch_norm:
+                agg_video_d = slim.batch_norm(
+                    agg_video_d,
+                    center=True,
+                    scale=True,
+                    is_training=is_training,
+                    scope="agg_video_d_bn")
+
+                agg_video_t = slim.batch_norm(
+                    agg_video_t,
+                    center=True,
+                    scale=True,
+                    is_training=is_training,
+                    scope="agg_video_t_bn")
+
+        with tf.variable_scope("audio_triangulation_embedding"):
+            audio_d = audio_d_module.forward(audio_features)
+            # -> batch_size x max_frames x (feature_size * anchor_size)
+            audio_d = tf.reshape(audio_d, [-1, max_frames, 1024 * audio_anchor_size])
+            audio_d_cnn = audio_d_cnn_module.forward(audio_d)
+            # -> (batch_size * max_frames) x (anchor_size * num_filters)
+            audio_d_cnn = tf.reshape(audio_d_cnn, [-1, max_frames], 64 * audio_anchor_size)
+            agg_audio_d = ic_mean_pool.forward(audio_d, audio_d_cnn)
+            # -> batch_size x (anchor_size * num_filters)
+
+            audio_t = audio_t_module.forward(audio_d)
+            # -> batch_size x (max_frames - 1) x (feature_size * anchor_size)
+            audio_t_cnn = audio_t_cnn_module.forward(audio_t)
+            # -> (batch_size * (max_frames - 1)) x (anchor_size * num_filters)
+            agg_audio_t = mean_pool.forward(audio_t_cnn)
+
+            if add_batch_norm:
+                agg_audio_d = slim.batch_norm(
+                    agg_audio_d,
+                    center=True,
+                    scale=True,
+                    is_training=is_training,
+                    scope="agg_audio_d_bn")
+
+                agg_audio_t = slim.batch_norm(
+                    agg_audio_t,
+                    center=True,
+                    scale=True,
+                    is_training=is_training,
+                    scope="agg_audio_t_bn")
+
+        activation = tf.concat([agg_video_d, agg_audio_d, agg_video_t, agg_audio_t], 1)
+        if add_batch_norm:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="activation_bn")
+
+        aggregated_model = getattr(video_level_models,
+                                   "ClassLearningFourNnModel")
+        return aggregated_model().create_model(
+            model_input=activation,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
 
 
 # NOTE: These are the best achievable parameters for a P100 GPU (16gb RAM), V100 are to be decided...
