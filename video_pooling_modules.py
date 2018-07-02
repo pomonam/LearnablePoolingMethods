@@ -62,7 +62,8 @@ class TriangulationEmbedding(modules.BaseModule):
         anchor_weights = tf.get_variable("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
                                          [self.feature_size, self.anchor_size],
                                          initializer=tf.random_normal_initializer(
-                                              stddev=1 / math.sqrt(self.anchor_size)))
+                                              stddev=1 / math.sqrt(self.anchor_size)),
+                                         dtype=tf.float32)
         tf.summary.histogram("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
                              anchor_weights)
 
