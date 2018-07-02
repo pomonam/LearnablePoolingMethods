@@ -123,12 +123,14 @@ class TriangulationCnnModule(modules.BaseModule):
         """
         # Add one dimension with ones to make 3D tensor.
         modified_inputs = tf.expand_dims(inputs, -1)
+
         # -> (batch_size * max_frames) x (feature_size * anchor_size) x 1
-        cnn_sum = tf.nn.conv1d(value=modified_inputs,
-                               filters=self.num_filters,
-                               stride=self.feature_size,
-                               padding="SAME",
-                               name=str(self.scope_id))
+        # print(modified_inputs)
+        cnn_sum = tf.layers.conv1d(inputs=modified_inputs,
+                                   filters=self.num_filters,
+                                   kernel_size=self.feature_size,
+                                   strides=self.feature_size,
+                                   name=self.scope_id)
         # -> (batch_size * max_frames) x (anchor_size * num_filters)
         cnn_sum = tf.reshape(cnn_sum, [-1, self.num_filters * self.anchor_size])
         return cnn_sum

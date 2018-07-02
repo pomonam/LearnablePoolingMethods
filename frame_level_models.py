@@ -171,17 +171,20 @@ class TriangulationCnnClusterModel(models.BaseModel):
         with tf.variable_scope("video_triangulation_embedding"):
             video_d = video_d_module.forward(video_features)
             # -> batch_size x max_frames x (feature_size * anchor_size)
-            video_d = tf.reshape(video_d, [-1, max_frames, 1024 * video_anchor_size])
+            video_d = tf.reshape(video_d, [-1, 1024 * video_anchor_size])
             video_d_cnn = video_d_cnn_module.forward(video_d)
             # -> (batch_size * max_frames) x (anchor_size * num_filters)
-            video_d_cnn = tf.reshape(video_d_cnn, [-1, max_frames], 64 * video_anchor_size)
+            video_d_cnn = tf.reshape(video_d_cnn, [-1, max_frames, 64 * video_anchor_size])
+            video_d = tf.reshape(video_d, [-1, max_frames, 1024 * video_anchor_size])
             agg_video_d = ic_mean_pool.forward(video_d, video_d_cnn)
             # -> batch_size x (anchor_size * num_filters)
 
             video_t = video_t_module.forward(video_d)
             # -> batch_size x (max_frames - 1) x (feature_size * anchor_size)
+            video_t = tf.reshape(video_t, [-1, 1024 * video_anchor_size])
             video_t_cnn = video_t_cnn_module.forward(video_t)
             # -> (batch_size * (max_frames - 1)) x (anchor_size * num_filters)
+            video_t_cnn = tf.reshape(video_t_cnn, [-1, max_frames - 1, 64 * video_anchor_size])
             agg_video_t = mean_pool.forward(video_t_cnn)
 
             if add_batch_norm:
@@ -202,17 +205,20 @@ class TriangulationCnnClusterModel(models.BaseModel):
         with tf.variable_scope("audio_triangulation_embedding"):
             audio_d = audio_d_module.forward(audio_features)
             # -> batch_size x max_frames x (feature_size * anchor_size)
-            audio_d = tf.reshape(audio_d, [-1, max_frames, 1024 * audio_anchor_size])
+            audio_d = tf.reshape(audio_d, [-1, 128 * audio_anchor_size])
             audio_d_cnn = audio_d_cnn_module.forward(audio_d)
             # -> (batch_size * max_frames) x (anchor_size * num_filters)
-            audio_d_cnn = tf.reshape(audio_d_cnn, [-1, max_frames], 64 * audio_anchor_size)
+            audio_d_cnn = tf.reshape(audio_d_cnn, [-1, max_frames, 64 * audio_anchor_size])
+            audio_d = tf.reshape(audio_d, [-1, max_frames, 128 * audio_anchor_size])
             agg_audio_d = ic_mean_pool.forward(audio_d, audio_d_cnn)
             # -> batch_size x (anchor_size * num_filters)
 
             audio_t = audio_t_module.forward(audio_d)
             # -> batch_size x (max_frames - 1) x (feature_size * anchor_size)
+            audio_t = tf.reshape(audio_t, [-1, 128 * audio_anchor_size])
             audio_t_cnn = audio_t_cnn_module.forward(audio_t)
             # -> (batch_size * (max_frames - 1)) x (anchor_size * num_filters)
+            audio_t_cnn = tf.reshape(audio_t_cnn, [-1, max_frames - 1, 64 * audio_anchor_size])
             agg_audio_t = mean_pool.forward(audio_t_cnn)
 
             if add_batch_norm:
