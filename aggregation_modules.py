@@ -38,10 +38,13 @@ class IndirectClusterMaxMeanPoolModule(modules.BaseModule):
         attention   = tf.matmul(inputs, tf.transpose(inputs, perm=[0, 2, 1]))
         # -> batch_size x max_frames x max_frames
         attention = tf.expand_dims(attention, -1)
-        attention = tf.reduce_sum(attention, axis=2)
-        # -> batch_size x max_frames
+        attention = tf.nn.relu(attention)
 
-        mean_pool = tf.reduce_mean(inputs * attention, axis=1)
+        attention = tf.reduce_sum(attention, axis=2)
+        # -> batch_size x max_frames x 1
+        attention = tf.nn.softmax(attention, axis=1)
+
+        mean_pool = tf.reduce_mean(tf.multiply(inputs, attention), axis=1)
         max_pool = tf.reduce_max(inputs, axis=1)
         # -> batch_size x num_features
 
