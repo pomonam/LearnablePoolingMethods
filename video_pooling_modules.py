@@ -126,7 +126,7 @@ class TriangulationCnnModule(modules.BaseModule):
         cnn_sum = tf.nn.conv1d(value=modified_inputs,
                                filters=self.num_filters,
                                stride=self.feature_size,
-                               padding=0,
+                               padding="SAME",
                                name=str(self.scope_id))
         # -> (batch_size * max_frames) x (anchor_size * num_filters)
         cnn_sum = tf.reshape(cnn_sum, [-1, self.num_filters * self.anchor_size])
