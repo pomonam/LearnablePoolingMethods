@@ -69,7 +69,6 @@ with tf.Session():
     print("test")
     print(t_emb_reshape3.eval())
     print("test2")
-    print(t_emb_reshape4.eval())
 print(t_emb_final)
 print(t_emb_reshape2)
 print(input_subtract_norm_reshape)

@@ -65,6 +65,10 @@ class TriangulationEmbedding(modules.BaseModule):
                                               stddev=1 / math.sqrt(self.anchor_size)))
         tf.summary.histogram("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
                              anchor_weights)
+
+        # Normalize each columns.
+        anchor_weights = tf.nn.l2_normalize(anchor_weights, axis=0)
+
         # Transpose weights for proper subtraction; See investigation.
         anchor_weights = tf.transpose(anchor_weights)
         anchor_weights = tf.reshape(anchor_weights, [1, self.feature_size * self.anchor_size])
@@ -79,9 +83,55 @@ class TriangulationEmbedding(modules.BaseModule):
         # Normalize the inputs for each frame.
         t_emb = tf.nn.l2_normalize(t_emb, 2)
         t_emb = tf.reshape(t_emb, [-1, self.feature_size * self.anchor_size])
-        # -> (batch_size * max_frames) x (feature_size * cluster_size)
+        # -> (batch_size * max_frames) x (feature_size * anchor_size)
 
         return t_emb
+
+
+class TriangulationCnnModule(modules.BaseModule):
+    """ Compute CNN after triangulation embedding.
+    """
+    def __init__(self,
+                 feature_size,
+                 max_frames,
+                 num_filters,
+                 anchor_size,
+                 batch_norm,
+                 is_training,
+                 scope_id=None):
+        """ Initialize CNN module after T-Emb.
+        :param feature_size: int
+        :param max_frames: max_frame x 1
+        :param num_filters: int
+        :param batch_norm: bool
+        :param is_training: bool
+        :param scope_id: Object
+        """
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.batch_norm = batch_norm
+        self.num_filters = num_filters
+        self.anchor_size = self.anchor_size
+        self.is_training = is_training
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        """ Forward method for TriangulationCnnModule.
+        :param inputs: (batch_size * max_frames) x (feature_size * anchor_size)
+        :return: (batch_size * max_frames) x (num_filters x anchor_size)
+        """
+        # Add one dimension with ones to make 3D tensor.
+        modified_inputs = tf.expand_dims(inputs, -1)
+        # -> (batch_size * max_frames) x (feature_size * anchor_size) x 1
+        cnn_sum = tf.nn.conv1d(value=modified_inputs,
+                               filters=self.num_filters,
+                               stride=self.feature_size,
+                               padding=0,
+                               name=str(self.scope_id))
+        # -> (batch_size * max_frames) x (anchor_size * num_filters)
+        cnn_sum = tf.reshape(cnn_sum, [-1, self.num_filters * self.anchor_size])
+        return cnn_sum
+
 
 class WeightedTriangulationEmbedding(modules.BaseModule):
     """ Weighted Triangulation embedding for each frame.
@@ -110,43 +160,6 @@ class WeightedTriangulationEmbedding(modules.BaseModule):
         :param inputs: (batch_size * max_frames) x feature_size
         :return: (batch_size * max_frames) x (feature_size * anchor_size)
         """
-        # Assignment soft-max weights calculation.
-        # assignment_weights = tf.get_variable("assignment_weights".format("" if self.scope_id is None
-        #                                                                  else str(self.scope_id)),
-        #                                      [self.feature_size, self.anchor_size],
-        #                                      initializer=tf.random_normal_initializer(
-        #                                          stddev=1 / math.sqrt(self.anchor_size)))
-        # tf.summary.histogram("assignment_weights{}".format("" if self.scope_id is None
-        #                                                    else str(self.scope_id)),
-        #                      assignment_weights)
-        #
-        # assignment_activation = tf.matmul(inputs, assignment_weights)
-        #
-        # if self.batch_norm:
-        #     assignment_activation = slim.batch_norm(
-        #         assignment_weights,
-        #         center=True,
-        #         scale=True,
-        #         is_training=self.is_training,
-        #         scope="assignment_bn")
-        # else:
-        #     assignment_bias = tf.get_variable("assignment_bias{}".format("" if self.scope_id is None
-        #                                                                  else str(self.scope_id)),
-        #                                      [self.anchor_size],
-        #                                       initializer=tf.random_normal_initializer(
-        #                                          stddev=1 / math.sqrt(self.anchor_size)))
-        #     tf.summary.histogram("assignment_bias{}".format("" if self.scope_id is None
-        #                                                     else str(self.scope_id)), assignment_bias)
-        #     assignment_activation += assignment_bias
-        #
-        # assignment_activation = tf.nn.sigmoid(assignment_activation)
-        # tf.summary.histogram("assignment_activation", assignment_activation)
-        # # -> (batch_size * max_frames) x anchor_size
-        #
-        # assignment_activation = tf.reshape(assignment_activation, [-1, self.max_frames, self.anchor_size])
-        # assignment_activation = tf.reduce_sum(assignment_activation, 2)
-        # # -> batch_size x max_frames
-
         # Anchor weights calculation.
         anchor_weights = tf.get_variable("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
                                          [self.feature_size, self.anchor_size],

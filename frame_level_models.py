@@ -1,17 +1,3 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS-IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 # Copyright 2018 Deep Topology All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,9 +21,7 @@ import tensorflow as tf
 import model_utils as utils
 import tensorflow.contrib.slim as slim
 import video_pooling_modules
-import attention_modules
 import aggregation_modules
-import loupe_modules
 import video_level_models
 import rnn_modules
 import math
@@ -72,6 +56,61 @@ flags.DEFINE_string("video_level_classifier_model", "MoeModel",
 ###############################################################################
 # Triangulation Prototype models ##############################################
 ###############################################################################
+# All flags start with tccm_ to differentiate from other flags.
+flags.DEFINE_integer("tccm_iterations", 40,
+                     "Number of frames per batch.")
+flags.DEFINE_bool("tccm_add_batch_norm", True,
+                  "Add batch normalization.")
+flags.DEFINE_bool("tccm_sample_random_frames", True,
+                  "Iff true, tccm samples random frames.")
+flags.DEFINE_integer("tccm_video_anchor_size", 64,
+                     "Number of anchors for video features.")
+flags.DEFINE_integer("tccm_audio_anchor_size", 16,
+                     "Number of anchors for audio features.")
+
+
+class TriangulationCnnClusterModel(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.tccm_iterations
+        add_batch_norm = add_batch_norm or FLAGS.tccm_add_batch_norm
+        video_anchor_size = FLAGS.tccm_video_anchor_size
+        audio_anchor_size = FLAGS.tccm_audio_anchor_size
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        # model_input: (batch_size * max_frames) x feature_size
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        video_features = reshaped_input[:, 0:1024]
+        audio_features = reshaped_input[:, 1024:]
+
+        if add_batch_norm:
+            video_features = slim.batch_norm(
+                video_features,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="video_bn")
+            audio_features = slim.batch_norm(
+                audio_features,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="audio_bn")
+
+
 
 # NOTE: These are the best achievable parameters for a P100 GPU (16gb RAM), V100 are to be decided...
 #
