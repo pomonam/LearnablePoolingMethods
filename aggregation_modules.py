@@ -69,14 +69,8 @@ class MeanStdPoolModule(modules.BaseModule):
         :param inputs: batch_size x max_frames x num_features
         :return: batch_size x feature_size
         """
-        transposed_inputs = tf.transpose(inputs, perm=[0, 2, 1])
-        cov_mat = tf.matmul(transposed_inputs, inputs)
-        # -> batch_size x num_features x num_features
-        diagonal = tf.diag(cov_mat)
-        # -> batch_size x num_features
-        mean_pool = tf.reduce_mean(inputs, axis=1)
-        concat_activation = tf.concat([mean_pool, diagonal], 1)
-        return concat_activation
+        moments = tf.reduce_mean(inputs, 1)
+        return moments
 
 
 class IndirectClusterMaxMeanPoolModule(modules.BaseModule):

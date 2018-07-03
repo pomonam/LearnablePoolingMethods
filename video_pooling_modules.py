@@ -121,19 +121,21 @@ class TriangulationCnnModule(modules.BaseModule):
         :param inputs: (batch_size * max_frames) x (feature_size * anchor_size)
         :return: batch_size x max_frames x (anchor_size x num_filters)
         """
-        # -> (batch_size * max_frames) x (feature_size * anchor_size) x 1
+        # -> (batch_size * max_frames) x feature_size x anchor_size
         cnn_weights = tf.get_variable("cnn_weights",
                                       [self.anchor_size, self.num_filters, self.feature_size],
                                       initializer=tf.random_normal_initializer(
                                                  stddev=1 / math.sqrt(self.num_filters * self.feature_size)))
+
         cnn_weights = tf.transpose(cnn_weights, perm=[0, 2, 1])
         # -> anchor_size x feature_size x num_filters
 
         reshaped_inputs = tf.reshape(inputs, [-1, self.anchor_size, self.feature_size])
+        reshaped_inputs = tf.transpose(reshaped_inputs, perm=[1, 0, 2])
         output = tf.matmul(reshaped_inputs, cnn_weights)
         output = tf.transpose(output, perm=[1, 0, 2])
-        output = tf.reshape(output, [-1, self.max_frames, self.feature_size * self.num_filters])
-        # -> batch_size x max_frames x (anchor_size * num_filters)
+        output = tf.reshape(output, [-1, self.max_frames, self.anchor_size * self.num_filters])
+        # -> batch_size x max_frames x (anchor * num_filters)
         return output
 
 
