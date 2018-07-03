@@ -55,3 +55,19 @@ def orthogonal_regularizer(scale, scope=None):
             return standard_ops.multiply(tensor_scale, det_reg, name=name)
 
     return orthogonal_sum
+
+
+def reduce_var(x, axis=None, keep_dim=False):
+    """ Return variance of a tensor, alongside the specified axis.
+
+    Reference:
+    https://stackoverflow.com/questions/39354566/what-is-the-equivalent-of-np-std-in-tensorflow
+
+    :param x: Tensor or variable
+    :param axis: int
+    :param keep_dim: bool
+    :return: Tensor with the variance of elements of x
+    """
+    m = tf.reduce_mean(x, axis=axis, keep_dims=True)
+    devs_squared = tf.square(x - m)
+    return tf.reduce_mean(devs_squared, axis=axis, keep_dims=keep_dim)

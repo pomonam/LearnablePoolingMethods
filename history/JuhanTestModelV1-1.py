@@ -21,8 +21,8 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "TriangulationCnnClusterModel"
-MODEL_VERSION = "-2"
+MODEL_NAME = "JuhanTestModelV1"
+MODEL_VERSION = "-1"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -40,18 +40,16 @@ BASE_LEARNING_RATE = 0.0002
 START_NEW_MODEL = False
 
 EXTRA = "-learning_rate_decay=0.7 " \
-        "-tccm_iterations=50 " \
-        "-tccm_video_anchor_size=64 " \
-        "-tccm_audio_anchor_size=8 " \
-        "-tccm_video_kernel_size=256 " \
-        "-tccm_audio_kernel_size=32 " \
-        "-tccm_video_hidden=2048 " \
-        "-tccm_audio_hidden=256"
-# EXTRA = "-tembed_v3_video_anchor_size=64 " \
-#         "-tembed_v3_audio_anchor_size=8 " \
-#         "-tembed_v3_distrib_concat_hidden_size=4096 " \
-#         "-tembed_v3_temporal_concat_hidden_size=4096 " \
-#         "-tembed_v3_full_concat_hidden_size=8192"
+        "-jtmv1_iteration=100 " \
+        "-jtmv1_add_batch_norm=True " \
+        "-jtmv1_video_anchor_size=64 " \
+        "-jtmv1_audio_anchor_size=8 " \
+        "-jtmv1_video_hidden=2048 " \
+        "-jtmv1_audio_hidden=256 " \
+        "-jtmv1_video_output_dim=4096 " \
+        "-jtmv1_audio_output_dim=512 " \
+        "-jtmv1_use_attention=True " \
+        "-jtmv1_use_relu=True "
 
 
 def main():
