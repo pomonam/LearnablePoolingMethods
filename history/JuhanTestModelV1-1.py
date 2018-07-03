@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0002
@@ -39,17 +39,17 @@ BASE_LEARNING_RATE = 0.0002
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "-learning_rate_decay=0.7 " \
-        "-jtmv1_iteration=100 " \
-        "-jtmv1_add_batch_norm=True " \
-        "-jtmv1_video_anchor_size=64 " \
-        "-jtmv1_audio_anchor_size=8 " \
-        "-jtmv1_video_hidden=2048 " \
-        "-jtmv1_audio_hidden=256 " \
-        "-jtmv1_video_output_dim=4096 " \
-        "-jtmv1_audio_output_dim=512 " \
-        "-jtmv1_use_attention=True " \
-        "-jtmv1_use_relu=True "
+EXTRA = "--learning_rate_decay=0.7 " \
+        "--jtmv1_iteration=30 " \
+        "--jtmv1_add_batch_norm=True " \
+        "--jtmv1_video_anchor_size=64 " \
+        "--jtmv1_audio_anchor_size=16 " \
+        "--jtmv1_video_hidden=1024 " \
+        "--jtmv1_audio_hidden=128 " \
+        "--jtmv1_video_output_dim=2048 " \
+        "--jtmv1_audio_output_dim=256 " \
+        "--jtmv1_use_attention=True " \
+        "--jtmv1_use_relu=True "
 
 
 def main():

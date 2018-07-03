@@ -58,28 +58,28 @@ flags.DEFINE_string("video_level_classifier_model", "MoeModel",
 # Triangulation Prototype models ##############################################
 ###############################################################################
 # All flags start with jtmv1_ to differentiate from other flags.
-flags.DEFINE_integer("jtmv1_iteration", 200,
+flags.DEFINE_integer("jtmv1_iteration", 30,
                      "Number of frames per batch.")
 flags.DEFINE_bool("jtmv1_add_batch_norm", True,
                   "Add batch normalization.")
 flags.DEFINE_bool("jtmv1_sample_random_frames", True,
                   "Iff true, tccm samples random frames.")
-flags.DEFINE_integer("jtmv1_video_anchor_size", 128,
+flags.DEFINE_integer("jtmv1_video_anchor_size", 64,
                      "Number of anchors for video features.")
-flags.DEFINE_integer("jtmv1_audio_anchor_size", 32,
+flags.DEFINE_integer("jtmv1_audio_anchor_size", 16,
                      "Number of anchors for audio features.")
-flags.DEFINE_integer("jtmv1_video_hidden", 2048,
+flags.DEFINE_integer("jtmv1_video_hidden", 1024,
                      "Number of anchors for video features.")
 flags.DEFINE_integer("jtmv1_video_output_dim", 2048,
                      "Output dimension for video features.")
-flags.DEFINE_integer("jtmv1_audio_hidden", 256,
+flags.DEFINE_integer("jtmv1_audio_hidden", 128,
                      "Number of anchors for audio features.")
 flags.DEFINE_integer("jtmv1_audio_output_dim", 256,
                      "Output dimension for audio features.")
 flags.DEFINE_bool("jtmv1_use_attention", True,
-                     "True -> use attention.")
+                  "True -> use attention.")
 flags.DEFINE_bool("jtmv1_use_relu", True,
-                     "True -> use relu.")
+                  "True -> use relu.")
 
 
 class JuhanTestModelV1(models.BaseModel):
