@@ -93,12 +93,12 @@ class JuhanTestModelV1(models.BaseModel):
                      hidden_size=None,
                      is_training=True,
                      **unused_params):
-        iterations = iterations or FLAGS.tccm_iterations
-        add_batch_norm = add_batch_norm or FLAGS.tccm_add_batch_norm
-        video_anchor_size = FLAGS.tccm_video_anchor_size
-        audio_anchor_size = FLAGS.tccm_audio_anchor_size
-        video_hidden_size = FLAGS.tccm_video_hidden
-        audio_hidden_size = FLAGS.tccm_audio_hidden
+        iterations = iterations or FLAGS.jtmv1_iteration
+        add_batch_norm = add_batch_norm or FLAGS.jtmv1_add_batch_norm
+        video_anchor_size = FLAGS.jtmv1_video_anchor_size
+        audio_anchor_size = FLAGS.jtmv1_audio_anchor_size
+        video_hidden_size = FLAGS.jtmv1_video_hidden
+        audio_hidden_size = FLAGS.jtmv1_audio_hidden
         video_output_dim = FLAGS.jtmv1_video_output_dim
         audio_output_dim = FLAGS.jtmv1_audio_output_dim
         use_attention = FLAGS.jtmv1_use_attention
