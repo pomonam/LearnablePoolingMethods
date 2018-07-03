@@ -38,6 +38,7 @@ class IndirectClusterMeanPoolModule(modules.BaseModule):
         attention = tf.matmul(t_inputs, tf.transpose(t_inputs, perm=[0, 2, 1]))
         # -> batch_size x max_frames x max_frames
         attention = tf.expand_dims(attention, -1)
+        # Zero-out negative weight.
         attention = tf.nn.relu(attention)
 
         attention = tf.reduce_sum(attention, axis=2)
@@ -52,6 +53,30 @@ class IndirectClusterMeanPoolModule(modules.BaseModule):
 
         return mean_pool
 
+
+class MeanStdPoolModule(modules.BaseModule):
+    """
+    Mean-Std pooling method.
+    """
+    def __init__(self, l2_normalize):
+        """ Initialize Mean STD module.
+        :param l2_normalize:
+        """
+        self.l2_normalize = l2_normalize
+
+    def forward(self, inputs, **unused_params):
+        """ Forward method for MeanStdPoolModule.
+        :param inputs: batch_size x max_frames x num_features
+        :return: batch_size x feature_size
+        """
+        transposed_inputs = tf.transpose(inputs, perm=[0, 2, 1])
+        cov_mat = tf.matmul(transposed_inputs, inputs)
+        # -> batch_size x num_features x num_features
+        diagonal = tf.diag(cov_mat)
+        # -> batch_size x num_features
+        mean_pool = tf.reduce_mean(inputs, axis=1)
+        concat_activation = tf.concat([mean_pool, diagonal], 1)
+        return concat_activation
 
 
 class IndirectClusterMaxMeanPoolModule(modules.BaseModule):

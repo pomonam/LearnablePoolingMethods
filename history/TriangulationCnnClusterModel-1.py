@@ -61,11 +61,11 @@ def main():
     local_command += "--feature_names='{}' ".format(FEATURES)
     local_command += "--feature_sizes='1024,128' "
     local_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    local_command += "--train_dir=/{} ".format(MODEL_NAME + str(MODEL_VERSION))
+    local_command += "--train_dir={} ".format(MODEL_NAME + str(MODEL_VERSION))
     local_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
     if START_NEW_MODEL:
         local_command += "--start_new_model "
-    local_command += "--runtime-version=1.8"
+    local_command += "--runtime-version=1.8 "
     local_command += EXTRA
 
     eval_command = "gcloud ml-engine local eval "

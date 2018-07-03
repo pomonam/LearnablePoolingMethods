@@ -119,21 +119,22 @@ class TriangulationCnnModule(modules.BaseModule):
     def forward(self, inputs, **unused_params):
         """ Forward method for TriangulationCnnModule.
         :param inputs: (batch_size * max_frames) x (feature_size * anchor_size)
-        :return: (batch_size * max_frames) x (num_filters x anchor_size)
+        :return: batch_size x max_frames x (anchor_size x num_filters)
         """
-        # Add one dimension with ones to make 3D tensor.
-        modified_inputs = tf.expand_dims(inputs, -1)
-
         # -> (batch_size * max_frames) x (feature_size * anchor_size) x 1
-        # print(modified_inputs)
-        cnn_sum = tf.layers.conv1d(inputs=modified_inputs,
-                                   filters=self.num_filters,
-                                   kernel_size=self.feature_size,
-                                   strides=self.feature_size,
-                                   name=self.scope_id)
-        # -> (batch_size * max_frames) x (anchor_size * num_filters)
-        cnn_sum = tf.reshape(cnn_sum, [-1, self.num_filters * self.anchor_size])
-        return cnn_sum
+        cnn_weights = tf.get_variable("cnn_weights",
+                                      [self.anchor_size, self.num_filters, self.feature_size],
+                                      initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(self.num_filters * self.feature_size)))
+        cnn_weights = tf.transpose(cnn_weights, perm=[0, 2, 1])
+        # -> anchor_size x feature_size x num_filters
+
+        reshaped_inputs = tf.reshape(inputs, [-1, self.anchor_size, self.feature_size])
+        output = tf.matmul(reshaped_inputs, cnn_weights)
+        output = tf.transpose(output, perm=[1, 0, 2])
+        output = tf.reshape(output, [-1, self.max_frames, self.feature_size * self.num_filters])
+        # -> batch_size x max_frames x (anchor_size * num_filters)
+        return output
 
 
 class WeightedTriangulationEmbedding(modules.BaseModule):
@@ -222,7 +223,7 @@ class TriangulationTemporalEmbedding(modules.BaseModule):
     def forward(self, inputs, **unused_params):
         """ Forward method for TriangulationTemporalEmbedding.
         :param inputs: (batch_size * max_frames) x (feature_size * anchor_size)
-        :return: batch_size x (max_frames -1) x (feature_size * anchor_size)
+        :return: batch_size x (max_frames - 1) x (feature_size * anchor_size)
         """
         cloned_inputs = tf.identity(inputs)
         # Shift the input to the right (to subtract frame T-1 from frame T):
@@ -231,7 +232,7 @@ class TriangulationTemporalEmbedding(modules.BaseModule):
 
         temp_info_reshaped = tf.reshape(temp_info, [-1, self.anchor_size, self.feature_size])
         # No normalization
-        # temp_info_reshaped = tf.nn.l2_normalize(temp_info_reshaped, 2)
+        temp_info_reshaped = tf.nn.l2_normalize(temp_info_reshaped, 2)
         temp_info = tf.reshape(temp_info_reshaped, [-1, self.max_frames,
                                                     self.feature_size * self.anchor_size])
 

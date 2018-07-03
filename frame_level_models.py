@@ -58,16 +58,24 @@ flags.DEFINE_string("video_level_classifier_model", "MoeModel",
 # Triangulation Prototype models ##############################################
 ###############################################################################
 # All flags start with tccm_ to differentiate from other flags.
-flags.DEFINE_integer("tccm_iterations", 40,
+flags.DEFINE_integer("tccm_iterations", 200,
                      "Number of frames per batch.")
 flags.DEFINE_bool("tccm_add_batch_norm", True,
                   "Add batch normalization.")
 flags.DEFINE_bool("tccm_sample_random_frames", True,
                   "Iff true, tccm samples random frames.")
-flags.DEFINE_integer("tccm_video_anchor_size", 64,
+flags.DEFINE_integer("tccm_video_anchor_size", 128,
                      "Number of anchors for video features.")
-flags.DEFINE_integer("tccm_audio_anchor_size", 16,
+flags.DEFINE_integer("tccm_audio_anchor_size", 32,
                      "Number of anchors for audio features.")
+flags.DEFINE_integer("tccm_video_kernel_size", 128,
+                     "Number of anchors for video features.")
+flags.DEFINE_integer("tccm_audio_kernel_size", 128,
+                     "Number of anchors for video features.")
+flags.DEFINE_integer("tccm_video_hidden", 2048,
+                     "Number of anchors for video features.")
+flags.DEFINE_integer("tccm_audio_hidden", 256,
+                     "Number of anchors for video features.")
 
 
 class TriangulationCnnClusterModel(models.BaseModel):
@@ -85,6 +93,10 @@ class TriangulationCnnClusterModel(models.BaseModel):
         add_batch_norm = add_batch_norm or FLAGS.tccm_add_batch_norm
         video_anchor_size = FLAGS.tccm_video_anchor_size
         audio_anchor_size = FLAGS.tccm_audio_anchor_size
+        video_kernel_size = FLAGS.tccm_video_kernel_size
+        audio_kernel_size = FLAGS.tccm_audio_kernel_size
+        video_hidden_size = FLAGS.tccm_video_hidden
+        audio_hidden_size = FLAGS.tccm_audio_hidden
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
@@ -124,22 +136,38 @@ class TriangulationCnnClusterModel(models.BaseModel):
 
         video_d_cnn_module = video_pooling_modules.TriangulationCnnModule(1024,
                                                                           max_frames,
-                                                                          64,
+                                                                          video_kernel_size,
                                                                           video_anchor_size,
                                                                           add_batch_norm,
                                                                           is_training,
                                                                           "video_d")
 
         video_t_cnn_module = video_pooling_modules.TriangulationCnnModule(1024,
-                                                                          max_frames,
-                                                                          64,
+                                                                          max_frames - 1,
+                                                                          video_kernel_size,
                                                                           video_anchor_size,
                                                                           add_batch_norm,
                                                                           is_training,
                                                                           "video_t")
 
+        audio_d_cnn_module = video_pooling_modules.TriangulationCnnModule(128,
+                                                                          max_frames,
+                                                                          audio_kernel_size,
+                                                                          audio_anchor_size,
+                                                                          add_batch_norm,
+                                                                          is_training,
+                                                                          "audio_d")
+
+        audio_t_cnn_module = video_pooling_modules.TriangulationCnnModule(128,
+                                                                          max_frames - 1,
+                                                                          audio_kernel_size,
+                                                                          audio_anchor_size,
+                                                                          add_batch_norm,
+                                                                          is_training,
+                                                                          "audio_t")
+
         ic_mean_pool = aggregation_modules.IndirectClusterMeanPoolModule(l2_normalize=False)
-        mean_pool = aggregation_modules.MeanPooling(l2_normalize=False)
+        mean_std_pool = aggregation_modules.MeanStdPoolModule(l2_normalize=False)
 
         video_t_module = video_pooling_modules.TriangulationTemporalEmbedding(1024,
                                                                               max_frames,
@@ -152,98 +180,79 @@ class TriangulationCnnClusterModel(models.BaseModel):
                                                                               add_batch_norm,
                                                                               is_training)
 
-        audio_d_cnn_module = video_pooling_modules.TriangulationCnnModule(128,
-                                                                          max_frames,
-                                                                          64,
-                                                                          audio_anchor_size,
-                                                                          add_batch_norm,
-                                                                          is_training,
-                                                                          "audio_d")
-
-        audio_t_cnn_module = video_pooling_modules.TriangulationCnnModule(128,
-                                                                          max_frames,
-                                                                          64,
-                                                                          audio_anchor_size,
-                                                                          add_batch_norm,
-                                                                          is_training,
-                                                                          "audio_t")
-
         with tf.variable_scope("video_triangulation_embedding"):
             video_d = video_d_module.forward(video_features)
-            # -> batch_size x max_frames x (feature_size * anchor_size)
-            video_d = tf.reshape(video_d, [-1, 1024 * video_anchor_size])
-            video_d_cnn = video_d_cnn_module.forward(video_d)
-            # -> (batch_size * max_frames) x (anchor_size * num_filters)
-            video_d_cnn = tf.reshape(video_d_cnn, [-1, max_frames, 64 * video_anchor_size])
-            video_d = tf.reshape(video_d, [-1, max_frames, 1024 * video_anchor_size])
-            agg_video_d = ic_mean_pool.forward(video_d, video_d_cnn)
+            # -> (batch_size * max_frames) x (feature_size * anchor_size)
+            with tf.variable_scope("video_d"):
+                video_d_cnn = video_d_cnn_module.forward(video_d)
+                # -> batch_size x max_frames x (anchor_size * num_filters)
+
+            video_d_temp = tf.reshape(video_d, [-1, max_frames, 1024 * video_anchor_size])
+            agg_video_d = ic_mean_pool.forward(video_d_temp, video_d_cnn)
             # -> batch_size x (anchor_size * num_filters)
 
             video_t = video_t_module.forward(video_d)
             # -> batch_size x (max_frames - 1) x (feature_size * anchor_size)
             video_t = tf.reshape(video_t, [-1, 1024 * video_anchor_size])
-            video_t_cnn = video_t_cnn_module.forward(video_t)
-            # -> (batch_size * (max_frames - 1)) x (anchor_size * num_filters)
-            video_t_cnn = tf.reshape(video_t_cnn, [-1, max_frames - 1, 64 * video_anchor_size])
-            agg_video_t = mean_pool.forward(video_t_cnn)
+            with tf.variable_scope("video_t"):
+                video_t_cnn = video_t_cnn_module.forward(video_t)
+            # -> batch_size x (max_frames - 1) x (anchor_size * num_filters)
+            agg_video_t = mean_std_pool.forward(video_t_cnn)
+
+            agg_video = tf.concat([agg_video_d, agg_video_t], 1)
 
             if add_batch_norm:
-                agg_video_d = slim.batch_norm(
-                    agg_video_d,
+                agg_video = slim.batch_norm(
+                    agg_video,
                     center=True,
                     scale=True,
                     is_training=is_training,
-                    scope="agg_video_d_bn")
-
-                agg_video_t = slim.batch_norm(
-                    agg_video_t,
-                    center=True,
-                    scale=True,
-                    is_training=is_training,
-                    scope="agg_video_t_bn")
+                    scope="agg_video_bn")
 
         with tf.variable_scope("audio_triangulation_embedding"):
             audio_d = audio_d_module.forward(audio_features)
-            # -> batch_size x max_frames x (feature_size * anchor_size)
-            audio_d = tf.reshape(audio_d, [-1, 128 * audio_anchor_size])
-            audio_d_cnn = audio_d_cnn_module.forward(audio_d)
-            # -> (batch_size * max_frames) x (anchor_size * num_filters)
-            audio_d_cnn = tf.reshape(audio_d_cnn, [-1, max_frames, 64 * audio_anchor_size])
-            audio_d = tf.reshape(audio_d, [-1, max_frames, 128 * audio_anchor_size])
-            agg_audio_d = ic_mean_pool.forward(audio_d, audio_d_cnn)
+            # -> (batch_size * max_frames) x (feature_size * anchor_size)
+            with tf.variable_scope("audio_d"):
+                audio_d_cnn = audio_d_cnn_module.forward(audio_d)
+                # -> batch_size x max_frames x (anchor_size * num_filters)
+
+            audio_d_temp = tf.reshape(audio_d, [-1, max_frames, 128 * audio_anchor_size])
+            agg_audio_d = ic_mean_pool.forward(audio_d_temp, audio_d_cnn)
             # -> batch_size x (anchor_size * num_filters)
 
             audio_t = audio_t_module.forward(audio_d)
             # -> batch_size x (max_frames - 1) x (feature_size * anchor_size)
             audio_t = tf.reshape(audio_t, [-1, 128 * audio_anchor_size])
-            audio_t_cnn = audio_t_cnn_module.forward(audio_t)
-            # -> (batch_size * (max_frames - 1)) x (anchor_size * num_filters)
-            audio_t_cnn = tf.reshape(audio_t_cnn, [-1, max_frames - 1, 64 * audio_anchor_size])
-            agg_audio_t = mean_pool.forward(audio_t_cnn)
+            with tf.variable_scope("audio_t"):
+                audio_t_cnn = audio_t_cnn_module.forward(audio_t)
+                # -> batch_size x (max_frames - 1) x (anchor_size * num_filters)
+            agg_audio_t = mean_std_pool.forward(audio_t_cnn)
+
+            agg_audio = tf.concat([agg_audio_d, agg_audio_t], 1)
 
             if add_batch_norm:
-                agg_audio_d = slim.batch_norm(
-                    agg_audio_d,
+                agg_audio = slim.batch_norm(
+                    agg_audio,
                     center=True,
                     scale=True,
                     is_training=is_training,
-                    scope="agg_audio_d_bn")
+                    scope="agg_audio_bn")
 
-                agg_audio_t = slim.batch_norm(
-                    agg_audio_t,
-                    center=True,
-                    scale=True,
-                    is_training=is_training,
-                    scope="agg_audio_t_bn")
+        agg_video_dim = agg_video.get_shape().as_list()[1]
+        video_hidden_weight = tf.get_variable("video_hidden",
+                                              [agg_video_dim, video_hidden_size],
+                                              initializer=tf.random_normal_initializer(
+                                                  stddev=1 / math.sqrt(video_hidden_size)))
+        video_activation = tf.matmul(agg_video, video_hidden_weight)
 
-        activation = tf.concat([agg_video_d, agg_audio_d, agg_video_t, agg_audio_t], 1)
-        if add_batch_norm:
-            activation = slim.batch_norm(
-                activation,
-                center=True,
-                scale=True,
-                is_training=is_training,
-                scope="activation_bn")
+        agg_audio_dim = agg_audio.get_shape().as_list()[1]
+        audio_hidden_weight = tf.get_variable("audio_hidden",
+                                              [agg_audio_dim, audio_hidden_size],
+                                              initializer=tf.random_normal_initializer(
+                                                  stddev=1 / math.sqrt(audio_hidden_size)))
+        audio_activation = tf.matmul(agg_audio, audio_hidden_weight)
+
+        activation = tf.concat([video_activation, audio_activation], 1)
 
         aggregated_model = getattr(video_level_models,
                                    "ClassLearningFourNnModel")
