@@ -22,7 +22,7 @@ import os
 
 # Name and version of the model
 MODEL_NAME = "JuhanTestModelV1"
-MODEL_VERSION = "-2"
+MODEL_VERSION = "-5"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -49,7 +49,7 @@ EXTRA = "--learning_rate_decay=0.7 " \
         "--jtmv1_video_output_dim=2048 " \
         "--jtmv1_audio_output_dim=256 " \
         "--jtmv1_use_attention=True " \
-        "--jtmv1_use_relu=True "
+        "--jtmv1_use_relu=False "
 
 
 def main():

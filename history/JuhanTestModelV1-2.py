@@ -22,7 +22,7 @@ import os
 
 # Name and version of the model
 MODEL_NAME = "JuhanTestModelV1"
-MODEL_VERSION = "-2"
+MODEL_VERSION = "-3"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0001
@@ -42,8 +42,8 @@ START_NEW_MODEL = False
 EXTRA = "--learning_rate_decay=0.7 " \
         "--jtmv1_iteration=30 " \
         "--jtmv1_add_batch_norm=True " \
-        "--jtmv1_video_anchor_size=64 " \
-        "--jtmv1_audio_anchor_size=16 " \
+        "--jtmv1_video_anchor_size=32 " \
+        "--jtmv1_audio_anchor_size=8 " \
         "--jtmv1_video_hidden=1024 " \
         "--jtmv1_audio_hidden=128 " \
         "--jtmv1_video_output_dim=2048 " \
