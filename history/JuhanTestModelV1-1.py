@@ -31,10 +31,10 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0002
+BASE_LEARNING_RATE = 0.0009
 
 # Initialize a new model?
 START_NEW_MODEL = False
@@ -48,7 +48,7 @@ EXTRA = "--learning_rate_decay=0.7 " \
         "--jtmv1_audio_hidden=128 " \
         "--jtmv1_video_output_dim=2048 " \
         "--jtmv1_audio_output_dim=256 " \
-        "--jtmv1_use_attention=True " \
+        "--jtmv1_use_attention=False " \
         "--jtmv1_use_relu=True "
 
 
