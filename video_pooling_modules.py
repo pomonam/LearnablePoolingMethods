@@ -360,11 +360,13 @@ class TriangulationMagnitudeNsCnnIndirectAttentionModule(modules.BaseModule):
         # -> (batch_size * max_frames) x (feature_size * anchor_size)
 
         spatial = tf.reshape(spatial, [-1, self.anchor_size, self.feature_size])
+        spatial_norm = tf.norm(spatial, ord=2, axis=2, keepdims=False)
+        # -> (batch_size * max_frames) x anchor_size
+
         # Normalize the inputs for each frame; Obtain normalized residual vectors.
-        spatial_norm = tf.norm(spatial, ord=2, axis=2, keepdims=True)
-        # -> (batch_size * max_frames) x (feature_size * anchor_size)
         spatial = tf.nn.l2_normalize(spatial, 2)
         spatial = tf.reshape(spatial, [-1, self.feature_size * self.anchor_size])
+        # -> (batch_size * max_frames) x (feature_size * anchor_size)
         spatial_norm = tf.reshape(spatial_norm, [-1, self.max_frames, self.anchor_size])
         # -> batch_size x max_frames x anchor_size
         ####################################################################################
@@ -382,10 +384,12 @@ class TriangulationMagnitudeNsCnnIndirectAttentionModule(modules.BaseModule):
         del stacks[0]
         temporal = tf.stack(stacks, 1)
         temporal = tf.reshape(temporal, [-1, self.anchor_size, self.feature_size])
-        temporal_norm = tf.norm(temporal, ord=2, axis=2, keep_dims=True)
+        temporal_norm = tf.norm(temporal, ord=2, axis=2, keep_dims=False)
+        # -> (batch_size * max_frames) x anchor_size
         temporal_norm = tf.reshape(temporal_norm, [-1, self.max_frames, self.anchor_size])
         # -> batch_size x (max_frames - 1) x anchor_size
 
+        # Normalize the inputs for each frame; Obtain normalized residual vectors.
         temporal = tf.nn.l2_normalize(temporal, 2)
 
         # Both spatial, temporal have shape (batch_size * max_frames) x anchor_size x feature_size
@@ -442,11 +446,13 @@ class TriangulationMagnitudeNsCnnIndirectAttentionModule(modules.BaseModule):
 
         tp_spatial_output = tf.transpose(spatial_output, perm=[1, 0, 2])
         tp_temporal_output = tf.transpose(temporal_output, perm=[1, 0, 2])
+        # -> (batch_size * max_frames) x anchor_size x kernel_size
 
         # Apply rectified activation.
         spatial_output = tf.reshape(tp_spatial_output, [-1, self.kernel_size * self.anchor_size])
         temporal_output = tf.reshape(tp_temporal_output, [-1, self.kernel_size * self.anchor_size])
         spatial_output = tf.nn.relu(spatial_output)
+        temporal_output = tf.nn.relu(temporal_output)
 
         spatial_output = tf.reshape(spatial_output, [-1, self.max_frames, self.kernel_size * self.anchor_size])
         temporal_output = tf.reshape(temporal_output, [-1, self.max_frames - 1, self.kernel_size * self.anchor_size])
@@ -691,7 +697,6 @@ class TriangulationNsCnnIndirectAttentionModule(modules.BaseModule):
         spatial_output = tf.reshape(tp_spatial_output, [-1, self.max_frames, self.kernel_size * self.anchor_size])
         temporal_output = tf.reshape(tp_temporal_output, [-1, self.max_frames - 1, self.kernel_size * self.anchor_size])
 
-        print(spatial_output)
 
         if self.self_attention:
             spatial_mean = tf.reduce_mean(tf.multiply(spatial_output, spatial_attention_weight), 1)
