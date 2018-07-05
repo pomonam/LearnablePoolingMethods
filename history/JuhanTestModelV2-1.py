@@ -39,8 +39,8 @@ BASE_LEARNING_RATE = 0.0002
 # Initialize a new model?
 START_NEW_MODEL = True
 
-EXTRA = "--learning_rate_decay=0.7 " \
-        "--jtmv2_iteration=30 " \
+EXTRA = "--learning_rate_decay=0.9 " \
+        "--jtmv2_iteration=300 " \
         "--jtmv2_add_batch_norm=True " \
         "--jtmv2_video_anchor_size=64 " \
         "--jtmv2_audio_anchor_size=16 " \
@@ -50,8 +50,8 @@ EXTRA = "--learning_rate_decay=0.7 " \
         "--jtmv2_audio_hidden=128 " \
         "--jtmv2_video_output_dim=2048 " \
         "--jtmv2_audio_output_dim=256 " \
-        "--jtmv2_use_attention=True " \
-        "--jtmv2_use_relu=True "
+        "--jtmv2_use_attention=False " \
+        "--jtmv2_use_relu=False "
 
 
 def main():

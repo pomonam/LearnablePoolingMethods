@@ -195,8 +195,8 @@ class JuhanTestModelV2(models.BaseModel):
                      hidden_size=None,
                      is_training=True,
                      **unused_params):
-        iterations = iterations or FLAGS.jtmv1_iteration
-        add_batch_norm = add_batch_norm or FLAGS.jtmv1_add_batch_norm
+        iterations = iterations or FLAGS.jtmv2_iteration
+        add_batch_norm = add_batch_norm or FLAGS.jtmv2_add_batch_norm
         video_anchor_size = FLAGS.jtmv2_video_anchor_size
         audio_anchor_size = FLAGS.jtmv2_audio_anchor_size
         video_hidden_size = FLAGS.jtmv2_video_hidden
