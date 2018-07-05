@@ -386,7 +386,7 @@ class TriangulationMagnitudeNsCnnIndirectAttentionModule(modules.BaseModule):
         temporal = tf.reshape(temporal, [-1, self.anchor_size, self.feature_size])
         temporal_norm = tf.norm(temporal, ord=2, axis=2, keep_dims=False)
         # -> (batch_size * max_frames) x anchor_size
-        temporal_norm = tf.reshape(temporal_norm, [-1, self.max_frames, self.anchor_size])
+        temporal_norm = tf.reshape(temporal_norm, [-1, self.max_frames - 1, self.anchor_size])
         # -> batch_size x (max_frames - 1) x anchor_size
 
         # Normalize the inputs for each frame; Obtain normalized residual vectors.
@@ -458,8 +458,8 @@ class TriangulationMagnitudeNsCnnIndirectAttentionModule(modules.BaseModule):
         temporal_output = tf.reshape(temporal_output, [-1, self.max_frames - 1, self.kernel_size * self.anchor_size])
 
         if self.add_norm:
-            spatial_output = tf.concat([spatial_output, spatial_norm], 1)
-            temporal_output = tf.concat([temporal_output, temporal_norm], 1)
+            spatial_output = tf.concat([spatial_output, spatial_norm], 2)
+            temporal_output = tf.concat([temporal_output, temporal_norm], 2)
 
         if self.self_attention:
             spatial_mean = tf.reduce_mean(tf.multiply(spatial_output, spatial_attention_weight), 1)
