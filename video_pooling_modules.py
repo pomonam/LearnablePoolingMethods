@@ -424,22 +424,18 @@ class TriangulationNsCnnIndirectAttentionModule(modules.BaseModule):
         tp_spatial_cnn_weights = tf.transpose(spatial_cnn_weights, perm=[0, 2, 1])
         tp_temporal_cnn_weights = tf.transpose(temporal_cnn_weights, perm=[0, 2, 1])
 
-        print(spatial)
 
         tp_spatial = tf.transpose(spatial, perm=[1, 0, 2])
         tp_temporal = tf.transpose(temporal, perm=[1, 0, 2])
 
-        print(tp_spatial)
 
         spatial_output = tf.matmul(tp_spatial, tp_spatial_cnn_weights)
         temporal_output = tf.matmul(tp_temporal, tp_temporal_cnn_weights)
 
-        print(spatial_output)
 
         tp_spatial_output = tf.transpose(spatial_output, perm=[1, 0, 2])
         tp_temporal_output = tf.transpose(temporal_output, perm=[1, 0, 2])
 
-        print(tp_spatial_output)
 
         spatial_output = tf.reshape(tp_spatial_output, [-1, self.max_frames, self.kernel_size * self.anchor_size])
         temporal_output = tf.reshape(tp_temporal_output, [-1, self.max_frames - 1, self.kernel_size * self.anchor_size])
