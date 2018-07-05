@@ -8,19 +8,19 @@ Output: (batch_size * max_frames) x anchor_size x kernel_size
 import tensorflow as tf
 import numpy as np
 
-BATCH_SIZE = 4
-MAX_FRAMES = 10
-ANCHOR_SIZE = 8
-FEATURE_SIZE = 10
-KERNEL_SIZE = 6
+BATCH_SIZE = 1
+MAX_FRAMES = 2
+ANCHOR_SIZE = 3
+FEATURE_SIZE = 4
+KERNEL_SIZE = 2
 
 inputs = tf.constant(
-    np.arange(0, 3200),
+    np.arange(0, 24),
     dtype=tf.float32,
     shape=[BATCH_SIZE * MAX_FRAMES, ANCHOR_SIZE, FEATURE_SIZE]
 )
 weight = tf.constant(
-    np.arange(0, 480),
+    np.arange(0, 24),
     dtype=tf.float32,
     shape=[ANCHOR_SIZE, KERNEL_SIZE, FEATURE_SIZE]
 )
@@ -35,6 +35,9 @@ tp_inputs = tf.transpose(inputs, perm=[1, 0, 2])
 output = tf.matmul(tp_inputs, tp_weight)
 
 tp_output = tf.transpose(output, perm=[1, 0, 2])
+
+# Get final features
+final = tf.reshape(tp_output, [-1, ANCHOR_SIZE * KERNEL_SIZE])
 
 
 with tf.Session():
@@ -54,3 +57,7 @@ with tf.Session():
     print(output.eval())
     print("tp_output: ")
     print(tp_output)
+    print(tp_output.eval())
+    print("final: ")
+    print(final)
+    print(final.eval())
