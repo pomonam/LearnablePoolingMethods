@@ -694,12 +694,11 @@ class TriangulationMagnitudeNsCnnNetVladModule(modules.BaseModule):
         spatial_output = tf.reshape(spatial_output, [-1, self.max_frames, self.kernel_size * self.anchor_size])
         temporal_output = tf.reshape(temporal_output, [-1, self.max_frames - 1, self.kernel_size * self.anchor_size])
 
-        if self.add_norm:
-            spatial_output = tf.concat([spatial_output, spatial_norm], 2)
-            temporal_output = tf.concat([temporal_output, temporal_norm], 2)
+        spatial_output = tf.concat([spatial_output, spatial_norm], 2)
+        temporal_output = tf.concat([temporal_output, temporal_norm], 2)
 
-        spatial_output = tf.reshape(spatial_output, [-1, self.kernel_size * self.anchor_size])
-        temporal_output = tf.reshape(temporal_output, [-1, self.kernel_size * self.anchor_size])
+        spatial_output = tf.reshape(spatial_output, [-1, self.kernel_size * self.anchor_size + self.anchor_size])
+        temporal_output = tf.reshape(temporal_output, [-1, self.kernel_size * self.anchor_size + self.anchor_size])
         spatial_dim = spatial_output.get_shape().as_list()[1]
         spatial_vlad = loupe_modules.NetVLAD(feature_size=spatial_dim,
                                              max_samples=self.max_frames,
@@ -716,9 +715,11 @@ class TriangulationMagnitudeNsCnnNetVladModule(modules.BaseModule):
                                               gating=False,
                                               add_batch_norm=self.batch_norm,
                                               is_training=self.is_training)
+        with tf.variable_scope("spatial_vlad"):
+            spatial_agg = spatial_vlad.forward(spatial_output)
 
-        spatial_agg = spatial_vlad.forward(spatial_output)
-        temporal_agg = temporal_vlad.forward(temporal_output)
+        with tf.variable_scope('temporal_vlad'):
+            temporal_agg = temporal_vlad.forward(temporal_output)
 
         if self.batch_norm:
             spatial_agg = slim.batch_norm(
