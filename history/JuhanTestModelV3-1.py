@@ -37,7 +37,7 @@ BATCH_SIZE = 64
 BASE_LEARNING_RATE = 0.0001
 
 # Initialize a new model?
-START_NEW_MODEL = True
+START_NEW_MODEL = False
 
 EXTRA = "--learning_rate_decay=0.9 " \
         "--jtmv3_iteration=100 " \

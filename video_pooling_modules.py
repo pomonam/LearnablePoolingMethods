@@ -19,6 +19,7 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import module_utils
 import modules
+import loupe_modules
 import math
 import numbers
 from tensorflow.python.platform import tf_logging as logging
@@ -526,6 +527,222 @@ class TriangulationMagnitudeNsCnnIndirectAttentionModule(modules.BaseModule):
         # Fuse spatial & temporal features #################################################
         ####################################################################################
         spatial_temporal_concat = tf.concat([spatial_activation, temporal_activation], 1)
+
+        sp_dim = spatial_temporal_concat.get_shape().as_list()[1]
+        sp_weights = tf.get_variable("spa_temp_fusion",
+                                     [sp_dim, self.output_dim],
+                                     initializer=tf.random_normal_initializer(
+                                         stddev=1 / math.sqrt(self.output_dim)))
+        activation = tf.matmul(spatial_temporal_concat, sp_weights)
+
+        if self.batch_norm:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="activation_bn")
+
+        if self.add_relu:
+            activation = tf.nn.relu(activation)
+        ####################################################################################
+
+        return activation
+
+
+class TriangulationMagnitudeNsCnnNetVladModule(modules.BaseModule):
+    """ CNN-integrated Triangulation Embedding Module with non-sharing CNN / magnitude preserving.
+    """
+    def __init__(self,
+                 feature_size,
+                 max_frames,
+                 anchor_size,
+                 self_attention,
+                 hidden_layer_size,
+                 kernel_size,
+                 output_dim,
+                 add_relu,
+                 add_norm,
+                 batch_norm,
+                 is_training,
+                 scope_id=None):
+        """ Initialize class TriangulationMagnitudeNsCnnIndirectAttentionModule.
+        :param feature_size: int
+        :param max_frames: max_frames x 1
+        :param anchor_size: int
+        :param self_attention: bool
+        :param hidden_layer_size: int
+        :param kernel_size: int
+        :param output_dim: int
+        :param add_relu: bool
+        :param batch_norm: bool
+        :param is_training: bool
+        :param scope_id: Object
+        """
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.anchor_size = anchor_size
+        self.self_attention = self_attention
+        self.hidden_layer_size = hidden_layer_size
+        self.kernel_size = kernel_size
+        self.output_dim = output_dim
+        self.add_relu = add_relu
+        self.add_norm = add_norm
+        self.batch_norm = batch_norm
+        self.is_training = is_training
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        """ Forward method for TriangulationNsCnnIndirectAttentionModule.
+        :param inputs: (batch_size * max_frames) x feature_size
+        :return: batch_size x output_dim
+        """
+        ####################################################################################
+        # Get spatial features with t-embedding ############################################
+        ####################################################################################
+        anchor_weights = tf.get_variable("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                                         [self.feature_size, self.anchor_size],
+                                         initializer=tf.orthogonal_initializer(),
+                                         dtype=tf.float32)
+        tf.summary.histogram("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                             anchor_weights)
+
+        # Transpose weights for proper subtraction.
+        anchor_weights = tf.transpose(anchor_weights)
+        anchor_weights = tf.reshape(anchor_weights, [1, self.feature_size * self.anchor_size])
+
+        # Tile inputs to subtract them with all anchors.
+        tiled_inputs = tf.tile(inputs, [1, self.anchor_size])
+        # -> (batch_size * max_frames) x (feature_size * anchor_size)
+        spatial = tf.subtract(tiled_inputs, anchor_weights)
+        # -> (batch_size * max_frames) x (feature_size * anchor_size)
+
+        spatial = tf.reshape(spatial, [-1, self.anchor_size, self.feature_size])
+        spatial_norm = tf.norm(spatial, ord=2, axis=2, keepdims=False)
+        # -> (batch_size * max_frames) x anchor_size
+
+        # Normalize the inputs for each frame; Obtain normalized residual vectors.
+        spatial = tf.nn.l2_normalize(spatial, 2)
+        spatial = tf.reshape(spatial, [-1, self.feature_size * self.anchor_size])
+        # -> (batch_size * max_frames) x (feature_size * anchor_size)
+        spatial_norm = tf.reshape(spatial_norm, [-1, self.max_frames, self.anchor_size])
+        # -> batch_size x max_frames x anchor_size
+        ####################################################################################
+
+        ####################################################################################
+        # Get temporal features from frame-difference in t-embedded feature. ###############
+        ####################################################################################
+        cloned_spatial = tf.identity(spatial)
+        # Shift the input to the right (to subtract frame T-1 from frame T):
+        cloned_spatial = tf.manip.roll(cloned_spatial, shift=1, axis=1)
+        temporal = tf.subtract(spatial, cloned_spatial)
+        temporal = tf.reshape(temporal, [-1, self.max_frames, self.feature_size * self.anchor_size])
+        # Eliminate the first row.
+        stacks = tf.unstack(temporal, axis=1)
+        del stacks[0]
+        temporal = tf.stack(stacks, 1)
+        temporal = tf.reshape(temporal, [-1, self.anchor_size, self.feature_size])
+        temporal_norm = tf.norm(temporal, ord=2, axis=2, keep_dims=False)
+        # -> (batch_size * max_frames) x anchor_size
+        temporal_norm = tf.reshape(temporal_norm, [-1, self.max_frames - 1, self.anchor_size])
+        # -> batch_size x (max_frames - 1) x anchor_size
+
+        # Normalize the inputs for each frame; Obtain normalized residual vectors.
+        temporal = tf.nn.l2_normalize(temporal, 2)
+
+        # Both spatial, temporal have shape (batch_size * max_frames) x anchor_size x feature_size
+        spatial = tf.reshape(spatial, [-1, self.anchor_size, self.feature_size])
+        temporal = tf.reshape(temporal, [-1, self.anchor_size, self.feature_size])
+
+        ####################################################################################
+        # Reduce the number of parameters with non-share CNN ###############################
+        ####################################################################################
+        spatial_cnn_weights = tf.get_variable("spatial_cnn_weights{}".format(""
+                                                                             if self.scope_id is None
+                                                                             else str(self.scope_id)),
+                                              [self.anchor_size, self.kernel_size, self.feature_size],
+                                              initializer=tf.random_normal_initializer(
+                                                  stddev=1 / math.sqrt(self.kernel_size * self.feature_size)),
+                                              dtype=tf.float32)
+        temporal_cnn_weights = tf.get_variable("temporal_cnn_weights{}".format(""
+                                                                               if self.scope_id is None
+                                                                               else str(self.scope_id)),
+                                               [self.anchor_size, self.kernel_size, self.feature_size],
+                                               initializer=tf.random_normal_initializer(
+                                                  stddev=1 / math.sqrt(self.kernel_size * self.feature_size)),
+                                               dtype=tf.float32)
+
+        tp_spatial_cnn_weights = tf.transpose(spatial_cnn_weights, perm=[0, 2, 1])
+        tp_temporal_cnn_weights = tf.transpose(temporal_cnn_weights, perm=[0, 2, 1])
+
+        tp_spatial = tf.transpose(spatial, perm=[1, 0, 2])
+        tp_temporal = tf.transpose(temporal, perm=[1, 0, 2])
+
+        spatial_output = tf.matmul(tp_spatial, tp_spatial_cnn_weights)
+        temporal_output = tf.matmul(tp_temporal, tp_temporal_cnn_weights)
+
+        tp_spatial_output = tf.transpose(spatial_output, perm=[1, 0, 2])
+        tp_temporal_output = tf.transpose(temporal_output, perm=[1, 0, 2])
+        # -> (batch_size * max_frames) x anchor_size x kernel_size
+
+        # Apply rectified activation.
+        spatial_output = tf.reshape(tp_spatial_output, [-1, self.kernel_size * self.anchor_size])
+        temporal_output = tf.reshape(tp_temporal_output, [-1, self.kernel_size * self.anchor_size])
+        spatial_output = tf.nn.relu(spatial_output)
+        temporal_output = tf.nn.relu(temporal_output)
+
+        spatial_output = tf.reshape(spatial_output, [-1, self.max_frames, self.kernel_size * self.anchor_size])
+        temporal_output = tf.reshape(temporal_output, [-1, self.max_frames - 1, self.kernel_size * self.anchor_size])
+
+        if self.add_norm:
+            spatial_output = tf.concat([spatial_output, spatial_norm], 2)
+            temporal_output = tf.concat([temporal_output, temporal_norm], 2)
+
+        spatial_output = tf.reshape(spatial_output, [-1, self.kernel_size * self.anchor_size])
+        temporal_output = tf.reshape(temporal_output, [-1, self.kernel_size * self.anchor_size])
+        spatial_dim = spatial_output.get_shape().as_list()[1]
+        spatial_vlad = loupe_modules.NetVLAD(feature_size=spatial_dim,
+                                             max_samples=self.max_frames,
+                                             cluster_size=256,
+                                             output_dim=self.hidden_layer_size,
+                                             gating=False,
+                                             add_batch_norm=self.batch_norm,
+                                             is_training=self.is_training)
+        temporal_dim = temporal_output.get_shape().as_list()[1]
+        temporal_vlad = loupe_modules.NetVLAD(feature_size=temporal_dim,
+                                              max_samples=self.max_frames - 1,
+                                              cluster_size=256,
+                                              output_dim=self.hidden_layer_size,
+                                              gating=False,
+                                              add_batch_norm=self.batch_norm,
+                                              is_training=self.is_training)
+
+        spatial_agg = spatial_vlad.forward(spatial_output)
+        temporal_agg = temporal_vlad.forward(temporal_output)
+
+        if self.batch_norm:
+            spatial_agg = slim.batch_norm(
+                spatial_agg,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="spatial_activation_bn")
+
+            temporal_agg = slim.batch_norm(
+                temporal_agg,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="temporal_activation_bn")
+
+        if self.add_relu:
+            spatial_agg = tf.nn.relu(spatial_agg)
+            temporal_agg = tf.nn.relu(temporal_agg)
+
+        ####################################################################################
+        # Fuse spatial & temporal features #################################################
+        ####################################################################################
+        spatial_temporal_concat = tf.concat([spatial_agg, temporal_agg], 1)
 
         sp_dim = spatial_temporal_concat.get_shape().as_list()[1]
         sp_weights = tf.get_variable("spa_temp_fusion",

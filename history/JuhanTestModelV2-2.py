@@ -40,7 +40,7 @@ BASE_LEARNING_RATE = 0.0002
 START_NEW_MODEL = False
 
 EXTRA = "--learning_rate_decay=0.9 " \
-        "--jtmv2_iteration=100 " \
+        "--jtmv2_iteration=30 " \
         "--jtmv2_add_batch_norm=True " \
         "--jtmv2_video_anchor_size=32 " \
         "--jtmv2_audio_anchor_size=8 " \
