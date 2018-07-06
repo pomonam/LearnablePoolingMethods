@@ -296,6 +296,8 @@ flags.DEFINE_bool("jtmv3_use_attention", True,
                   "True -> use attention.")
 flags.DEFINE_bool("jtmv3_use_relu", False,
                   "True -> use relu.")
+flags.DEFINE_string("jtmv3_video_level_model", "ClassLearningFourNnModel",
+                    "Model for video level.")
 
 
 class JuhanTestModelV3(models.BaseModel):
@@ -321,6 +323,7 @@ class JuhanTestModelV3(models.BaseModel):
         audio_output_dim = FLAGS.jtmv3_audio_output_dim
         use_attention = FLAGS.jtmv3_use_attention
         use_relu = FLAGS.jtmv3_use_relu
+        video_level_model = FLAGS.jtmv3_video_level_model
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
@@ -368,7 +371,7 @@ class JuhanTestModelV3(models.BaseModel):
 
         activation = tf.concat([video_feature, audio_feature], 1)
         aggregated_model = getattr(video_level_models,
-                                   "ClassLearningFourNnModel")
+                                   video_level_model)
         return aggregated_model().create_model(
             model_input=activation,
             vocab_size=vocab_size,
