@@ -34,7 +34,7 @@ FEATURES = "rgb,audio"
 BATCH_SIZE = 64
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0004
+BASE_LEARNING_RATE = 0.0003
 
 # Initialize a new model?
 START_NEW_MODEL = False
@@ -42,12 +42,12 @@ START_NEW_MODEL = False
 EXTRA = "--learning_rate_decay=0.95 " \
         "--jtmv4_iteration=100 " \
         "--jtmv4_add_batch_norm=True " \
-        "--jtmv4_video_anchor_size=32 " \
-        "--jtmv4_audio_anchor_size=8 " \
-        "--jtmv4_video_kernel_size=128 " \
-        "--jtmv4_audio_kernel_size=32 " \
-        "--jtmv4_video_hidden=2048 " \
-        "--jtmv4_audio_hidden=256 " \
+        "--jtmv4_video_anchor_size=16 " \
+        "--jtmv4_audio_anchor_size=4 " \
+        "--jtmv4_video_kernel_size=64 " \
+        "--jtmv4_audio_kernel_size=16 " \
+        "--jtmv4_video_hidden=512 " \
+        "--jtmv4_audio_hidden=64 " \
         "--jtmv4_video_output_dim=2048 " \
         "--jtmv4_audio_output_dim=256 " \
         "--jtmv4_use_attention=False " \
