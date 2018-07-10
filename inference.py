@@ -13,6 +13,13 @@
 # limitations under the License.
 
 """Binary for generating predictions over a set of videos."""
+import os
+import sys
+
+# Explicitly add the file's directory to the path list.
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+sys.path.append(os.path.join(os.getcwd(), "modules"))
 # noinspection PyUnresolvedReferences
 import pathmagic
 import os

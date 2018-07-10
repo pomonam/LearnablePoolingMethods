@@ -85,12 +85,12 @@ def main():
     eval_command += "--feature_names='{}' ".format(FEATURES)
     eval_command += "--feature_sizes='1024,128' "
     eval_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    eval_command += "--train_dir=/{} ".format(MODEL_NAME + str(MODEL_VERSION))
+    eval_command += "--train_dir=/home/koreasecretweapon/JuhanTestModelV2-1 "
     eval_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
     eval_command += "--run_once=True "
     eval_command += EXTRA
 
-    inference_command = "gcloud ml-engine local inference "
+    inference_command = "gcloud ml-engine local train "
     inference_command += "--package-path=youtube-8m --module-name=youtube-8m.inference "
     if FRAME_LEVEL:
         inference_command += "-- --input_data_pattern='gs://youtube8m-ml-us-east1/2/frame/test/test*.tfrecord' "
@@ -99,9 +99,9 @@ def main():
     inference_command += "--feature_names='{}' ".format(FEATURES)
     inference_command += "--feature_sizes='1024,128' "
     inference_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    inference_command += "--train_dir=/{} ".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--train_dir=/home/koreasecretweapon/JuhanTestModelV2-1"
     inference_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
-    inference_command += "--output_file=/{}/predictions.csv".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--output_file=/home/koreasecretweapon/JuhanTestModelV2-1/predictions.csv".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += EXTRA
 
     return local_command, eval_command, inference_command
