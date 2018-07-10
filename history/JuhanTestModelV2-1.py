@@ -76,7 +76,7 @@ def main():
     local_command += "--runtime-version=1.8 "
     local_command += EXTRA
 
-    eval_command = "gcloud ml-engine local eval "
+    eval_command = "gcloud ml-engine local train "
     eval_command += "--package-path=youtube-8m --module-name=youtube-8m.eval "
     if FRAME_LEVEL:
         eval_command += "-- --eval_data_pattern='gs://youtube8m-ml-us-east1/2/frame/validate/validate*.tfrecord' "
@@ -87,7 +87,7 @@ def main():
     eval_command += "--batch_size={} ".format(str(BATCH_SIZE))
     eval_command += "--train_dir=/{} ".format(MODEL_NAME + str(MODEL_VERSION))
     eval_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
-    eval_command += "--run_once=True"
+    eval_command += "--run_once=True "
     eval_command += EXTRA
 
     inference_command = "gcloud ml-engine local inference "
