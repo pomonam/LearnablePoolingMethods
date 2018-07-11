@@ -99,7 +99,7 @@ def main():
     inference_command += "--feature_names='{}' ".format(FEATURES)
     inference_command += "--feature_sizes='1024,128' "
     inference_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    inference_command += "--train_dir=/home/koreasecretweapon/JuhanTestModelV2-1"
+    inference_command += "--train_dir=/home/koreasecretweapon/JuhanTestModelV2-1 "
     inference_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
     inference_command += "--output_file=/home/koreasecretweapon/JuhanTestModelV2-1/predictions.csv".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += EXTRA

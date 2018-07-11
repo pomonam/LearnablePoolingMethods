@@ -55,6 +55,11 @@ if __name__ == "__main__":
         "features (i.e. tensorflow.SequenceExample), then set --reader_type "
         "format. The (Sequence)Examples are expected to have 'rgb' byte array "
         "sequence feature as well as a 'labels' int64 context feature.")
+
+    flags.DEFINE_string(
+        "valid_data_pattern", "gs://youtube8m-ml-us-east1/2/frame/valid/*.tfrecord",
+        "File glob for validation dataset. This is used for training as well."
+    )
     flags.DEFINE_string("feature_names", "mean_rgb", "Name of the feature "
                                                      "to use for training.")
     flags.DEFINE_string("feature_sizes", "1024", "Length of the feature vectors.")
@@ -143,14 +148,16 @@ def validate_class_name(flag_value, category, modules, expected_superclass):
 
 
 def get_input_data_tensors(reader,
-                           data_pattern,
+                           data_pattern_1,
+                           data_pattern_2,
                            batch_size=1000,
                            num_epochs=None,
                            num_readers=1):
     """Creates the section of the graph which reads the training data.
       Args:
         reader: A class which parses the training data.
-        data_pattern: A 'glob' style path to the data files.
+        data_pattern_1: A 'glob' style path to the data files.
+        data_pattern_2: A 'glob' style path to the data files.
         batch_size: How many examples to process at a time.
         num_epochs: How many passes to make over the training data. Set to 'None'
                     to run indefinitely.
@@ -164,10 +171,13 @@ def get_input_data_tensors(reader,
       """
     logging.info("Using batch size of " + str(batch_size) + " for training.")
     with tf.name_scope("train_input"):
-        files = gfile.Glob(data_pattern)
+        train_files = gfile.Glob(data_pattern_1)
+        valid_files = gfile.Glob(data_pattern_2)
+        files = train_files.extend(valid_files)
+
         if not files:
             raise IOError("Unable to find training files. data_pattern='" +
-                          data_pattern + "'.")
+                          data_pattern_1 + "," + data_pattern_2 + "'.")
         logging.info("Number of training files: %s.", str(len(files)))
         filename_queue = tf.train.string_input_producer(
             files, num_epochs=num_epochs, shuffle=True)
@@ -193,6 +203,7 @@ def find_class_by_name(name, modules):
 def build_graph(reader,
                 model,
                 train_data_pattern,
+                valid_data_pattern,
                 label_loss_fn=losses.CrossEntropyLoss(),
                 batch_size=1000,
                 base_learning_rate=0.01,
@@ -253,7 +264,8 @@ def build_graph(reader,
     unused_video_id, model_input_raw, labels_batch, num_frames = (
         get_input_data_tensors(
             reader,
-            train_data_pattern,
+            data_pattern_1=train_data_pattern,
+            data_pattern_2=valid_data_pattern,
             batch_size=batch_size * num_towers,
             num_readers=num_readers,
             num_epochs=num_epochs))
@@ -597,6 +609,7 @@ class Trainer(object):
                     optimizer_class=optimizer_class,
                     clip_gradient_norm=FLAGS.clip_gradient_norm,
                     train_data_pattern=FLAGS.train_data_pattern,
+                    valid_data_pattern=FLAGS.valid_data_pattern,
                     label_loss_fn=label_loss_fn,
                     base_learning_rate=FLAGS.base_learning_rate,
                     learning_rate_decay=FLAGS.learning_rate_decay,
