@@ -19,6 +19,116 @@ import math
 import modules
 
 
+class MultiHeadAttention(modules.BaseModule):
+    def __init__(self, num_heads, num_units):
+        """
+
+        :param num_heads: Number of self-attention modules
+        :param num_units: last dimension of Q, K, V
+        """
+        self.num_heads = num_heads
+        self.num_units = num_units
+
+    def self_attention(self, Q, K, V):
+        """
+
+        :param Q: batch_size x max_frames x num_units
+        :param K: batch_size x max_frames x num_units
+        :param V: batch_size x max_frames x num_units
+        :return:
+        """
+        # Self-attention
+        attention = tf.matmul(Q, tf.transpose(K, perm=[0, 2, 1]))
+        # attention: -> batch_size x max_frames x max_frames
+
+        attention = tf.nn.softmax(tf.divide(attention, tf.sqrt(self.num_units)))
+
+        output = tf.matmul(attention, V)
+        # output: -> batch_size x max_frames x num_units
+        return output
+
+    def forward(self, Q, K, V, **unused_params):
+        result = self.self_attention(Q, K, V)
+        for i in range(self.num_heads - 1):
+            result = tf.identity(result)
+            output = self.self_attention(Q, K, V)
+            result = tf.concat([result, output], 2)
+        # result: -> batch_size x max_frames x (num_units * num_heads)
+        return result
+
+
+class TransformerEncoderBlock(modules.BaseModule):
+    def __init__(self, vocab_size, is_training, num_blocks, num_units, max_frames, feature_size, num_heads, scope_id=None):
+        """
+
+        :param vocab_size:
+        :param is_training:
+        :param num_blocks: Number of blocks in encoder
+        :param num_units: Number of hidden units of fully connected layers
+        :param scope_id:
+        """
+        self.vocab_size = vocab_size
+        self.is_training = is_training
+        self.scope_id = scope_id
+        self.num_blocks = num_blocks
+        self.num_units = num_units
+        self.max_frames = max_frames
+        self.feature_size = feature_size
+        self.num_heads = num_heads
+
+    def encoder_layer(self, inputs, **unused_params):
+        """
+        One block of encoder containing one self-attention layer and one fully connected layer.
+        :param inputs: (batch_size * max_frames) x feature_size
+        :param unused_params:
+        :return:
+        """
+        # Calculate query, key, value pair
+        Q = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
+        K = tf.layers.dense(inputs, self.num_units, actiation=tf.nn.relu)
+        V = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
+        # Q, K, V: -> (batch_size * max_frames) x num_units
+
+        # Reshape for self-attention calculation
+        Q = tf.reshape(Q, [-1, self.max_frames, self.num_units])
+        K = tf.reshape(K, [-1, self.max_frames, self.num_units])
+        V = tf.reshape(V, [-1, self.max_frames, self.num_units])
+        # Q, K, V: -> batch_size x max_frames x num_units
+
+        multi_head_layer = MultiHeadAttention(self.num_heads, self.num_units)
+
+        attention_output = multi_head_layer.forward(Q, K, V)
+        # output: -> batch_size x max_frames x (num_units * num_heads)
+
+        attention_output = tf.reshape(attention_output, [-1, self.num_units * self.num_heads])
+        # output: -> (batch_size * max_frames) x (num_units * num_heads)
+
+        attention_output = tf.layers.dense(attention_output, self.feature_size, activation=tf.nn.relu)
+        # output: -> (batch_size * max_frames) x feature_size
+
+        # Residual connection
+        attention_output += inputs
+        attention_output = tf.contrib.layers.layer_norm(attention_output)
+
+        # Fully connected layer
+        output = tf.layers.dense(attention_output, self.feature_size, activation=tf.nn.relu)
+        output += attention_output
+
+        output = tf.contrib.layers.layer_norm(attention_output)
+
+        return output
+
+    def forward(self, inputs, **unused_params):
+        """
+
+        :param inputs: (batch_size * max_frames) x feature_size
+        :param unused_params:
+        :return:
+        """
+        output = tf.contrib.layers.repeat(inputs, self.num_heads, self.encoder_layer)
+        return output
+
+
 class PnGateModule(modules.BaseModule):
     def __init__(self, vocab_size, is_training, scope_id=None):
         """ Initialize class PnGateModule.
