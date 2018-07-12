@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 32
+BATCH_SIZE = 8
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0002

@@ -124,8 +124,8 @@ class TriangulationV5Module(modules.BaseModule):
         spatial = tf.reshape(spatial, [-1, self.anchor_size, self.feature_size])
         temporal = tf.reshape(temporal, [-1, self.anchor_size, self.feature_size])
 
-        spatial_norm = tf.reshape(spatial_norm, [-1, self.max_frames, self.anchor_size * self.feature_size])
-        temporal_norm = tf.reshape(temporal_norm, [-1, self.max_frames - 1, self.anchor_size * self.feature_size])
+        spatial_norm = tf.reshape(spatial_norm, [-1, self.max_frames, self.anchor_size])
+        temporal_norm = tf.reshape(temporal_norm, [-1, self.max_frames - 1, self.anchor_size])
         ####################################################################################
 
         ####################################################################################
