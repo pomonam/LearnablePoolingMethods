@@ -488,6 +488,100 @@ class JuhanTestModelV4(models.BaseModel):
             **unused_params)
 
 
+# All flags start with jtmv1_ to differentiate from other flags.
+flags.DEFINE_integer("jtmv5_iteration", 30,
+                     "Number of frames per batch.")
+flags.DEFINE_bool("jtmv5_add_batch_norm", True,
+                  "Add batch normalization.")
+flags.DEFINE_bool("jtmv5_sample_random_frames", True,
+                  "Iff true, tccm samples random frames.")
+flags.DEFINE_integer("jtmv5_video_anchor_size", 64,
+                     "Number of anchors for video features.")
+flags.DEFINE_integer("jtmv5_audio_anchor_size", 16,
+                     "Number of anchors for audio features.")
+flags.DEFINE_integer("jtmv5_video_hidden", 1024,
+                     "Number of anchors for video features.")
+flags.DEFINE_integer("jtmv5_video_output_dim", 2048,
+                     "Output dimension for video features.")
+flags.DEFINE_integer("jtmv5_audio_hidden", 128,
+                     "Number of anchors for audio features.")
+flags.DEFINE_integer("jtmv5_audio_output_dim", 256,
+                     "Output dimension for audio features.")
+
+
+class JuhanTestModelV5(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.jtmv5_iteration
+        add_batch_norm = add_batch_norm or FLAGS.jtmv5_add_batch_norm
+        video_anchor_size = FLAGS.jtmv5_video_anchor_size
+        audio_anchor_size = FLAGS.jtmv5_audio_anchor_size
+        video_hidden_size = FLAGS.jtmv5_video_hidden
+        audio_hidden_size = FLAGS.jtmv5_audio_hidden
+        video_output_dim = FLAGS.jtmv5_video_output_dim
+        audio_output_dim = FLAGS.jtmv5_audio_output_dim
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        # model_input: (batch_size * max_frames) x feature_size
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        video_module = video_pooling_modules.TriangulationV5Module(
+            feature_size=1024,
+            max_frames=max_frames,
+            anchor_size=video_anchor_size,
+            kernel_size=256,
+            self_attention=False,
+            hidden_layer_size=video_hidden_size,
+            output_dim=video_output_dim,
+            add_relu=True,
+            batch_norm=add_batch_norm,
+            is_training=is_training,
+            scope_id=None)
+
+        audio_module = video_pooling_modules.TriangulationV5Module(
+            feature_size=128,
+            max_frames=max_frames,
+            anchor_size=audio_anchor_size,
+            kernel_size=256,
+            self_attention=False,
+            hidden_layer_size=audio_hidden_size,
+            output_dim=audio_output_dim,
+            add_relu=True,
+            batch_norm=add_batch_norm,
+            is_training=is_training,
+            scope_id=None)
+
+        with tf.variable_scope("video_triangulation_embedding"):
+            video_feature = video_module.forward(reshaped_input[:, 0:1024])
+            # -> (batch_size * max_frames) x video_output_dim
+
+        with tf.variable_scope("audio_triangulation_embedding"):
+            audio_feature = audio_module.forward(reshaped_input[:, 1024:])
+            # -> (batch_size * max_frames) x audio_output_dim
+
+        activation = tf.concat([video_feature, audio_feature], 1)
+
+        aggregated_model = getattr(video_level_models,
+                                   "ClassLearningFourNnModel")
+        return aggregated_model().create_model(
+            model_input=activation,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
+
+
 # All flags start with tccm_ to differentiate from other flags.
 flags.DEFINE_integer("tccm_iterations", 200,
                      "Number of frames per batch.")

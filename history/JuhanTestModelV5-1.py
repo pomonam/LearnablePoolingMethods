@@ -21,7 +21,7 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "JuhanTestModelV2"
+MODEL_NAME = "JuhanTestModelV5"
 MODEL_VERSION = "-1"
 
 # Does it require frame-level models?
@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0002
@@ -40,18 +40,16 @@ BASE_LEARNING_RATE = 0.0002
 START_NEW_MODEL = False
 
 EXTRA = "--learning_rate_decay=0.9 " \
-        "--jtmv2_iteration=100 " \
-        "--jtmv2_add_batch_norm=True " \
-        "--jtmv2_video_anchor_size=32 " \
-        "--jtmv2_audio_anchor_size=8 " \
-        "--jtmv2_video_kernel_size=128 " \
-        "--jtmv2_audio_kernel_size=32 " \
-        "--jtmv2_video_hidden=2048 " \
-        "--jtmv2_audio_hidden=256 " \
-        "--jtmv2_video_output_dim=2048 " \
-        "--jtmv2_audio_output_dim=256 " \
-        "--jtmv2_use_attention=False " \
-        "--jtmv2_use_relu=False "
+        "--jtmv5_iteration=30 " \
+        "--jtmv5_add_batch_norm=True " \
+        "--jtmv5_video_anchor_size=256 " \
+        "--jtmv5_audio_anchor_size=32 " \
+        "--jtmv5_video_kernel_size=256 " \
+        "--jtmv5_audio_kernel_size=32 " \
+        "--jtmv5_video_hidden=2048 " \
+        "--jtmv5_audio_hidden=256 " \
+        "--jtmv5_video_output_dim=2048 " \
+        "--jtmv5_audio_output_dim=256 " \
 
 
 def main():
