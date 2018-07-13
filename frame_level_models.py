@@ -537,6 +537,23 @@ class JuhanTestModelV5(models.BaseModel):
         # model_input: (batch_size * max_frames) x feature_size
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
+        video_features = reshaped_input[:, 0:1024]
+        audio_features = reshaped_input[:, 1024:]
+
+        if add_batch_norm:
+            video_features = slim.batch_norm(
+                video_features,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="video_bn")
+            audio_features = slim.batch_norm(
+                audio_features,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="audio_bn")
+
         video_module = video_pooling_modules.TriangulationV5Module(
             feature_size=1024,
             max_frames=max_frames,
@@ -564,11 +581,11 @@ class JuhanTestModelV5(models.BaseModel):
             scope_id=None)
 
         with tf.variable_scope("video_triangulation_embedding"):
-            video_feature = video_module.forward(reshaped_input[:, 0:1024])
+            video_feature = video_module.forward(video_features)
             # -> (batch_size * max_frames) x video_output_dim
 
         with tf.variable_scope("audio_triangulation_embedding"):
-            audio_feature = audio_module.forward(reshaped_input[:, 1024:])
+            audio_feature = audio_module.forward(audio_features)
             # -> (batch_size * max_frames) x audio_output_dim
 
         activation = tf.concat([video_feature, audio_feature], 1)

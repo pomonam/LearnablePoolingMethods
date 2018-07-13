@@ -20,6 +20,7 @@ import attention_modules
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import models
+import math
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer(
@@ -127,6 +128,68 @@ class WillowMoeModel(models.BaseModel):
                     "regularization_loss": det_reg}
         else:
             return {"predictions": probabilities}
+
+
+class FourLayerBatchNeuralModel(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     is_training,
+                     l2_penalty=1e-6,
+                     **unused_params):
+        model_input_dim = model_input.get_shape().as_list()[1]
+        fc1_weights = tf.get_variable("fc1_weights",
+                                      [model_input_dim, vocab_size],
+                                      initializer=tf.contrib.layers.xavier_initializer())
+        tf.summary.histogram("fc1_weights", fc1_weights)
+        fc1_activation = tf.matmul(model_input, fc1_weights)
+        fc1_activation = tf.nn.relu(fc1_activation)
+        fc1_activation = slim.batch_norm(
+            fc1_activation,
+            center=True,
+            scale=True,
+            is_training=is_training,
+            scope="fc1_activation_bn")
+
+        fc2_weights = tf.get_variable("fc2_weights",
+                                      [vocab_size, vocab_size],
+                                      initializer=tf.contrib.layers.xavier_initializer())
+        tf.summary.histogram("fc2_weights", fc2_weights)
+        fc2_activation = tf.matmul(fc1_activation, fc2_weights)
+        fc2_activation = tf.nn.relu(fc2_activation)
+        fc2_activation = slim.batch_norm(
+            fc2_activation,
+            center=True,
+            scale=True,
+            is_training=is_training,
+            scope="fc2_activation_bn")
+
+        fc3_weights = tf.get_variable("fc3_weights",
+                                      [vocab_size, vocab_size],
+                                      initializer=tf.contrib.layers.xavier_initializer())
+        tf.summary.histogram("fc3_weights", fc3_weights)
+        fc3_activation = tf.matmul(fc2_activation, fc3_weights)
+        fc3_activation = tf.nn.relu(fc3_activation)
+        fc3_activation = slim.batch_norm(
+            fc3_activation,
+            center=True,
+            scale=True,
+            is_training=is_training,
+            scope="fc3_activation_bn")
+
+        fc4_weights = tf.get_variable("fc4_weights",
+                                      [vocab_size, vocab_size],
+                                      initializer=tf.contrib.layers.xavier_initializer())
+        fc4_activation = tf.matmul(fc3_activation, fc4_weights)
+        cluster_biases = tf.get_variable("fc4_bias",
+                                         [vocab_size],
+                                         initializer=tf.constant_initializer(0.01))
+        tf.summary.histogram("fc4_bias", cluster_biases)
+        fc4_activation += cluster_biases
+
+        fc4_activation = tf.sigmoid(fc4_activation)
+
+        return {"predictions": fc4_activation}
 
 
 class ClassLearningThreeNnModel(models.BaseModel):
