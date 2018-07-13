@@ -378,35 +378,35 @@ class JuhanTestModelV3(models.BaseModel):
             is_training=is_training,
             **unused_params)
 
-    # All flags start with jtmv3_ to differentiate from other flags.
-    flags.DEFINE_integer("jtmv4_iteration", 200,
-                         "Number of frames per batch.")
-    flags.DEFINE_bool("jtmv4_add_batch_norm", True,
-                      "Add batch normalization.")
-    flags.DEFINE_bool("jtmv4_sample_random_frames", True,
-                      "Iff true, tccm samples random frames.")
-    flags.DEFINE_integer("jtmv4_video_anchor_size", 32,
-                         "Number of anchors for video features.")
-    flags.DEFINE_integer("jtmv4_audio_anchor_size", 8,
-                         "Number of anchors for audio features.")
-    flags.DEFINE_integer("jtmv4_video_kernel_size", 64,
-                         "Number of kernels for video features.")
-    flags.DEFINE_integer("jtmv4_audio_kernel_size", 16,
-                         "Number of kernels for audio features.")
-    flags.DEFINE_integer("jtmv4_video_hidden", 2048,
-                         "Number of anchors for video features.")
-    flags.DEFINE_integer("jtmv4_video_output_dim", 2048,
-                         "Output dimension for video features.")
-    flags.DEFINE_integer("jtmv4_audio_hidden", 256,
-                         "Number of anchors for audio features.")
-    flags.DEFINE_integer("jtmv4_audio_output_dim", 256,
-                         "Output dimension for audio features.")
-    flags.DEFINE_bool("jtmv4_use_attention", True,
-                      "True -> use attention.")
-    flags.DEFINE_bool("jtmv4_use_relu", False,
-                      "True -> use relu.")
-    flags.DEFINE_string("jtmv4_video_level_model", "ClassLearningFourNnModel",
-                        "Model for video level.")
+# All flags start with jtmv3_ to differentiate from other flags.
+flags.DEFINE_integer("jtmv4_iteration", 200,
+                     "Number of frames per batch.")
+flags.DEFINE_bool("jtmv4_add_batch_norm", True,
+                  "Add batch normalization.")
+flags.DEFINE_bool("jtmv4_sample_random_frames", True,
+                  "Iff true, tccm samples random frames.")
+flags.DEFINE_integer("jtmv4_video_anchor_size", 32,
+                     "Number of anchors for video features.")
+flags.DEFINE_integer("jtmv4_audio_anchor_size", 8,
+                     "Number of anchors for audio features.")
+flags.DEFINE_integer("jtmv4_video_kernel_size", 64,
+                     "Number of kernels for video features.")
+flags.DEFINE_integer("jtmv4_audio_kernel_size", 16,
+                     "Number of kernels for audio features.")
+flags.DEFINE_integer("jtmv4_video_hidden", 2048,
+                     "Number of anchors for video features.")
+flags.DEFINE_integer("jtmv4_video_output_dim", 2048,
+                     "Output dimension for video features.")
+flags.DEFINE_integer("jtmv4_audio_hidden", 256,
+                     "Number of anchors for audio features.")
+flags.DEFINE_integer("jtmv4_audio_output_dim", 256,
+                     "Output dimension for audio features.")
+flags.DEFINE_bool("jtmv4_use_attention", True,
+                  "True -> use attention.")
+flags.DEFINE_bool("jtmv4_use_relu", False,
+                  "True -> use relu.")
+flags.DEFINE_string("jtmv4_video_level_model", "ClassLearningFourNnModel",
+                    "Model for video level.")
 
 
 class JuhanTestModelV4(models.BaseModel):
@@ -488,24 +488,28 @@ class JuhanTestModelV4(models.BaseModel):
             **unused_params)
 
 
-# All flags start with jtmv1_ to differentiate from other flags.
+# All flags start with jtmv5_ to differentiate from other flags.
 flags.DEFINE_integer("jtmv5_iteration", 30,
                      "Number of frames per batch.")
 flags.DEFINE_bool("jtmv5_add_batch_norm", True,
                   "Add batch normalization.")
 flags.DEFINE_bool("jtmv5_sample_random_frames", True,
                   "Iff true, tccm samples random frames.")
-flags.DEFINE_integer("jtmv5_video_anchor_size", 64,
+flags.DEFINE_integer("jtmv5_video_anchor_size", 256,
                      "Number of anchors for video features.")
-flags.DEFINE_integer("jtmv5_audio_anchor_size", 16,
+flags.DEFINE_integer("jtmv5_audio_anchor_size", 32,
                      "Number of anchors for audio features.")
-flags.DEFINE_integer("jtmv5_video_hidden", 1024,
+flags.DEFINE_integer("jtmv5_video_kernel_size", 512,
+                     "Number of kernels for video features.")
+flags.DEFINE_integer("jtmv5_audio_kernel_size", 64,
+                     "Number of kernels for audio features.")
+flags.DEFINE_integer("jtmv5_video_hidden", 2048,
                      "Number of anchors for video features.")
-flags.DEFINE_integer("jtmv5_video_output_dim", 2048,
+flags.DEFINE_integer("jtmv5_video_output_dim", 4096,
                      "Output dimension for video features.")
-flags.DEFINE_integer("jtmv5_audio_hidden", 128,
+flags.DEFINE_integer("jtmv5_audio_hidden", 256,
                      "Number of anchors for audio features.")
-flags.DEFINE_integer("jtmv5_audio_output_dim", 256,
+flags.DEFINE_integer("jtmv5_audio_output_dim", 512,
                      "Output dimension for audio features.")
 
 
@@ -524,7 +528,9 @@ class JuhanTestModelV5(models.BaseModel):
         add_batch_norm = add_batch_norm or FLAGS.jtmv5_add_batch_norm
         video_anchor_size = FLAGS.jtmv5_video_anchor_size
         audio_anchor_size = FLAGS.jtmv5_audio_anchor_size
+        video_kernel_size = FLAGS.jtmv5_video_kernel_size
         video_hidden_size = FLAGS.jtmv5_video_hidden
+        audio_kernel_size = FLAGS.jtmv5_audio_kernel_size
         audio_hidden_size = FLAGS.jtmv5_audio_hidden
         video_output_dim = FLAGS.jtmv5_video_output_dim
         audio_output_dim = FLAGS.jtmv5_audio_output_dim
@@ -537,9 +543,11 @@ class JuhanTestModelV5(models.BaseModel):
         # model_input: (batch_size * max_frames) x feature_size
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
+        # Obtain video & audio features.
         video_features = reshaped_input[:, 0:1024]
         audio_features = reshaped_input[:, 1024:]
 
+        # Batch normalize video & audio inputs for fixing scales.
         if add_batch_norm:
             video_features = slim.batch_norm(
                 video_features,
@@ -558,7 +566,7 @@ class JuhanTestModelV5(models.BaseModel):
             feature_size=1024,
             max_frames=max_frames,
             anchor_size=video_anchor_size,
-            kernel_size=256,
+            kernel_size=video_kernel_size,
             self_attention=False,
             hidden_layer_size=video_hidden_size,
             output_dim=video_output_dim,
@@ -571,7 +579,7 @@ class JuhanTestModelV5(models.BaseModel):
             feature_size=128,
             max_frames=max_frames,
             anchor_size=audio_anchor_size,
-            kernel_size=256,
+            kernel_size=audio_kernel_size,
             self_attention=False,
             hidden_layer_size=audio_hidden_size,
             output_dim=audio_output_dim,
@@ -591,7 +599,7 @@ class JuhanTestModelV5(models.BaseModel):
         activation = tf.concat([video_feature, audio_feature], 1)
 
         aggregated_model = getattr(video_level_models,
-                                   "ClassLearningFourNnModel")
+                                   "FourLayerBatchNeuralModel")
         return aggregated_model().create_model(
             model_input=activation,
             vocab_size=vocab_size,

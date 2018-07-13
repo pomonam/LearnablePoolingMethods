@@ -83,10 +83,10 @@ class TriangulationV5Module(modules.BaseModule):
         ####################################################################################
         # Get spatial features with t-embedding ############################################
         ####################################################################################
-        anchor_weights = tf.get_variable("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+        anchor_weights = tf.get_variable("anchor_weights{}".format("" if self.scope_id is
+                                                                         None else str(self.scope_id)),
                                          [self.feature_size, self.anchor_size],
-                                         initializer=tf.random_normal_initializer(
-                                             stddev=1 / math.sqrt(self.anchor_size)))
+                                         initializer=tf.contrib.layers.xavier_initializer())
         tf.summary.histogram("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
                              anchor_weights)
 
@@ -135,16 +135,12 @@ class TriangulationV5Module(modules.BaseModule):
                                                                              if self.scope_id is None
                                                                              else str(self.scope_id)),
                                               [self.anchor_size, self.kernel_size, self.feature_size],
-                                              initializer=tf.random_normal_initializer(
-                                                  stddev=1 / math.sqrt(self.kernel_size * self.feature_size)),
-                                              dtype=tf.float32)
+                                              initializer=tf.contrib.layers.xavier_initializer())
         temporal_cnn_weights = tf.get_variable("temporal_cnn_weights{}".format(""
                                                                                if self.scope_id is None
                                                                                else str(self.scope_id)),
                                                [self.anchor_size, self.kernel_size, self.feature_size],
-                                               initializer=tf.random_normal_initializer(
-                                                  stddev=1 / math.sqrt(self.kernel_size * self.feature_size)),
-                                               dtype=tf.float32)
+                                               initializer=tf.contrib.layers.xavier_initializer())
 
         tp_spatial_cnn_weights = tf.transpose(spatial_cnn_weights, perm=[0, 2, 1])
         tp_temporal_cnn_weights = tf.transpose(temporal_cnn_weights, perm=[0, 2, 1])
@@ -158,11 +154,13 @@ class TriangulationV5Module(modules.BaseModule):
         tp_spatial_output = tf.transpose(spatial_output, perm=[1, 0, 2])
         tp_temporal_output = tf.transpose(temporal_output, perm=[1, 0, 2])
 
-        spatial_output = tf.reshape(tp_spatial_output, [-1, self.max_frames, self.kernel_size * self.anchor_size])
-        temporal_output = tf.reshape(tp_temporal_output, [-1, self.max_frames - 1, self.kernel_size * self.anchor_size])
+        spatial_output = tf.reshape(tp_spatial_output, [-1, self.max_frames,
+                                                        self.kernel_size * self.anchor_size])
+        temporal_output = tf.reshape(tp_temporal_output, [-1, self.max_frames - 1,
+                                                          self.kernel_size * self.anchor_size])
 
-        spatial_output = tf.concat([spatial_output, spatial_norm], 1)
-        temporal_output = tf.concat([temporal_output, temporal_norm], 1)
+        spatial_output = tf.concat([spatial_output, spatial_norm], 2)
+        temporal_output = tf.concat([temporal_output, temporal_norm], 2)
 
         spatial_mean = tf.reduce_mean(spatial_output, 1)
         temporal_mean = tf.reduce_mean(temporal_output, 1)
@@ -190,14 +188,12 @@ class TriangulationV5Module(modules.BaseModule):
         spatial_dim = spatial_pool.get_shape().as_list()[1]
         spatial_weights = tf.get_variable("spatial_hidden",
                                           [spatial_dim, self.hidden_layer_size],
-                                          initializer=tf.random_normal_initializer(
-                                              stddev=1 / math.sqrt(self.hidden_layer_size)))
+                                          initializer=tf.contrib.layers.xavier_initializer())
 
         temporal_dim = temporal_pool.get_shape().as_list()[1]
         temporal_weights = tf.get_variable("temporal_hidden",
                                            [temporal_dim, self.hidden_layer_size],
-                                           initializer=tf.random_normal_initializer(
-                                              stddev=1 / math.sqrt(self.hidden_layer_size)))
+                                           initializer=tf.contrib.layers.xavier_initializer())
 
         spatial_activation = tf.matmul(spatial_pool, spatial_weights)
         temporal_activation = tf.matmul(temporal_pool, temporal_weights)
@@ -221,14 +217,12 @@ class TriangulationV5Module(modules.BaseModule):
         temporal_activation = tf.nn.relu(temporal_activation)
 
         spatial_weights2 = tf.get_variable("spatial_hidden2",
-                                          [self.hidden_layer_size, self.hidden_layer_size],
-                                          initializer=tf.random_normal_initializer(
-                                              stddev=1 / math.sqrt(self.hidden_layer_size)))
+                                           [self.hidden_layer_size, self.hidden_layer_size],
+                                           initializer=tf.contrib.layers.xavier_initializer())
 
         temporal_weights2 = tf.get_variable("temporal_hidden2",
-                                           [self.hidden_layer_size, self.hidden_layer_size],
-                                           initializer=tf.random_normal_initializer(
-                                               stddev=1 / math.sqrt(self.hidden_layer_size)))
+                                            [self.hidden_layer_size, self.hidden_layer_size],
+                                            initializer=tf.contrib.layers.xavier_initializer())
 
         spatial_activation = tf.matmul(spatial_activation, spatial_weights2)
         temporal_activation = tf.matmul(temporal_activation, temporal_weights2)
@@ -258,8 +252,7 @@ class TriangulationV5Module(modules.BaseModule):
         sp_dim = spatial_temporal_concat.get_shape().as_list()[1]
         sp_weights = tf.get_variable("spa_temp_fusion",
                                      [sp_dim, self.output_dim],
-                                     initializer=tf.random_normal_initializer(
-                                         stddev=1 / math.sqrt(self.output_dim)))
+                                     initializer=tf.contrib.layers.xavier_initializer())
         activation = tf.matmul(spatial_temporal_concat, sp_weights)
 
         if self.batch_norm:
@@ -268,13 +261,12 @@ class TriangulationV5Module(modules.BaseModule):
                 center=True,
                 scale=True,
                 is_training=self.is_training,
-                scope="activation_bn")
+                scope="st_fuse_activation_bn")
 
         activation = tf.nn.relu(activation)
         ####################################################################################
 
         return activation
-
 
 
 class TriangulationEmbedding(modules.BaseModule):
