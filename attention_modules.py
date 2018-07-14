@@ -40,8 +40,8 @@ class MultiHeadAttention(modules.BaseModule):
         # Self-attention
         attention = tf.matmul(Q, tf.transpose(K, perm=[0, 2, 1]))
         # attention: -> batch_size x max_frames x max_frames
-
-        attention = tf.nn.softmax(tf.divide(attention, tf.sqrt(self.num_units)))
+        float_cpy = tf.cast(self.num_units, dtype=tf.float32)
+        attention = tf.nn.softmax(tf.divide(attention, tf.sqrt(float_cpy)))
 
         output = tf.matmul(attention, V)
         # output: -> batch_size x max_frames x num_units
@@ -58,25 +58,19 @@ class MultiHeadAttention(modules.BaseModule):
 
 
 class TransformerEncoderBlock(modules.BaseModule):
-    def __init__(self, vocab_size, is_training, num_blocks, num_units, max_frames, feature_size, num_heads, scope_id=None):
+    def __init__(self, is_training, num_units, max_frames, feature_size, num_heads):
         """
 
-        :param vocab_size:
         :param is_training:
-        :param num_blocks: Number of blocks in encoder
         :param num_units: Number of hidden units of fully connected layers
-        :param scope_id:
         """
-        self.vocab_size = vocab_size
         self.is_training = is_training
-        self.scope_id = scope_id
-        self.num_blocks = num_blocks
         self.num_units = num_units
         self.max_frames = max_frames
         self.feature_size = feature_size
         self.num_heads = num_heads
 
-    def encoder_layer(self, inputs, **unused_params):
+    def forward(self, inputs, **unused_params):
         """
         One block of encoder containing one self-attention layer and one fully connected layer.
         :param inputs: (batch_size * max_frames) x feature_size
@@ -85,7 +79,7 @@ class TransformerEncoderBlock(modules.BaseModule):
         """
         # Calculate query, key, value pair
         Q = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
-        K = tf.layers.dense(inputs, self.num_units, actiation=tf.nn.relu)
+        K = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
         V = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
         # Q, K, V: -> (batch_size * max_frames) x num_units
 
@@ -106,26 +100,19 @@ class TransformerEncoderBlock(modules.BaseModule):
         attention_output = tf.layers.dense(attention_output, self.feature_size, activation=tf.nn.relu)
         # output: -> (batch_size * max_frames) x feature_size
 
-        # Residual connection
+        # Residual connection & Layer normalization
         attention_output += inputs
         attention_output = tf.contrib.layers.layer_norm(attention_output)
 
-        # Fully connected layer
-        output = tf.layers.dense(attention_output, self.feature_size, activation=tf.nn.relu)
-        output += attention_output
+        # 2 layers of 1 x 1 convolution
+        output = tf.reshape(attention_output, [-1, self.max_frames, self.feature_size])
+        output = tf.layers.conv1d(output, filters=4 * self.num_units, kernel_size=1, activation=tf.nn.relu,
+                                  use_bias=True)
+        output = tf.layers.conv1d(output, filters=self.num_units, kernel_size=1, activation=None, use_bias=True)
 
+        # Residual connection & Layer normalization
         output = tf.contrib.layers.layer_norm(attention_output)
 
-        return output
-
-    def forward(self, inputs, **unused_params):
-        """
-
-        :param inputs: (batch_size * max_frames) x feature_size
-        :param unused_params:
-        :return:
-        """
-        output = tf.contrib.layers.repeat(inputs, self.num_heads, self.encoder_layer)
         return output
 
 

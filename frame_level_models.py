@@ -27,6 +27,118 @@ import video_level_models
 import rnn_modules
 import math
 import models
+import attention_modules
+
+###############################################################################
+# Transformer #############################################################
+###############################################################################
+flags.DEFINE_integer("transformer_iteration", 30,
+                     "Number of frames per batch")
+flags.DEFINE_integer("transformer_v_hidden", 256,
+                     "Number of hidden units")
+flags.DEFINE_integer("transformer_a_hidden", 128,
+                     "Number of hidden units")
+flags.DEFINE_integer("transformer_num_heads", 8,
+                     "Number of heads")
+
+
+class TransformerEncoder(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.transformer_iteration
+        video_hidden_size = FLAGS.transformer_v_hidden
+        audio_hidden_size = FLAGS.transformer_a_hidden
+        num_heads = FLAGS.transformer_num_heads
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        # model_input: (batch_size * max_frames) x feature_size
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        video_layer1 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 1024,
+                                                                 num_heads)
+        video_layer2 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 1024,
+                                                                 num_heads)
+        video_layer3 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 1024,
+                                                                 num_heads)
+        video_layer4 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 1024,
+                                                                 num_heads)
+
+        audio_layer1 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 128,
+                                                                 num_heads)
+        audio_layer2 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 128,
+                                                                 num_heads)
+        audio_layer3 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 128,
+                                                                 num_heads)
+        audio_layer4 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 128,
+                                                                 num_heads)
+
+        with tf.variable_scope("video_encoder"):
+            video_activation = video_layer1.forward(reshaped_input[:, 0:1024])
+            video_activation = video_layer2.forward(video_activation)
+            video_activation = video_layer3.forward(video_activation)
+            video_activation = video_layer4.forward(video_activation)
+            # video_activation: (batch_size * max_frames) x 1024
+
+            # Attention
+            video_activation = tf.reshape(video_activation, [-1, max_frames * 1024])
+            # video_activation: batch_size x (max_frames * 1024)
+            video_activation_weight = tf.layers.dense(video_activation, max_frames, tf.nn.relu)
+            # video_activation_weight: batch_size x max_frames
+            video_activation_weight = tf.expand_dims(video_activation_weight, -1)
+            # video_activation_weight: batch_size x max_frames x 1
+            video_activation_weight = tf.nn.softmax(video_activation_weight, axis=1)
+
+            # Weighted sum
+            video_activation = tf.reshape(video_activation, [-1, max_frames, 1024])
+            video_activation = tf.reduce_mean(tf.multiply(video_activation, video_activation_weight), 1)
+            # video_activation: batch_size x 1024
+
+        with tf.variable_scope("audio_encoder"):
+            audio_activation = audio_layer1.forward(reshaped_input[:, 1024:])
+            audio_activation = audio_layer2.forward(audio_activation)
+            audio_activation = audio_layer3.forward(audio_activation)
+            audio_activation = audio_layer4.forward(audio_activation)
+
+            # Attention
+            audio_activation = tf.reshape(audio_activation, [-1, max_frames * 128])
+            # audio_activation: batch_size x (max_frames * 128)
+            audio_activation_weight = tf.layers.dense(audio_activation, max_frames, tf.nn.relu)
+            # audio_activation_weight: batch_size x max_frames
+            audio_activation_weight = tf.expand_dims(audio_activation_weight, -1)
+            # audio_activation_weight: batch_size x max_frames x 1
+            audio_activation_weight = tf.nn.softmax(audio_activation_weight, axis=1)
+
+            # Weighted sum
+            audio_activation = tf.reshape(audio_activation, [-1, max_frames, 128])
+            audio_activation = tf.reduce_mean(tf.multiply(audio_activation, audio_activation_weight), 1)
+            # video_activation: batch_size x 128
+
+
+        # Fusion
+        activation = tf.concat([video_activation, audio_activation], 1)
+        activation = tf.layers.dense(activation, 1024, tf.nn.relu)
+        # batch_size x 1024
+
+        aggregated_model = getattr(video_level_models,
+                                   "ClassLearningThreeNnModel")
+
+        return aggregated_model().create_model(
+            model_input=activation,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
 
 
 ###############################################################################
