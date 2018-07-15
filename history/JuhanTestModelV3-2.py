@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0001
@@ -51,9 +51,7 @@ EXTRA = "--learning_rate_decay=0.9 " \
         "--jtmv3_video_output_dim=2048 " \
         "--jtmv3_audio_output_dim=256 " \
         "--jtmv3_use_attention=False " \
-        "--jtmv3_use_relu=False " \
-        "--jtmv3_video_level_model=WillowMoeModel"
-
+        "--jtmv3_use_relu=False "
 
 def main():
     # Start by defining a job name.
@@ -77,7 +75,7 @@ def main():
     local_command += "--runtime-version=1.8 "
     local_command += EXTRA
 
-    eval_command = "gcloud ml-engine local eval "
+    eval_command = "gcloud ml-engine local train "
     eval_command += "--package-path=youtube-8m --module-name=youtube-8m.eval "
     if FRAME_LEVEL:
         eval_command += "-- --eval_data_pattern='gs://youtube8m-ml-us-east1/2/frame/validate/validate*.tfrecord' "
@@ -86,12 +84,12 @@ def main():
     eval_command += "--feature_names='{}' ".format(FEATURES)
     eval_command += "--feature_sizes='1024,128' "
     eval_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    eval_command += "--train_dir=/{} ".format(MODEL_NAME + str(MODEL_VERSION))
+    eval_command += "--train_dir=/home/deeptopology2/JuhanTestModelV3-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
     eval_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
-    eval_command += "--run_once=True"
+    eval_command += "--run_once=True "
     eval_command += EXTRA
 
-    inference_command = "gcloud ml-engine local inference "
+    inference_command = "gcloud ml-engine local train "
     inference_command += "--package-path=youtube-8m --module-name=youtube-8m.inference "
     if FRAME_LEVEL:
         inference_command += "-- --input_data_pattern='gs://youtube8m-ml-us-east1/2/frame/test/test*.tfrecord' "
@@ -100,9 +98,9 @@ def main():
     inference_command += "--feature_names='{}' ".format(FEATURES)
     inference_command += "--feature_sizes='1024,128' "
     inference_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    inference_command += "--train_dir=/{} ".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--train_dir=/home/deeptopology2/JuhanTestModelV3-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
-    inference_command += "--output_file=/{}/predictions.csv".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--output_file=/home/deeptopology2/JuhanTestModelV3-2/predictions.csv".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += EXTRA
 
     return local_command, eval_command, inference_command

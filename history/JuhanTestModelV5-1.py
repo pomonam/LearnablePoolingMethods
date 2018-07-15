@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 8
+BATCH_SIZE = 4
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0002
@@ -44,12 +44,13 @@ EXTRA = "--learning_rate_decay=0.9 " \
         "--jtmv5_add_batch_norm=True " \
         "--jtmv5_video_anchor_size=256 " \
         "--jtmv5_audio_anchor_size=32 " \
-        "--jtmv5_video_kernel_size=512 " \
-        "--jtmv5_audio_kernel_size=64 " \
-        "--jtmv5_video_hidden=2048 " \
-        "--jtmv5_audio_hidden=256 " \
-        "--jtmv5_video_output_dim=4096 " \
-        "--jtmv5_audio_output_dim=512 " \
+        "--jtmv5_video_kernel_size=256 " \
+        "--jtmv5_audio_kernel_size=32 " \
+        "--jtmv5_video_hidden=1024 " \
+        "--jtmv5_audio_hidden=1024 " \
+        "--jtmv5_video_output_dim=2048 " \
+        "--jtmv5_audio_output_dim=256 " \
+
 
 def main():
     # Start by defining a job name.
