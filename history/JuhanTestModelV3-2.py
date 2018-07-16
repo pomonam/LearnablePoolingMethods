@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0001
@@ -52,6 +52,7 @@ EXTRA = "--learning_rate_decay=0.9 " \
         "--jtmv3_audio_output_dim=256 " \
         "--jtmv3_use_attention=False " \
         "--jtmv3_use_relu=False "
+
 
 def main():
     # Start by defining a job name.
@@ -100,7 +101,7 @@ def main():
     inference_command += "--batch_size={} ".format(str(BATCH_SIZE))
     inference_command += "--train_dir=/home/deeptopology2/JuhanTestModelV3-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
-    inference_command += "--output_file=/home/deeptopology2/JuhanTestModelV3-2/predictions.csv".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--output_file=/home/deeptopology2/JuhanTestModelV3-2/predictions.csv ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += EXTRA
 
     return local_command, eval_command, inference_command
