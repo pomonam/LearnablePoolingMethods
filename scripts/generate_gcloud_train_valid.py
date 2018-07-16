@@ -26,8 +26,8 @@ import os
 # yaml settings. cloudml-4gpu.yaml, cloudml-gpu.yaml, cloudml-gpu-distributed.yaml
 CLOUD_GPU = "cloudml-gpu.yaml"
 # Name and version of the model
-MODEL_NAME = "RegularizedTriangulationModel"
-MODEL_VERSION = "-5"
+MODEL_NAME = "TransformerEncoder"
+MODEL_VERSION = ""
 # Does it require frame-level models?
 FRAME_LEVEL = True
 # What features? e.g. RGB, audio
