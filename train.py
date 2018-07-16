@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Binary for training Tensorflow models on the YouTube-8M dataset."""
+import os
+import sys
+
+# Explicitly add the file's directory to the path list.
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+sys.path.append(os.path.join(os.getcwd(), "modules"))
 
 import json
 import os
@@ -130,6 +137,7 @@ def validate_class_name(flag_value, category, modules, expected_superclass):
         return True
     raise flags.FlagsError("Unable to find %s '%s'." % (category, flag_value))
 
+
 def get_input_data_tensors(reader,
                            data_pattern,
                            batch_size=1000,
@@ -157,6 +165,7 @@ def get_input_data_tensors(reader,
         for f in file_dirs:
             cur_file = gfile.Glob(f)
             files.extend(cur_file)
+        print(files)
         if not files:
             raise IOError("Unable to find training files. data_pattern='" +
                           data_pattern + "'.")
