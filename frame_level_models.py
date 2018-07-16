@@ -75,13 +75,13 @@ class TransformerEncoder(models.BaseModel):
         video_layer4 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 1024,
                                                                  num_heads)
 
-        audio_layer1 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 128,
+        audio_layer1 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
                                                                  num_heads)
-        audio_layer2 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 128,
+        audio_layer2 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
                                                                  num_heads)
-        audio_layer3 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 128,
+        audio_layer3 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
                                                                  num_heads)
-        audio_layer4 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 128,
+        audio_layer4 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
                                                                  num_heads)
 
         with tf.variable_scope("video_encoder"):
@@ -124,7 +124,6 @@ class TransformerEncoder(models.BaseModel):
             audio_activation = tf.reshape(audio_activation, [-1, max_frames, 128])
             audio_activation = tf.reduce_mean(tf.multiply(audio_activation, audio_activation_weight), 1)
             # video_activation: batch_size x 128
-
 
         # Fusion
         activation = tf.concat([video_activation, audio_activation], 1)
