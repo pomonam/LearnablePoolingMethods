@@ -152,7 +152,7 @@ def inference(reader, train_dir, data_pattern, out_file_location, batch_size, to
                 #         arcname="model_flags.json")
                 tar.addfile(file_io.FileIO(os.path.join(FLAGS.train_dir, "model_flags.json"), "r"))
             print('Tarred model onto ' + FLAGS.output_model_tgz)
-        with tf.device("/cpu:0"):
+        with tf.device("/gpu:0"):
             saver = tf.train.import_meta_graph(meta_graph_location, clear_devices=True)
         logging.info("restoring variables from " + checkpoint_file)
         saver.restore(sess, checkpoint_file)
