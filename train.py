@@ -157,8 +157,6 @@ def get_input_data_tensors(reader,
         for f in file_dirs:
             cur_file = gfile.Glob(f)
             files.extend(cur_file)
-
-        files = gfile.Glob(data_pattern)
         if not files:
             raise IOError("Unable to find training files. data_pattern='" +
                           data_pattern + "'.")
@@ -498,7 +496,7 @@ class Trainer(object):
             return
 
         last_checkpoint = saver.save(session, save_path, global_step_val)
-    
+
         model_dir = "{0}/export/step_{1}".format(self.train_dir, global_step_val)
         logging.info("%s: Exporting the model at step %s to %s.",
                      task_as_string(self.task), global_step_val, model_dir)
