@@ -46,7 +46,7 @@ if __name__ == "__main__":
                         "The directory to save the model files in.")
     flags.DEFINE_string(
         "train_data_pattern", "gs://youtube8m-ml-us-east1/2/frame/train/train*.tfrecord,"
-                              "gs://youtube8m-ml-us-east1/2/frame/valid/valid*.tfrecord",
+                              "gs://youtube8m-ml-us-east1/2/frame/validate/validate*.tfrecord",
         "File glob for the training dataset. If the files refer to Frame Level "
         "features (i.e. tensorflow.SequenceExample), then set --reader_type "
         "format. The (Sequence)Examples are expected to have 'rgb' byte array "
@@ -165,7 +165,6 @@ def get_input_data_tensors(reader,
         for f in file_dirs:
             cur_file = gfile.Glob(f)
             files.extend(cur_file)
-        print(files)
         if not files:
             raise IOError("Unable to find training files. data_pattern='" +
                           data_pattern + "'.")

@@ -60,7 +60,7 @@ def main():
     local_command += "--package-path=youtube-8m --module-name=youtube-8m.train "
     if FRAME_LEVEL:
         local_command += "-- --train_data_pattern='gs://youtube8m-ml-us-east1/2/frame/train/train*.tfrecord," \
-                         "gs://youtube8m-ml-us-east1/2/frame/valid/valid*.tfrecord' "
+                         "gs://youtube8m-ml-us-east1/2/frame/validate/validate*.tfrecord' "
         local_command += "--frame_features=True "
     else:
         local_command += "-- --train_data_pattern='gs://youtube8m-ml-us-east1/2/video/train/*.tfrecord' "
