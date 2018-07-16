@@ -30,7 +30,7 @@ class MultiHeadAttention(modules.BaseModule):
         self.num_units = num_units
         self.max_frames = max_frames
 
-    def self_attention(self, inputs):
+    def self_attention(self, inputs, scope_id):
         """
 
         :param Q: batch_size x max_frames x num_units
@@ -38,33 +38,34 @@ class MultiHeadAttention(modules.BaseModule):
         :param V: batch_size x max_frames x num_units
         :return:
         """
-        # Calculate query, key, value pair
-        Q = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
-        K = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
-        V = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
-        # Q, K, V: -> (batch_size * max_frames) x num_units
+        with tf.variable_scope("Layer{}".format(scope_id), tf.AUTO_REUSE):
+            # Calculate query, key, value pair
+            Q = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
+            K = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
+            V = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
+            # Q, K, V: -> (batch_size * max_frames) x num_units
 
-        # Reshape for self-attention calculation
-        Q = tf.reshape(Q, [-1, self.max_frames, self.num_units])
-        K = tf.reshape(K, [-1, self.max_frames, self.num_units])
-        V = tf.reshape(V, [-1, self.max_frames, self.num_units])
-        # Q, K, V: -> batch_size x max_frames x num_units
+            # Reshape for self-attention calculation
+            Q = tf.reshape(Q, [-1, self.max_frames, self.num_units])
+            K = tf.reshape(K, [-1, self.max_frames, self.num_units])
+            V = tf.reshape(V, [-1, self.max_frames, self.num_units])
+            # Q, K, V: -> batch_size x max_frames x num_units
 
-        # Self-attention
-        attention = tf.matmul(Q, tf.transpose(K, perm=[0, 2, 1]))
-        # attention: -> batch_size x max_frames x max_frames
-        float_cpy = tf.cast(self.num_units, dtype=tf.float32)
-        attention = tf.nn.softmax(tf.divide(attention, tf.sqrt(float_cpy)))
+            # Self-attention
+            attention = tf.matmul(Q, tf.transpose(K, perm=[0, 2, 1]))
+            # attention: -> batch_size x max_frames x max_frames
+            float_cpy = tf.cast(self.num_units, dtype=tf.float32)
+            attention = tf.nn.softmax(tf.divide(attention, tf.sqrt(float_cpy)))
 
-        output = tf.matmul(attention, V)
-        # output: -> batch_size x max_frames x num_units
-        return output
+            output = tf.matmul(attention, V)
+            # output: -> batch_size x max_frames x num_units
+            return output
 
     def forward(self, inputs, **unused_params):
-        result = self.self_attention(inputs)
-        for i in range(self.num_heads - 1):
+        result = self.self_attention(inputs, scope_id=0)
+        for i in range(1, self.num_heads):
             result = tf.identity(result)
-            output = self.self_attention(inputs)
+            output = self.self_attention(inputs, scope_id=i)
             result = tf.concat([result, output], 2)
         # result: -> batch_size x max_frames x (num_units * num_heads)
         return result
