@@ -38,7 +38,7 @@ class MultiHeadAttention(modules.BaseModule):
         :param V: batch_size x max_frames x num_units
         :return:
         """
-        with tf.variable_scope("Layer{}".format(scope_id), tf.AUTO_REUSE):
+        with tf.variable_scope("Layer{}".format(scope_id), reuse=tf.AUTO_REUSE):
             # Calculate query, key, value pair
             Q = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
             K = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
