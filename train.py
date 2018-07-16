@@ -492,99 +492,99 @@ class Trainer(object):
         sv.Stop()
 
 
-def export_model(self, global_step_val, saver, save_path, session):
-    # If the model has already been exported at this step, return.
-    if global_step_val == self.last_model_export_step:
-        return
+    def export_model(self, global_step_val, saver, save_path, session):
+        # If the model has already been exported at this step, return.
+        if global_step_val == self.last_model_export_step:
+            return
 
-    last_checkpoint = saver.save(session, save_path, global_step_val)
+        last_checkpoint = saver.save(session, save_path, global_step_val)
+    
+        model_dir = "{0}/export/step_{1}".format(self.train_dir, global_step_val)
+        logging.info("%s: Exporting the model at step %s to %s.",
+                     task_as_string(self.task), global_step_val, model_dir)
 
-    model_dir = "{0}/export/step_{1}".format(self.train_dir, global_step_val)
-    logging.info("%s: Exporting the model at step %s to %s.",
-                 task_as_string(self.task), global_step_val, model_dir)
-
-    self.model_exporter.export_model(
-        model_dir=model_dir,
-        global_step_val=global_step_val,
-        last_checkpoint=last_checkpoint)
+        self.model_exporter.export_model(
+            model_dir=model_dir,
+            global_step_val=global_step_val,
+            last_checkpoint=last_checkpoint)
 
 
-def start_server_if_distributed(self):
-    """Starts a server if the execution is distributed."""
+    def start_server_if_distributed(self):
+        """Starts a server if the execution is distributed."""
 
-    if self.cluster:
-        logging.info("%s: Starting trainer within cluster %s.",
-                     task_as_string(self.task), self.cluster.as_dict())
-        server = start_server(self.cluster, self.task)
-        target = server.target
-        device_fn = tf.train.replica_device_setter(
-            ps_device="/job:ps",
-            worker_device="/job:%s/task:%d" % (self.task.type, self.task.index),
-            cluster=self.cluster)
-    else:
-        target = ""
-        device_fn = ""
-    return (target, device_fn)
+        if self.cluster:
+            logging.info("%s: Starting trainer within cluster %s.",
+                         task_as_string(self.task), self.cluster.as_dict())
+            server = start_server(self.cluster, self.task)
+            target = server.target
+            device_fn = tf.train.replica_device_setter(
+                ps_device="/job:ps",
+                worker_device="/job:%s/task:%d" % (self.task.type, self.task.index),
+                cluster=self.cluster)
+        else:
+            target = ""
+            device_fn = ""
+        return (target, device_fn)
 
-def remove_training_directory(self, train_dir):
-    """Removes the training directory."""
-    try:
-        logging.info(
-            "%s: Removing existing train directory.",
-            task_as_string(self.task))
-        gfile.DeleteRecursively(train_dir)
-    except:
-        logging.error(
-            "%s: Failed to delete directory " + train_dir +
-            " when starting a new model. Please delete it manually and" +
-            " try again.", task_as_string(self.task))
+    def remove_training_directory(self, train_dir):
+        """Removes the training directory."""
+        try:
+            logging.info(
+                "%s: Removing existing train directory.",
+                task_as_string(self.task))
+            gfile.DeleteRecursively(train_dir)
+        except:
+            logging.error(
+                "%s: Failed to delete directory " + train_dir +
+                " when starting a new model. Please delete it manually and" +
+                " try again.", task_as_string(self.task))
 
-def get_meta_filename(self, start_new_model, train_dir):
-    if start_new_model:
-        logging.info("%s: Flag 'start_new_model' is set. Building a new model.",
-                     task_as_string(self.task))
-        return None
+    def get_meta_filename(self, start_new_model, train_dir):
+        if start_new_model:
+            logging.info("%s: Flag 'start_new_model' is set. Building a new model.",
+                         task_as_string(self.task))
+            return None
 
-    latest_checkpoint = tf.train.latest_checkpoint(train_dir)
-    if not latest_checkpoint:
-        logging.info("%s: No checkpoint file found. Building a new model.",
-                     task_as_string(self.task))
-        return None
+        latest_checkpoint = tf.train.latest_checkpoint(train_dir)
+        if not latest_checkpoint:
+            logging.info("%s: No checkpoint file found. Building a new model.",
+                         task_as_string(self.task))
+            return None
 
-    meta_filename = latest_checkpoint + ".meta"
-    if not gfile.Exists(meta_filename):
-        logging.info("%s: No meta graph file found. Building a new model.",
-                     task_as_string(self.task))
-        return None
-    else:
-        return meta_filename
+        meta_filename = latest_checkpoint + ".meta"
+        if not gfile.Exists(meta_filename):
+            logging.info("%s: No meta graph file found. Building a new model.",
+                         task_as_string(self.task))
+            return None
+        else:
+            return meta_filename
 
-def recover_model(self, meta_filename):
-    logging.info("%s: Restoring from meta graph file %s",
-                 task_as_string(self.task), meta_filename)
-    return tf.train.import_meta_graph(meta_filename)
+    def recover_model(self, meta_filename):
+        logging.info("%s: Restoring from meta graph file %s",
+                     task_as_string(self.task), meta_filename)
+        return tf.train.import_meta_graph(meta_filename)
 
-def build_model(self, model, reader):
-    """Find the model and build the graph."""
+    def build_model(self, model, reader):
+        """Find the model and build the graph."""
 
-    label_loss_fn = find_class_by_name(FLAGS.label_loss, [losses])()
-    optimizer_class = find_class_by_name(FLAGS.optimizer, [tf.train])
+        label_loss_fn = find_class_by_name(FLAGS.label_loss, [losses])()
+        optimizer_class = find_class_by_name(FLAGS.optimizer, [tf.train])
 
-    build_graph(reader=reader,
-                model=model,
-                optimizer_class=optimizer_class,
-                clip_gradient_norm=FLAGS.clip_gradient_norm,
-                train_data_pattern=FLAGS.train_data_pattern,
-                label_loss_fn=label_loss_fn,
-                base_learning_rate=FLAGS.base_learning_rate,
-                learning_rate_decay=FLAGS.learning_rate_decay,
-                learning_rate_decay_examples=FLAGS.learning_rate_decay_examples,
-                regularization_penalty=FLAGS.regularization_penalty,
-                num_readers=FLAGS.num_readers,
-                batch_size=FLAGS.batch_size,
-                num_epochs=FLAGS.num_epochs)
+        build_graph(reader=reader,
+                    model=model,
+                    optimizer_class=optimizer_class,
+                    clip_gradient_norm=FLAGS.clip_gradient_norm,
+                    train_data_pattern=FLAGS.train_data_pattern,
+                    label_loss_fn=label_loss_fn,
+                    base_learning_rate=FLAGS.base_learning_rate,
+                    learning_rate_decay=FLAGS.learning_rate_decay,
+                    learning_rate_decay_examples=FLAGS.learning_rate_decay_examples,
+                    regularization_penalty=FLAGS.regularization_penalty,
+                    num_readers=FLAGS.num_readers,
+                    batch_size=FLAGS.batch_size,
+                    num_epochs=FLAGS.num_epochs)
 
-    return tf.train.Saver(max_to_keep=0, keep_checkpoint_every_n_hours=1.0)
+        return tf.train.Saver(max_to_keep=0, keep_checkpoint_every_n_hours=1.0)
 
 
 def get_reader():
