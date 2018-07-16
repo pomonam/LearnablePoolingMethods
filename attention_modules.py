@@ -20,7 +20,7 @@ import modules
 
 
 class MultiHeadAttention(modules.BaseModule):
-    def __init__(self, num_heads, num_units, max_frames):
+    def __init__(self, num_heads, num_units, max_frames, block_id):
         """
 
         :param num_heads: Number of self-attention modules
@@ -29,6 +29,7 @@ class MultiHeadAttention(modules.BaseModule):
         self.num_heads = num_heads
         self.num_units = num_units
         self.max_frames = max_frames
+        self.block_id = block_id
 
     def self_attention(self, inputs, scope_id):
         """
@@ -38,7 +39,7 @@ class MultiHeadAttention(modules.BaseModule):
         :param V: batch_size x max_frames x num_units
         :return:
         """
-        with tf.variable_scope("Layer{}".format(scope_id), reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("Block{}Layer{}".format(self.block_id, scope_id), reuse=tf.AUTO_REUSE):
             # Calculate query, key, value pair
             Q = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
             K = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
@@ -72,7 +73,7 @@ class MultiHeadAttention(modules.BaseModule):
 
 
 class TransformerEncoderBlock(modules.BaseModule):
-    def __init__(self, is_training, num_units, max_frames, feature_size, num_heads):
+    def __init__(self, is_training, num_units, max_frames, feature_size, num_heads, block_id):
         """
 
         :param is_training:
@@ -83,6 +84,7 @@ class TransformerEncoderBlock(modules.BaseModule):
         self.max_frames = max_frames
         self.feature_size = feature_size
         self.num_heads = num_heads
+        self.block_id = block_id
 
     def forward(self, inputs, **unused_params):
         """
@@ -91,7 +93,7 @@ class TransformerEncoderBlock(modules.BaseModule):
         :param unused_params:
         :return:
         """
-        multi_head_layer = MultiHeadAttention(self.num_heads, self.num_units, self.max_frames)
+        multi_head_layer = MultiHeadAttention(self.num_heads, self.num_units, self.max_frames, self.block_id)
 
         attention_output = multi_head_layer.forward(inputs)
         # output: -> batch_size x max_frames x (num_units * num_heads)
