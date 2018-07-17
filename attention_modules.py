@@ -19,6 +19,50 @@ import math
 import modules
 
 
+class OneFcAttention(modules.BaseModule):
+    def __init__(self, num_features, num_frames, num_cluster, do_shift=True):
+        self.num_feature = num_features
+        self.num_frames = num_frames
+        self.num_cluster = num_cluster
+        self.do_shift = do_shift
+
+    def forward(self, inputs, **unused_params):
+        attention_weights = \
+            tf.get_variable("one_fc_attention_weight",
+                            [self.num_feature, self.num_cluster],
+                            initializer=tf.contrib.layers.xavier_initializer())
+        attention = tf.matmul(inputs, attention_weights)
+        attention = tf.reshape(attention, [-1, self.num_frames, self.num_cluster])
+        attention = tf.scalar_mul(1 / math.sqrt(self.num_feature), attention)
+        attention = tf.nn.softmax(attention, dim=1)
+
+        reshaped_inputs = tf.reshape(inputs, [-1, self.num_frames, self.num_feature])
+        activation = tf.transpose(attention, perm=[0, 2, 1])
+        activation = tf.matmul(activation, reshaped_inputs)
+        # -> batch_size x num_cluster x feature_size
+
+        reshaped_activation = tf.reshape(activation, [-1, self.num_feature])
+
+        if self.do_shift:
+            alpha = \
+                tf.get_variable("alpha",
+                                [1],
+                                initializer=tf.constant_initializer(1))
+            beta = \
+                tf.get_variable("beta",
+                                [1],
+                                initializer=tf.constant_initializer(0.01))
+
+            reshaped_activation = alpha * reshaped_activation
+            reshaped_activation = reshaped_activation + beta
+            reshaped_activation = tf.nn.l2_normalize(reshaped_activation, 1)
+            reshaped_activation = tf.scalar_mul(1 / math.sqrt(self.num_cluster), reshaped_activation)
+
+        activation = tf.reshape(reshaped_activation, [-1, self.num_cluster * self.num_feature])
+
+        return activation
+
+
 class MultiHeadAttention(modules.BaseModule):
     def __init__(self, num_heads, num_units, max_frames):
         """

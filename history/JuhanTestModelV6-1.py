@@ -21,8 +21,8 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "JuhanTestModelV3"
-MODEL_VERSION = "-2"
+MODEL_NAME = "JuhanTestModelV6"
+MODEL_VERSION = "-1"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -34,25 +34,19 @@ FEATURES = "rgb,audio"
 BATCH_SIZE = 64
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0001
+BASE_LEARNING_RATE = 0.0002
 
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--learning_rate_decay=0.9 " \
-        "--jtmv3_iteration=100 " \
-        "--jtmv3_add_batch_norm=True " \
-        "--jtmv3_video_anchor_size=32 " \
-        "--jtmv3_audio_anchor_size=8 " \
-        "--jtmv3_video_kernel_size=128 " \
-        "--jtmv3_audio_kernel_size=32 " \
-        "--jtmv3_video_hidden=2048 " \
-        "--jtmv3_audio_hidden=256 " \
-        "--jtmv3_video_output_dim=2048 " \
-        "--jtmv3_audio_output_dim=256 " \
-        "--jtmv3_use_attention=False " \
-        "--jtmv3_use_relu=False "
-
+EXTRA = "--jtmv6_iteration=30 " \
+        "--jtmv6_add_batch_norm=True " \
+        "--jtmv6_video_anchor_size=16 " \
+        "--jtmv6_audio_anchor_size=4 " \
+        "--jtmv6_video_cluster_size=64 " \
+        "--jtmv5_audio_cluster_size=16 " \
+        "--jtmv5_video_output_dim=2048 " \
+        "--jtmv5_audio_output_dim=256 " \
 
 def main():
     # Start by defining a job name.
