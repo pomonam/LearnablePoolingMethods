@@ -67,13 +67,13 @@ class TransformerEncoder(models.BaseModel):
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
         video_layer1 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 1024,
-                                                                 num_heads)
+                                                                 num_heads, 0)
         video_layer2 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 1024,
-                                                                 num_heads)
+                                                                 num_heads, 1)
         video_layer3 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 1024,
-                                                                 num_heads)
+                                                                 num_heads, 2)
         video_layer4 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 1024,
-                                                                 num_heads)
+                                                                 num_heads, 3)
 
         audio_layer1 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
                                                                  num_heads)

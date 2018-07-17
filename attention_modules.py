@@ -64,7 +64,7 @@ class OneFcAttention(modules.BaseModule):
 
 
 class MultiHeadAttention(modules.BaseModule):
-    def __init__(self, num_heads, num_units, max_frames):
+    def __init__(self, num_heads, num_units, max_frames, block_id):
         """
 
         :param num_heads: Number of self-attention modules
@@ -73,8 +73,9 @@ class MultiHeadAttention(modules.BaseModule):
         self.num_heads = num_heads
         self.num_units = num_units
         self.max_frames = max_frames
+        self.block_id = block_id
 
-    def self_attention(self, inputs):
+    def self_attention(self, inputs, scope_id):
         """
 
         :param Q: batch_size x max_frames x num_units
@@ -82,40 +83,41 @@ class MultiHeadAttention(modules.BaseModule):
         :param V: batch_size x max_frames x num_units
         :return:
         """
-        # Calculate query, key, value pair
-        Q = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
-        K = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
-        V = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
-        # Q, K, V: -> (batch_size * max_frames) x num_units
+        with tf.variable_scope("Block{}Layer{}".format(self.block_id, scope_id), reuse=tf.AUTO_REUSE):
+            # Calculate query, key, value pair
+            Q = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
+            K = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
+            V = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
+            # Q, K, V: -> (batch_size * max_frames) x num_units
 
-        # Reshape for self-attention calculation
-        Q = tf.reshape(Q, [-1, self.max_frames, self.num_units])
-        K = tf.reshape(K, [-1, self.max_frames, self.num_units])
-        V = tf.reshape(V, [-1, self.max_frames, self.num_units])
-        # Q, K, V: -> batch_size x max_frames x num_units
+            # Reshape for self-attention calculation
+            Q = tf.reshape(Q, [-1, self.max_frames, self.num_units])
+            K = tf.reshape(K, [-1, self.max_frames, self.num_units])
+            V = tf.reshape(V, [-1, self.max_frames, self.num_units])
+            # Q, K, V: -> batch_size x max_frames x num_units
 
-        # Self-attention
-        attention = tf.matmul(Q, tf.transpose(K, perm=[0, 2, 1]))
-        # attention: -> batch_size x max_frames x max_frames
-        float_cpy = tf.cast(self.num_units, dtype=tf.float32)
-        attention = tf.nn.softmax(tf.divide(attention, tf.sqrt(float_cpy)))
+            # Self-attention
+            attention = tf.matmul(Q, tf.transpose(K, perm=[0, 2, 1]))
+            # attention: -> batch_size x max_frames x max_frames
+            float_cpy = tf.cast(self.num_units, dtype=tf.float32)
+            attention = tf.nn.softmax(tf.divide(attention, tf.sqrt(float_cpy)))
 
-        output = tf.matmul(attention, V)
-        # output: -> batch_size x max_frames x num_units
-        return output
+            output = tf.matmul(attention, V)
+            # output: -> batch_size x max_frames x num_units
+            return output
 
     def forward(self, inputs, **unused_params):
-        result = self.self_attention(inputs)
-        for i in range(self.num_heads - 1):
+        result = self.self_attention(inputs, scope_id=0)
+        for i in range(1, self.num_heads):
             result = tf.identity(result)
-            output = self.self_attention(inputs)
+            output = self.self_attention(inputs, scope_id=i)
             result = tf.concat([result, output], 2)
         # result: -> batch_size x max_frames x (num_units * num_heads)
         return result
 
 
 class TransformerEncoderBlock(modules.BaseModule):
-    def __init__(self, is_training, num_units, max_frames, feature_size, num_heads):
+    def __init__(self, is_training, num_units, max_frames, feature_size, num_heads, block_id):
         """
 
         :param is_training:
@@ -126,6 +128,7 @@ class TransformerEncoderBlock(modules.BaseModule):
         self.max_frames = max_frames
         self.feature_size = feature_size
         self.num_heads = num_heads
+        self.block_id = block_id
 
     def forward(self, inputs, **unused_params):
         """
@@ -134,7 +137,7 @@ class TransformerEncoderBlock(modules.BaseModule):
         :param unused_params:
         :return:
         """
-        multi_head_layer = MultiHeadAttention(self.num_heads, self.num_units, self.max_frames)
+        multi_head_layer = MultiHeadAttention(self.num_heads, self.num_units, self.max_frames, self.block_id)
 
         attention_output = multi_head_layer.forward(inputs)
         # output: -> batch_size x max_frames x (num_units * num_heads)
