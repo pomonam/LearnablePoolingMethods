@@ -76,13 +76,13 @@ class TransformerEncoder(models.BaseModel):
                                                                  num_heads, 3)
 
         audio_layer1 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
-                                                                 num_heads)
+                                                                 num_heads, 0)
         audio_layer2 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
-                                                                 num_heads)
+                                                                 num_heads, 1)
         audio_layer3 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
-                                                                 num_heads)
+                                                                 num_heads, 2)
         audio_layer4 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
-                                                                 num_heads)
+                                                                 num_heads, 3)
 
         with tf.variable_scope("video_encoder"):
             video_activation = video_layer1.forward(reshaped_input[:, 0:1024])
