@@ -159,7 +159,7 @@ class TransformerEncoderBlock(modules.BaseModule):
         output = tf.layers.conv1d(output, filters=self.num_units, kernel_size=1, activation=None, use_bias=True)
 
         # Residual connection & Layer normalization
-        output = tf.contrib.layers.layer_norm(attention_output)
+        output = tf.contrib.layers.layer_norm(output)
 
         return output
 
