@@ -21,6 +21,7 @@ import module_utils
 import modules
 import loupe_modules
 import math
+import attention_modules
 import numbers
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.ops import standard_ops
@@ -35,6 +36,109 @@ FLAGS = flags.FLAGS
 ###############################################################################
 # Triangulation Embedding Methods #############################################
 ###############################################################################
+class TriangulationV6Module(modules.BaseModule):
+    """ CNN-integrated Triangulation Embedding Module with attention.
+    """
+    def __init__(self,
+                 feature_size,
+                 max_frames,
+                 anchor_size,
+                 self_attention,
+                 hidden_layer_size,
+                 kernel_size,
+                 output_dim,
+                 cluster_size,
+                 add_relu,
+                 batch_norm,
+                 is_training,
+                 scope_id=None):
+        """ Initialize class TriangulationNsCnnIndirectAttentionModule.
+        :param feature_size: int
+        :param max_frames: max_frames x 1
+        :param anchor_size: int
+        :param self_attention: bool
+        :param hidden_layer_size: int
+        :param kernel_size: int
+        :param output_dim: int
+        :param add_relu: bool
+        :param batch_norm: bool
+        :param is_training: bool
+        :param scope_id: Object
+        """
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.anchor_size = anchor_size
+        self.self_attention = self_attention
+        self.hidden_layer_size = hidden_layer_size
+        self.kernel_size = kernel_size
+        self.output_dim = output_dim
+        self.add_relu = add_relu
+        self.cluster_size = cluster_size
+        self.batch_norm = batch_norm
+        self.is_training = is_training
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        """ Forward method for TriangulationNsCnnIndirectAttentionModule.
+        :param inputs: (batch_size * max_frames) x feature_size
+        :return: batch_size x output_dim
+        """
+        anchor_weights = tf.get_variable("anchor_weights{}".format("" if self.scope_id is
+                                                                         None else str(self.scope_id)),
+                                         [self.feature_size, self.anchor_size],
+                                         initializer=tf.contrib.layers.xavier_initializer())
+        tf.summary.histogram("anchor_weights{}".format("" if self.scope_id is None else str(self.scope_id)),
+                             anchor_weights)
+
+        # Transpose weights for proper subtraction.
+        anchor_weights = tf.transpose(anchor_weights)
+        anchor_weights = tf.reshape(anchor_weights, [1, self.feature_size * self.anchor_size])
+
+        # Tile inputs to subtract them with all anchors.
+        tiled_inputs = tf.tile(inputs, [1, self.anchor_size])
+        spatial = tf.subtract(tiled_inputs, anchor_weights)
+
+        spatial = tf.reshape(spatial, [-1, self.anchor_size, self.feature_size])
+
+        # Normalize the inputs for each frame; Obtain normalized residual vectors.
+        spatial = tf.nn.l2_normalize(spatial, 2)
+        spatial = tf.reshape(spatial, [-1, self.feature_size * self.anchor_size])
+        spatial = tf.nn.l2_normalize(spatial, 1)
+
+        if self.batch_norm:
+            spatial = slim.batch_norm(
+                spatial,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="spatial_bn")
+
+        att = \
+            attention_modules.OneFcAttention(self.feature_size * self.anchor_size, self.max_frames,
+                                             self.cluster_size, do_shift=True)
+        activation = att.forward(spatial)
+
+        hidden_weight = tf.get_variable("hidden_weight",
+                                        [self.feature_size * self.cluster_size * self.anchor_size,
+                                         self.output_dim],
+                                        initializer=tf.contrib.layers.xavier_initializer())
+
+        spatial_activation = tf.matmul(activation, hidden_weight)
+
+        if self.batch_norm:
+            spatial_activation = slim.batch_norm(
+                spatial_activation,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="spatial_pool2_bn")
+
+        spatial_activation = tf.nn.relu(spatial_activation)
+
+        return spatial_activation
+
+
+
 class TriangulationV5Module(modules.BaseModule):
     """ CNN-integrated Triangulation Embedding Module with non-sharing CNN.
     """

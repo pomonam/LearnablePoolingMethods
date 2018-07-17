@@ -75,14 +75,14 @@ class TransformerEncoder(models.BaseModel):
         video_layer4 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 1024,
                                                                  num_heads, 3)
 
-        audio_layer1 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 128,
-                                                                 num_heads, 4)
-        audio_layer2 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 128,
-                                                                 num_heads, 5)
-        audio_layer3 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 128,
-                                                                 num_heads, 6)
-        audio_layer4 = attention_modules.TransformerEncoderBlock(is_training, video_hidden_size, max_frames, 128,
-                                                                 num_heads, 7)
+        audio_layer1 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
+                                                                 num_heads)
+        audio_layer2 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
+                                                                 num_heads)
+        audio_layer3 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
+                                                                 num_heads)
+        audio_layer4 = attention_modules.TransformerEncoderBlock(is_training, audio_hidden_size, max_frames, 128,
+                                                                 num_heads)
 
         with tf.variable_scope("video_encoder"):
             video_activation = video_layer1.forward(reshaped_input[:, 0:1024])
@@ -124,7 +124,6 @@ class TransformerEncoder(models.BaseModel):
             audio_activation = tf.reshape(audio_activation, [-1, max_frames, 128])
             audio_activation = tf.reduce_mean(tf.multiply(audio_activation, audio_activation_weight), 1)
             # video_activation: batch_size x 128
-
 
         # Fusion
         activation = tf.concat([video_activation, audio_activation], 1)
@@ -694,6 +693,133 @@ class JuhanTestModelV5(models.BaseModel):
             kernel_size=audio_kernel_size,
             self_attention=False,
             hidden_layer_size=audio_hidden_size,
+            output_dim=audio_output_dim,
+            add_relu=True,
+            batch_norm=add_batch_norm,
+            is_training=is_training,
+            scope_id=None)
+
+        with tf.variable_scope("video_triangulation_embedding"):
+            video_feature = video_module.forward(video_features)
+            # -> (batch_size * max_frames) x video_output_dim
+
+        with tf.variable_scope("audio_triangulation_embedding"):
+            audio_feature = audio_module.forward(audio_features)
+            # -> (batch_size * max_frames) x audio_output_dim
+
+        activation = tf.concat([video_feature, audio_feature], 1)
+
+        aggregated_model = getattr(video_level_models,
+                                   "FourLayerBatchNeuralModel")
+        return aggregated_model().create_model(
+            model_input=activation,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
+
+
+# All flags start with jtmv5_ to differentiate from other flags.
+flags.DEFINE_integer("jtmv6_iteration", 30,
+                     "Number of frames per batch.")
+flags.DEFINE_bool("jtmv6_add_batch_norm", True,
+                  "Add batch normalization.")
+flags.DEFINE_bool("jtmv6_sample_random_frames", True,
+                  "Iff true, tccm samples random frames.")
+flags.DEFINE_integer("jtmv6_video_anchor_size", 256,
+                     "Number of anchors for video features.")
+flags.DEFINE_integer("jtmv6_audio_anchor_size", 32,
+                     "Number of anchors for audio features.")
+flags.DEFINE_integer("jtmv6_video_kernel_size", 512,
+                     "Number of kernels for video features.")
+flags.DEFINE_integer("jtmv6_audio_kernel_size", 64,
+                     "Number of kernels for audio features.")
+flags.DEFINE_integer("jtmv6_video_hidden", 2048,
+                     "Number of anchors for video features.")
+flags.DEFINE_integer("jtmv6_video_output_dim", 4096,
+                     "Output dimension for video features.")
+flags.DEFINE_integer("jtmv6_audio_hidden", 256,
+                     "Number of anchors for audio features.")
+flags.DEFINE_integer("jtmv6_audio_output_dim", 512,
+                     "Output dimension for audio features.")
+flags.DEFINE_integer("jtmv6_video_cluster_size", 64,
+                     "Output dimension for audio features.")
+flags.DEFINE_integer("jtmv6_audio_cluster_size", 8,
+                     "Output dimension for audio features.")
+
+
+class JuhanTestModelV6(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.jtmv6_iteration
+        add_batch_norm = add_batch_norm or FLAGS.jtmv6_add_batch_norm
+        video_anchor_size = FLAGS.jtmv6_video_anchor_size
+        audio_anchor_size = FLAGS.jtmv6_audio_anchor_size
+        video_kernel_size = FLAGS.jtmv6_video_kernel_size
+        video_hidden_size = FLAGS.jtmv6_video_hidden
+        audio_kernel_size = FLAGS.jtmv6_audio_kernel_size
+        audio_hidden_size = FLAGS.jtmv6_audio_hidden
+        video_output_dim = FLAGS.jtmv6_video_output_dim
+        audio_output_dim = FLAGS.jtmv6_audio_output_dim
+        video_cluster_size = FLAGS.jtmv6_video_cluster_size
+        audio_cluster_size = FLAGS.jtmv6_audio_cluster_size
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        # model_input: (batch_size * max_frames) x feature_size
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        # Obtain video & audio features.
+        video_features = reshaped_input[:, 0:1024]
+        audio_features = reshaped_input[:, 1024:]
+
+        # Batch normalize video & audio inputs for fixing scales.
+        if add_batch_norm:
+            video_features = slim.batch_norm(
+                video_features,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="video_bn")
+            audio_features = slim.batch_norm(
+                audio_features,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="audio_bn")
+
+        video_module = video_pooling_modules.TriangulationV6Module(
+            feature_size=1024,
+            max_frames=max_frames,
+            anchor_size=video_anchor_size,
+            kernel_size=video_kernel_size,
+            self_attention=False,
+            cluster_size=video_cluster_size,
+            hidden_layer_size=video_hidden_size,
+            output_dim=video_output_dim,
+            add_relu=True,
+            batch_norm=add_batch_norm,
+            is_training=is_training,
+            scope_id=None)
+
+        audio_module = video_pooling_modules.TriangulationV6Module(
+            feature_size=128,
+            max_frames=max_frames,
+            anchor_size=audio_anchor_size,
+            kernel_size=audio_kernel_size,
+            self_attention=False,
+            hidden_layer_size=audio_hidden_size,
+            cluster_size=audio_cluster_size,
             output_dim=audio_output_dim,
             add_relu=True,
             batch_norm=add_batch_norm,

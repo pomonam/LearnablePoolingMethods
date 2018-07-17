@@ -20,13 +20,10 @@ file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
 sys.path.append(os.path.join(os.getcwd(), "modules"))
 
-
-# noinspection PyUnresolvedReferences
-import pathmagic
 import json
 import os
 import time
-import sys
+
 import eval_util
 import export_model
 import losses
@@ -35,7 +32,6 @@ import video_level_models
 import readers
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-from tensorflow.python.lib.io import file_io
 from tensorflow import app
 from tensorflow import flags
 from tensorflow import gfile
@@ -46,20 +42,15 @@ import utils
 FLAGS = flags.FLAGS
 
 if __name__ == "__main__":
-    # Dataset flags.
     flags.DEFINE_string("train_dir", "/tmp/yt8m_model/",
                         "The directory to save the model files in.")
     flags.DEFINE_string(
-        "train_data_pattern", "",
+        "train_data_pattern", "gs://youtube8m-ml-us-east1/2/frame/train/train*.tfrecord,"
+                              "gs://youtube8m-ml-us-east1/2/frame/validate/validate*.tfrecord",
         "File glob for the training dataset. If the files refer to Frame Level "
         "features (i.e. tensorflow.SequenceExample), then set --reader_type "
         "format. The (Sequence)Examples are expected to have 'rgb' byte array "
         "sequence feature as well as a 'labels' int64 context feature.")
-
-    flags.DEFINE_string(
-        "valid_data_pattern", "gs://youtube8m-ml-us-east1/2/frame/valid/*.tfrecord",
-        "File glob for validation dataset. This is used for training as well."
-    )
     flags.DEFINE_string("feature_names", "mean_rgb", "Name of the feature "
                                                      "to use for training.")
     flags.DEFINE_string("feature_sizes", "1024", "Length of the feature vectors.")
@@ -84,7 +75,7 @@ if __name__ == "__main__":
     flags.DEFINE_integer("num_gpu", 1,
                          "The maximum number of GPU devices to use for training. "
                          "Flag only applies if GPUs are installed")
-    flags.DEFINE_integer("batch_size", 128,
+    flags.DEFINE_integer("batch_size", 1024,
                          "How many examples to process per batch for training.")
     flags.DEFINE_string("label_loss", "CrossEntropyLoss",
                         "Which loss function to use for training the model.")
@@ -134,7 +125,7 @@ def validate_class_name(flag_value, category, modules, expected_superclass):
         found with that name doesn't inherit from the expected superclass.
       Returns:
         True if a class was found that matches the given constraints.
-    """
+      """
     candidates = [getattr(module, flag_value, None) for module in modules]
     for candidate in candidates:
         if not candidate:
@@ -148,16 +139,14 @@ def validate_class_name(flag_value, category, modules, expected_superclass):
 
 
 def get_input_data_tensors(reader,
-                           data_pattern_1,
-                           data_pattern_2,
+                           data_pattern,
                            batch_size=1000,
                            num_epochs=None,
                            num_readers=1):
     """Creates the section of the graph which reads the training data.
       Args:
         reader: A class which parses the training data.
-        data_pattern_1: A 'glob' style path to the data files.
-        data_pattern_2: A 'glob' style path to the data files.
+        data_pattern: A 'glob' style path to the data files.
         batch_size: How many examples to process at a time.
         num_epochs: How many passes to make over the training data. Set to 'None'
                     to run indefinitely.
@@ -171,13 +160,14 @@ def get_input_data_tensors(reader,
       """
     logging.info("Using batch size of " + str(batch_size) + " for training.")
     with tf.name_scope("train_input"):
-        files = gfile.Glob(data_pattern_1)
-        valid_files = gfile.Glob(data_pattern_2)
-        files.extend(valid_files)
-
+        file_dirs = data_pattern.split(",")
+        files = list()
+        for f in file_dirs:
+            cur_file = gfile.Glob(f)
+            files.extend(cur_file)
         if not files:
             raise IOError("Unable to find training files. data_pattern='" +
-                          data_pattern_1 + "," + data_pattern_2 + "'.")
+                          data_pattern + "'.")
         logging.info("Number of training files: %s.", str(len(files)))
         filename_queue = tf.train.string_input_producer(
             files, num_epochs=num_epochs, shuffle=True)
@@ -203,7 +193,6 @@ def find_class_by_name(name, modules):
 def build_graph(reader,
                 model,
                 train_data_pattern,
-                valid_data_pattern,
                 label_loss_fn=losses.CrossEntropyLoss(),
                 batch_size=1000,
                 base_learning_rate=0.01,
@@ -264,8 +253,7 @@ def build_graph(reader,
     unused_video_id, model_input_raw, labels_batch, num_frames = (
         get_input_data_tensors(
             reader,
-            data_pattern_1=train_data_pattern,
-            data_pattern_2=valid_data_pattern,
+            train_data_pattern,
             batch_size=batch_size * num_towers,
             num_readers=num_readers,
             num_epochs=num_epochs))
@@ -282,11 +270,6 @@ def build_graph(reader,
     tower_predictions = []
     tower_label_losses = []
     tower_reg_losses = []
-
-    # Orthogonal regularization:
-    netvlad_rgb_scope_val = None
-    netvlad_audio_scope_val = None
-
     for i in range(num_towers):
         # For some reason these 'with' statements can't be combined onto the same
         # line. They have to be nested.
@@ -316,14 +299,6 @@ def build_graph(reader,
                         reg_loss = tf.constant(0.0)
 
                     reg_losses = tf.losses.get_regularization_losses()
-
-                    # Orthogonal regularization:
-                    for f in reg_losses:
-                        if "netvlad_rgb_scope" in f.name:
-                            netvlad_rgb_scope_val = f
-                        if "netvlad_audio_scope" in f.name:
-                            netvlad_audio_scope_val = f
-
                     if reg_losses:
                         reg_loss += tf.add_n(reg_losses)
 
@@ -348,13 +323,6 @@ def build_graph(reader,
                                                             colocate_gradients_with_ops=False)
                     tower_gradients.append(gradients)
     label_loss = tf.reduce_mean(tf.stack(tower_label_losses))
-
-    # Orthogonal regularization:
-    if netvlad_rgb_scope_val is not None:
-        tf.summary.scalar("rgb_orth_sum", netvlad_rgb_scope_val)
-    if netvlad_audio_scope_val is not None:
-        tf.summary.scalar("audio_orth_sum", netvlad_audio_scope_val)
-
     tf.summary.scalar("label_loss", label_loss)
     if regularization_penalty != 0:
         reg_loss = tf.reduce_mean(tf.stack(tower_reg_losses))
@@ -395,7 +363,7 @@ class Trainer(object):
         self.is_master = (task.type == "master" and task.index == 0)
         self.train_dir = train_dir
         self.config = tf.ConfigProto(
-            allow_soft_placement=True,log_device_placement=log_device_placement)
+            allow_soft_placement=True, log_device_placement=log_device_placement)
         self.model = model
         self.reader = reader
         self.model_exporter = model_exporter
@@ -404,12 +372,15 @@ class Trainer(object):
         self.export_model_steps = export_model_steps
         self.last_model_export_step = 0
 
+    #     if self.is_master and self.task.index > 0:
+    #       raise StandardError("%s: Only one replica of master expected",
+    #                           task_as_string(self.task))
+
     def run(self, start_new_model=False):
         """Performs training on the currently defined Tensorflow graph.
-            Returns:
-              A tuple of the training Hit@1 and the training PERR.
+        Returns:
+          A tuple of the training Hit@1 and the training PERR.
         """
-
         if self.is_master and start_new_model:
             self.remove_training_directory(self.train_dir)
 
@@ -424,8 +395,8 @@ class Trainer(object):
             "label_loss": FLAGS.label_loss,
         }
         flags_json_path = os.path.join(FLAGS.train_dir, "model_flags.json")
-        if file_io.file_exists(flags_json_path):
-            existing_flags = json.load(file_io.FileIO(flags_json_path, mode="r"))
+        if os.path.exists(flags_json_path):
+            existing_flags = json.load(open(flags_json_path))
             if existing_flags != model_flags_dict:
                 logging.error("Model flags do not match existing file %s. Please "
                               "delete the file, change --train_dir, or pass flag "
@@ -436,7 +407,7 @@ class Trainer(object):
                 exit(1)
         else:
             # Write the file.
-            with file_io.FileIO(flags_json_path, mode="w") as fout:
+            with open(flags_json_path, "w") as fout:
                 fout.write(json.dumps(model_flags_dict))
 
         target, device_fn = self.start_server_if_distributed()
@@ -526,8 +497,8 @@ class Trainer(object):
         logging.info("%s: Exited training loop.", task_as_string(self.task))
         sv.Stop()
 
-    def export_model(self, global_step_val, saver, save_path, session):
 
+    def export_model(self, global_step_val, saver, save_path, session):
         # If the model has already been exported at this step, return.
         if global_step_val == self.last_model_export_step:
             return
@@ -542,6 +513,7 @@ class Trainer(object):
             model_dir=model_dir,
             global_step_val=global_step_val,
             last_checkpoint=last_checkpoint)
+
 
     def start_server_if_distributed(self):
         """Starts a server if the execution is distributed."""
@@ -609,7 +581,6 @@ class Trainer(object):
                     optimizer_class=optimizer_class,
                     clip_gradient_norm=FLAGS.clip_gradient_norm,
                     train_data_pattern=FLAGS.train_data_pattern,
-                    valid_data_pattern=FLAGS.valid_data_pattern,
                     label_loss_fn=label_loss_fn,
                     base_learning_rate=FLAGS.base_learning_rate,
                     learning_rate_decay=FLAGS.learning_rate_decay,
@@ -662,11 +633,11 @@ class ParameterServer(object):
 
 def start_server(cluster, task):
     """Creates a Server.
-    Args:
-    cluster: A tf.train.ClusterSpec if the execution is distributed.
-      None otherwise.
-    task: A TaskSpec describing the job type and the task index.
-    """
+      Args:
+        cluster: A tf.train.ClusterSpec if the execution is distributed.
+          None otherwise.
+        task: A TaskSpec describing the job type and the task index.
+      """
 
     if not task.type:
         raise ValueError("%s: The task type must be specified." %
@@ -677,10 +648,10 @@ def start_server(cluster, task):
 
     # Create and start a server.
     return tf.train.Server(
-      tf.train.ClusterSpec(cluster),
-      protocol="grpc",
-      job_name=task.type,
-      task_index=task.index)
+        tf.train.ClusterSpec(cluster),
+        protocol="grpc",
+        job_name=task.type,
+        task_index=task.index)
 
 
 def task_as_string(task):

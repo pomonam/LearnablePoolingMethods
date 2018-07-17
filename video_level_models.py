@@ -135,7 +135,7 @@ class FourLayerBatchNeuralModel(models.BaseModel):
                      model_input,
                      vocab_size,
                      is_training,
-                     l2_penalty=1e-6,
+                     l2_penalty=1e-7,
                      **unused_params):
         model_input_dim = model_input.get_shape().as_list()[1]
         fc1_weights = tf.get_variable("fc1_weights",
