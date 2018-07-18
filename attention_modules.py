@@ -160,6 +160,7 @@ class TransformerEncoderBlock(modules.BaseModule):
 
         # Residual connection & Layer normalization
         output = tf.contrib.layers.layer_norm(output)
+        output = tf.reshape(output, [-1, self.feature_size])
 
         return output
 
