@@ -28,10 +28,207 @@ import rnn_modules
 import math
 import models
 import attention_modules
+import juhan_modules
+import transformer_utils
 
 ###############################################################################
-# Transformer #############################################################
+# Transformer #################################################################
 ###############################################################################
+flags.DEFINE_integer("jbtev1_iteration", 30,
+                     "Number of frames per batch")
+flags.DEFINE_integer("jbtev1_v_hidden", 64,
+                     "Number of hidden units")
+flags.DEFINE_integer("jbtev1_a_hidden", 16,
+                     "Number of hidden units")
+flags.DEFINE_integer("jbtev1_v_filter_size", 4096,
+                     "Number of heads")
+flags.DEFINE_integer("jbtev1_a_filter_size", 512,
+                     "Number of heads")
+flags.DEFINE_integer("jbtev1_v_num_heads", 16,
+                     "Number of heads")
+flags.DEFINE_integer("jbtev1_a_num_heads", 4,
+                     "Number of heads")
+flags.DEFINE_float("jbtev1_v_attention_dropout", 0.1,
+                     "Number of heads")
+flags.DEFINE_float("jbtev1_a_attention_dropout", 0.1,
+                     "Number of heads")
+flags.DEFINE_string("jbtev1_video_model", "WillowMoeModel",
+                     "Number of heads")
+
+
+class JbTransformerEncoderV1(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.jbtev1_iteration
+        video_hidden_size = FLAGS.jbtev1_v_hidden
+        audio_hidden_size = FLAGS.jbtev1_a_hidden
+        video_num_heads = FLAGS.jbtev1_v_num_heads
+        audio_num_heads = FLAGS.jbtev1_a_num_heads
+        video_dropout = FLAGS.jbtev1_v_attention_dropout
+        audio_dropout = FLAGS.jbtev1_a_attention_dropout
+        video_filter_size = FLAGS.jbtev1_v_filter_size
+        audio_filter_size = FLAGS.jbtev1_a_filter_size
+
+        final_model = FLAGS.jbtev1_video_model
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        # Obtain video & audio features.
+        video_features = reshaped_input[:, 0:1024]
+        audio_features = reshaped_input[:, 1024:]
+
+        video_features = tf.reshape(video_features, [-1, max_frames, 1024])
+        audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
+
+        v_encoder_block = transformer_utils.TransformerEncoder(feature_size=1024,
+                                                               hidden_size=video_hidden_size,
+                                                               num_heads=video_num_heads,
+                                                               attention_dropout=video_dropout,
+                                                               ff_filter_size=video_filter_size,
+                                                               ff_relu_dropout=0.1,
+                                                               is_train=is_training,
+                                                               scope_id="encode")
+
+        v_decoder_block = transformer_utils.TransformerDecoder(feature_size=1024,
+                                                               hidden_size=video_hidden_size,
+                                                               num_heads=video_num_heads,
+                                                               attention_dropout=video_dropout,
+                                                               ff_filter_size=video_filter_size,
+                                                               ff_relu_dropout=0.1,
+                                                               is_train=is_training,
+                                                               scope_id="decode")
+
+        a_encoder_block = transformer_utils.TransformerEncoder(feature_size=128,
+                                                               hidden_size=audio_hidden_size,
+                                                               num_heads=audio_num_heads,
+                                                               attention_dropout=audio_dropout,
+                                                               ff_filter_size=audio_filter_size,
+                                                               ff_relu_dropout=0.1,
+                                                               is_train=is_training,
+                                                               scope_id="encode")
+
+        a_decoder_block = transformer_utils.TransformerDecoder(feature_size=128,
+                                                               hidden_size=audio_hidden_size,
+                                                               num_heads=audio_num_heads,
+                                                               attention_dropout=audio_dropout,
+                                                               ff_filter_size=audio_filter_size,
+                                                               ff_relu_dropout=0.1,
+                                                               is_train=is_training,
+                                                               scope_id="decode")
+
+        video_vlad = loupe_modules.NetVLAD(feature_size=1024,
+                                           max_samples=max_frames,
+                                           cluster_size=iterations,
+                                           output_dim=1024,
+                                           gating=False,
+                                           add_batch_norm=True,
+                                           is_training=is_training)
+
+        audio_vlad = loupe_modules.NetVLAD(feature_size=128,
+                                           max_samples=max_frames,
+                                           cluster_size=iterations,
+                                           output_dim=128,
+                                           gating=False,
+                                           add_batch_norm=True,
+                                           is_training=is_training)
+
+        with tf.variable_scope("video"):
+            with tf.variable_scope("encode"):
+                with tf.variable_scope("block_1"):
+                    encode1 = v_encoder_block.forward(video_features)
+                with tf.variable_scope("block_2"):
+                    encode2 = v_encoder_block.forward(encode1)
+                with tf.variable_scope("block_3"):
+                    encode3 = v_encoder_block.forward(encode2)
+                with tf.variable_scope("block_4"):
+                    encode4 = v_encoder_block.forward(encode3)
+                with tf.variable_scope("block_5"):
+                    encode5 = v_encoder_block.forward(encode4)
+                with tf.variable_scope("block_6"):
+                    encode6 = v_encoder_block.forward(encode5)
+
+            with tf.variable_scope("netvlad"):
+                reshaped_encode6 = tf.reshape(encode6, [-1, 1024])
+                v_vlad_out = video_vlad.forward(reshaped_encode6)
+                v_vlad_out = tf.reshape(v_vlad_out, [-1, iterations, 1024])
+
+            with tf.variable_scope("decode"):
+                with tf.variable_scope("block_1"):
+                    decode1 = v_decoder_block.forward(v_vlad_out, encode1)
+                with tf.variable_scope("block_2"):
+                    decode2 = v_decoder_block.forward(decode1, encode2)
+                with tf.variable_scope("block_3"):
+                    decode3 = v_decoder_block.forward(decode2, encode3)
+                with tf.variable_scope("block_4"):
+                    decode4 = v_decoder_block.forward(decode3, encode4)
+                with tf.variable_scope("block_5"):
+                    decode5 = v_decoder_block.forward(decode4, encode5)
+                with tf.variable_scope("block_6"):
+                    decode6 = v_decoder_block.forward(decode5, encode6)
+
+            video_out = tf.reshape(decode6, [-1, iterations * 1024])
+
+        with tf.variable_scope("audio"):
+            with tf.variable_scope("encode"):
+                with tf.variable_scope("block_1"):
+                    encode1 = a_encoder_block.forward(audio_features)
+                with tf.variable_scope("block_2"):
+                    encode2 = a_encoder_block.forward(encode1)
+                with tf.variable_scope("block_3"):
+                    encode3 = a_encoder_block.forward(encode2)
+                with tf.variable_scope("block_4"):
+                    encode4 = a_encoder_block.forward(encode3)
+                with tf.variable_scope("block_5"):
+                    encode5 = a_encoder_block.forward(encode4)
+                with tf.variable_scope("block_6"):
+                    encode6 = a_encoder_block.forward(encode5)
+
+            with tf.variable_scope("netvlad"):
+                reshaped_encode6 = tf.reshape(encode6, [-1, 128])
+                a_vlad_out = audio_vlad.forward(reshaped_encode6)
+                a_vlad_out = tf.reshape(a_vlad_out, [-1, iterations, 128])
+
+            with tf.variable_scope("decode"):
+                with tf.variable_scope("block_1"):
+                    decode1 = a_decoder_block.forward(a_vlad_out, encode1)
+                with tf.variable_scope("block_2"):
+                    decode2 = a_decoder_block.forward(decode1, encode2)
+                with tf.variable_scope("block_3"):
+                    decode3 = a_decoder_block.forward(decode2, encode3)
+                with tf.variable_scope("block_4"):
+                    decode4 = a_decoder_block.forward(decode3, encode4)
+                with tf.variable_scope("block_5"):
+                    decode5 = a_decoder_block.forward(decode4, encode5)
+                with tf.variable_scope("block_6"):
+                    decode6 = a_decoder_block.forward(decode5, encode6)
+
+            audio_out = tf.reshape(decode6, [-1, iterations * 128])
+
+        activation = tf.concat([video_out, audio_out], 1)
+
+        aggregated_model = getattr(video_level_models,
+                                   final_model)
+
+        return aggregated_model().create_model(
+            model_input=activation,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
+
+
 flags.DEFINE_integer("transformer_iteration", 30,
                      "Number of frames per batch")
 flags.DEFINE_integer("transformer_v_hidden", 256,

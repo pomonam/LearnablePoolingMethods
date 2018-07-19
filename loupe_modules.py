@@ -161,13 +161,6 @@ class NetVLAD(PoolingBaseModel):
         vlad = tf.reshape(vlad, [-1, self.cluster_size * self.feature_size])
         vlad = tf.nn.l2_normalize(vlad, 1)
 
-        hidden1_weights = tf.get_variable("hidden1_weights",
-                                          [self.cluster_size * self.feature_size, self.output_dim],
-                                          initializer=tf.random_normal_initializer(
-                                              stddev=1 / math.sqrt(self.cluster_size)))
-
-        vlad = tf.matmul(vlad, hidden1_weights)
-
         if self.gating:
             vlad = super(self.__class__, self).context_gating(vlad)
 
