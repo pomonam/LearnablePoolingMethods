@@ -176,7 +176,7 @@ class MultiHeadAttention(modules.BaseModule):
 
 class FeedForwardNetwork(modules.BaseModule):
     """ Feed Forward Network. """
-    def __init__(self, hidden_size, filter_size, relu_dropout,
+    def __init__(self, feature_size, filter_size, relu_dropout,
                  is_train, scope_id):
         """ Initialize class FeedForwardNetwork.
         :param hidden_size: int
@@ -185,7 +185,7 @@ class FeedForwardNetwork(modules.BaseModule):
         :param is_train: bool
         :param scope_id: String
         """
-        self.hidden_size = hidden_size
+        self.feature_size = feature_size
         self.filter_size = filter_size
         self.relu_dropout = relu_dropout
         self.is_train = is_train
@@ -203,7 +203,7 @@ class FeedForwardNetwork(modules.BaseModule):
         if self.is_train:
             filter_output = tf.nn.dropout(filter_output, 1.0 - self.relu_dropout)
 
-        output = tf.layers.dense(filter_output, self.hidden_size,
+        output = tf.layers.dense(filter_output, self.feature_size,
                                  use_bias=True,
                                  activation=tf.nn.relu,
                                  name="ff_output".format(self.scope_id))

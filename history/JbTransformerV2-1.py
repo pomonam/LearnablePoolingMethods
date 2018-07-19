@@ -21,8 +21,8 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "JbTransformerEncoderV1"
-MODEL_VERSION = "-3"
+MODEL_NAME = "JbTransformerEncoderV2"
+MODEL_VERSION = "-1"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0003
@@ -40,12 +40,12 @@ BASE_LEARNING_RATE = 0.0003
 START_NEW_MODEL = False
 
 EXTRA = "--jbtev2_iteration=30 " \
-        "--jbtev2_v_hidden=64 " \
-        "--jbtev2_a_hidden=16 " \
+        "--jbtev2_v_hidden=512 " \
+        "--jbtev2_a_hidden=64 " \
         "--jbtev2_v_filter_size=1024 " \
-        "--jbtev2_a_filter_size=256 " \
-        "--jbtev2_v_num_heads=16 " \
-        "--jbtev2_a_num_heads=4 " \
+        "--jbtev2_a_filter_size=128 " \
+        "--jbtev2_v_num_heads=32 " \
+        "--jbtev2_a_num_heads=8 " \
         "--jbtev2_v_attention_dropout=0.1 " \
         "--jbtev2_a_attention_dropout=0.1 " \
         "--jbtev2_video_model=FourLayerBatchNeuralModel "

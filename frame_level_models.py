@@ -67,7 +67,7 @@ class JbTransformerEncoderV2(models.BaseModel):
                      hidden_size=None,
                      is_training=True,
                      **unused_params):
-        iterations = iterations or FLAGS.jbtev1_iteration
+        iterations = iterations or FLAGS.jbtev2_iteration
         video_hidden_size = FLAGS.jbtev2_v_hidden
         audio_hidden_size = FLAGS.jbtev2_a_hidden
         video_num_heads = FLAGS.jbtev2_v_num_heads
@@ -155,8 +155,6 @@ class JbTransformerEncoderV2(models.BaseModel):
             vocab_size=vocab_size,
             is_training=is_training,
             **unused_params)
-
-
 
 
 flags.DEFINE_integer("jbtev1_iteration", 30,
