@@ -34,6 +34,131 @@ import transformer_utils
 ###############################################################################
 # Transformer #################################################################
 ###############################################################################
+flags.DEFINE_integer("jbtev2_iteration", 100,
+                     "Number of frames per batch")
+flags.DEFINE_integer("jbtev2_v_hidden", 1024,
+                     "Number of hidden units")
+flags.DEFINE_integer("jbtev2_a_hidden", 128,
+                     "Number of hidden units")
+flags.DEFINE_integer("jbtev2_v_filter_size", 4096,
+                     "Number of heads")
+flags.DEFINE_integer("jbtev2_a_filter_size", 512,
+                     "Number of heads")
+flags.DEFINE_integer("jbtev2_v_num_heads", 64,
+                     "Number of heads")
+flags.DEFINE_integer("jbtev2_a_num_heads", 16,
+                     "Number of heads")
+flags.DEFINE_float("jbtev2_v_attention_dropout", 0.1,
+                     "Number of heads")
+flags.DEFINE_float("jbtev2_a_attention_dropout", 0.1,
+                     "Number of heads")
+flags.DEFINE_string("jbtev2_video_model", "WillowMoeModel",
+                     "Number of heads")
+
+
+class JbTransformerEncoderV2(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.jbtev1_iteration
+        video_hidden_size = FLAGS.jbtev2_v_hidden
+        audio_hidden_size = FLAGS.jbtev2_a_hidden
+        video_num_heads = FLAGS.jbtev2_v_num_heads
+        audio_num_heads = FLAGS.jbtev2_a_num_heads
+        video_dropout = FLAGS.jbtev2_v_attention_dropout
+        audio_dropout = FLAGS.jbtev2_a_attention_dropout
+        video_filter_size = FLAGS.jbtev2_v_filter_size
+        audio_filter_size = FLAGS.jbtev2_a_filter_size
+
+        final_model = FLAGS.jbtev1_video_model
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        # Obtain video & audio features.
+        video_features = reshaped_input[:, 0:1024]
+        audio_features = reshaped_input[:, 1024:]
+
+        video_features = tf.reshape(video_features, [-1, max_frames, 1024])
+        audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
+
+        v_encoder_block = transformer_utils.TransformerEncoder(feature_size=1024,
+                                                               hidden_size=video_hidden_size,
+                                                               num_heads=video_num_heads,
+                                                               attention_dropout=video_dropout,
+                                                               ff_filter_size=video_filter_size,
+                                                               ff_relu_dropout=0.1,
+                                                               is_train=is_training,
+                                                               scope_id="encode")
+
+        a_encoder_block = transformer_utils.TransformerEncoder(feature_size=128,
+                                                               hidden_size=audio_hidden_size,
+                                                               num_heads=audio_num_heads,
+                                                               attention_dropout=audio_dropout,
+                                                               ff_filter_size=audio_filter_size,
+                                                               ff_relu_dropout=0.1,
+                                                               is_train=is_training,
+                                                               scope_id="encode")
+
+        with tf.variable_scope("video"):
+            with tf.variable_scope("encode"):
+                with tf.variable_scope("block_1"):
+                    encode1 = v_encoder_block.forward(video_features)
+                with tf.variable_scope("block_2"):
+                    encode2 = v_encoder_block.forward(encode1)
+                with tf.variable_scope("block_3"):
+                    encode3 = v_encoder_block.forward(encode2)
+                with tf.variable_scope("block_4"):
+                    encode4 = v_encoder_block.forward(encode3)
+                with tf.variable_scope("block_5"):
+                    encode5 = v_encoder_block.forward(encode4)
+                with tf.variable_scope("block_6"):
+                    encode6 = v_encoder_block.forward(encode5)
+
+            video_out = tf.reshape(encode6, [-1, iterations * 1024])
+
+        with tf.variable_scope("audio"):
+            with tf.variable_scope("encode"):
+                with tf.variable_scope("block_1"):
+                    encode1 = a_encoder_block.forward(audio_features)
+                with tf.variable_scope("block_2"):
+                    encode2 = a_encoder_block.forward(encode1)
+                with tf.variable_scope("block_3"):
+                    encode3 = a_encoder_block.forward(encode2)
+                with tf.variable_scope("block_4"):
+                    encode4 = a_encoder_block.forward(encode3)
+                with tf.variable_scope("block_5"):
+                    encode5 = a_encoder_block.forward(encode4)
+                with tf.variable_scope("block_6"):
+                    encode6 = a_encoder_block.forward(encode5)
+
+            audio_out = tf.reshape(encode6, [-1, iterations * 128])
+
+        activation = tf.concat([video_out, audio_out], 1)
+
+        aggregated_model = getattr(video_level_models,
+                                   final_model)
+
+        return aggregated_model().create_model(
+            model_input=activation,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
+
+
+
+
 flags.DEFINE_integer("jbtev1_iteration", 30,
                      "Number of frames per batch")
 flags.DEFINE_integer("jbtev1_v_hidden", 64,
