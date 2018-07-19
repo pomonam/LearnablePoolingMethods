@@ -77,7 +77,7 @@ class JbTransformerEncoderV2(models.BaseModel):
         video_filter_size = FLAGS.jbtev2_v_filter_size
         audio_filter_size = FLAGS.jbtev2_a_filter_size
 
-        final_model = FLAGS.jbtev1_video_model
+        final_model = FLAGS.jbtev2_video_model
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
