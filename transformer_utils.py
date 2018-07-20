@@ -136,7 +136,7 @@ class OneFcAttentionV9(modules.BaseModule):
         self.num_frames = num_frames
         self.hidden_size = hidden_size
         self.num_cluster = num_cluster
-        self.last_layer =last_layer
+        self.last_layer = last_layer
         self.do_shift = do_shift
 
     def normal_attention(self, inputs, cluster_id):
@@ -177,10 +177,9 @@ class OneFcAttentionV9(modules.BaseModule):
         for i in range(1, self.num_cluster):
             output = self.normal_attention(inputs, cluster_id=i)
             result = tf.concat([result, output], 2)
-        if not self.last_layer:
-            output = tf.layers.dense(result, self.feature_size, use_bias=False, activation=None)
-            result = tf.contrib.layers.layer_norm(output)
-        return result
+        output = tf.layers.dense(result, self.feature_size, use_bias=False, activation=None)
+        output = tf.contrib.layers.layer_norm(output)
+        return output
 
 
 class OneFcAttentionV3(modules.BaseModule):

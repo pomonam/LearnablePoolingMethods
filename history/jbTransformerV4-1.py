@@ -21,8 +21,8 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "JbTransformerEncoderV3"
-MODEL_VERSION = "-"
+MODEL_NAME = "JbTransformerEncoderV4"
+MODEL_VERSION = "-1"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -34,21 +34,21 @@ FEATURES = "rgb,audio"
 BATCH_SIZE = 64
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0005
+BASE_LEARNING_RATE = 0.0003
 
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--jbtev3_iteration=64 " \
-        "--jbtev3_v_hidden=64 " \
-        "--jbtev3_a_hidden=8 " \
-        "--jbtev3_v_filter_size=2048 " \
-        "--jbtev3_a_filter_size=256 " \
-        "--jbtev3_v_num_heads=16 " \
-        "--jbtev3_a_num_heads=16 " \
-        "--jbtev3_v_attention_dropout=0.1 " \
-        "--jbtev3_a_attention_dropout=0.1 " \
-        "--jbtev3_video_model=WillowMoeModel "
+EXTRA = "--jbtev4_iteration=64 " \
+        "--jbtev4_v_hidden=64 " \
+        "--jbtev4_a_hidden=8 " \
+        "--jbtev4_v_filter_size=2048 " \
+        "--jbtev4_a_filter_size=256 " \
+        "--jbtev4_v_num_heads=16 " \
+        "--jbtev4_a_num_heads=16 " \
+        "--jbtev4_v_attention_dropout=0.1 " \
+        "--jbtev4_a_attention_dropout=0.1 " \
+        "--jbtev4_video_model=MoeModel "
 
 
 def main():

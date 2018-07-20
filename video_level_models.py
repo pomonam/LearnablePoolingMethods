@@ -43,15 +43,15 @@ flags.DEFINE_bool(
     "Prob gating for MoeModel.")
 
 
-class WillowMoeModel(models.BaseModel):
+class MoeModel(models.BaseModel):
     """A softmax over a mixture of logistic models (with L2 regularization)."""
+
     def create_model(self,
                      model_input,
                      vocab_size,
                      is_training,
                      num_mixtures=None,
                      l2_penalty=1e-8,
-                     det_reg=None,
                      **unused_params):
         """Creates a Mixture of (Logistic) Experts model.
          It also includes the possibility of gating the probabilities
@@ -73,8 +73,12 @@ class WillowMoeModel(models.BaseModel):
         """
         num_mixtures = num_mixtures or FLAGS.moe_num_mixtures
         low_rank_gating = FLAGS.moe_low_rank_gating
-        l2_penalty = FLAGS.moe_l2
+        l2_penalty = FLAGS.moe_l2;
         gating_probabilities = FLAGS.moe_prob_gating
+        gating_input = FLAGS.moe_prob_gating_input
+
+        input_size = model_input.get_shape().as_list()[1]
+        remove_diag = FLAGS.gating_remove_diag
 
         if low_rank_gating == -1:
             gate_activations = slim.fully_connected(
@@ -120,14 +124,37 @@ class WillowMoeModel(models.BaseModel):
                                    [-1, vocab_size])
 
         if gating_probabilities:
-            gating = attention_modules.ContextGateV1(vocab_size, batch_norm=True, is_training=is_training)
-            probabilities = gating.forward(probabilities)
+            if gating_input == 'prob':
+                gating_weights = tf.get_variable("gating_prob_weights",
+                                                 [vocab_size, vocab_size],
+                                                 initializer=tf.random_normal_initializer(
+                                                     stddev=1 / math.sqrt(vocab_size)))
+                gates = tf.matmul(probabilities, gating_weights)
+            else:
+                gating_weights = tf.get_variable("gating_prob_weights",
+                                                 [input_size, vocab_size],
+                                                 initializer=tf.random_normal_initializer(
+                                                     stddev=1 / math.sqrt(vocab_size)))
 
-        if det_reg is not None:
-            return {"predictions": probabilities,
-                    "regularization_loss": det_reg}
-        else:
-            return {"predictions": probabilities}
+                gates = tf.matmul(model_input, gating_weights)
+
+            if remove_diag:
+                # removes diagonals coefficients
+                diagonals = tf.matrix_diag_part(gating_weights)
+                gates = gates - tf.multiply(diagonals, probabilities)
+
+            gates = slim.batch_norm(
+                gates,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="gating_prob_bn")
+
+            gates = tf.sigmoid(gates)
+
+            probabilities = tf.multiply(probabilities, gates)
+
+        return {"predictions": probabilities}
 
 
 class FourLayerBatchNeuralModel(models.BaseModel):
