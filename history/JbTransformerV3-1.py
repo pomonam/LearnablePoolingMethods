@@ -39,13 +39,13 @@ BASE_LEARNING_RATE = 0.0005
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--jbtev3_iteration=64 " \
+EXTRA = "--jbtev3_iteration=32 " \
         "--jbtev3_v_hidden=512 " \
-        "--jbtev3_a_hidden=64 " \
+        "--jbtev3_a_hidden=512 " \
         "--jbtev3_v_filter_size=1024 " \
         "--jbtev3_a_filter_size=128 " \
-        "--jbtev3_v_num_heads=64 " \
-        "--jbtev3_a_num_heads=16 " \
+        "--jbtev3_v_num_heads=32 " \
+        "--jbtev3_a_num_heads=8 " \
         "--jbtev3_v_attention_dropout=0.1 " \
         "--jbtev3_a_attention_dropout=0.1 " \
         "--jbtev3_video_model=FourLayerBatchNeuralModel "
