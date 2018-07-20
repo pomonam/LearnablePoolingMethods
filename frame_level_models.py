@@ -115,30 +115,6 @@ class JbTransformerEncoderV3(models.BaseModel):
                                                  is_training=is_training,
                                                  block_id=3)
 
-        v_block_4 = transformer_utils.JuhanBlock(feature_size=1024,
-                                                 filter_size=video_filter_size,
-                                                 num_cluster=video_num_heads,
-                                                 num_units=video_hidden_size,
-                                                 max_frames=video_num_heads,
-                                                 is_training=is_training,
-                                                 block_id=4)
-
-        v_block_5 = transformer_utils.JuhanBlock(feature_size=1024,
-                                                 filter_size=video_filter_size,
-                                                 num_cluster=video_num_heads,
-                                                 num_units=video_hidden_size,
-                                                 max_frames=video_num_heads,
-                                                 is_training=is_training,
-                                                 block_id=5)
-
-        v_block_6 = transformer_utils.JuhanBlock(feature_size=1024,
-                                                 filter_size=video_filter_size,
-                                                 num_cluster=video_num_heads,
-                                                 num_units=video_hidden_size,
-                                                 max_frames=video_num_heads,
-                                                 is_training=is_training,
-                                                 block_id=6)
-
         a_block_1 = transformer_utils.JuhanBlock(feature_size=128,
                                                  filter_size=audio_filter_size,
                                                  num_cluster=audio_num_heads,
@@ -171,14 +147,8 @@ class JbTransformerEncoderV3(models.BaseModel):
                     encode2 = v_block_2.forward(encode1)
                 with tf.variable_scope("block_3"):
                     encode3 = v_block_3.forward(encode2)
-                with tf.variable_scope("block_4"):
-                    encode4 = v_block_4.forward(encode3)
-                # with tf.variable_scope("block_5"):
-                #     encode5 = v_block_5.forward(encode4)
-                # with tf.variable_scope("block_6"):
-                #     encode6 = v_block_6.forward(encode5)
 
-            video_out = tf.reshape(encode4, [-1, video_num_heads * 1024])
+            video_out = tf.reshape(encode3, [-1, video_num_heads * 1024])
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("encode"):

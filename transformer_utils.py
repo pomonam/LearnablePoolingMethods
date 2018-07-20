@@ -24,7 +24,7 @@ class JuhanBlock(modules.BaseModule):
                                       relu_dropout=0.1,
                                       is_train=is_training,
                                       scope_id=block_id)
-        self.attention_cluster = OneFcAttentionV2(feature_size=feature_size,
+        self.attention_cluster = OneFcAttentionV9(feature_size=feature_size,
                                                   num_frames=num_cluster,
                                                   num_cluster=num_cluster,
                                                   do_shift=True)
@@ -93,12 +93,21 @@ class MultiHeadAttentionV2(modules.BaseModule):
             # attention: -> batch_size x max_frames x max_frames
             float_cpy = tf.cast(self.num_units, dtype=tf.float32)
             attention = tf.nn.softmax(tf.divide(attention, tf.sqrt(float_cpy)))
-
             output = tf.matmul(attention, V)
             # output: -> batch_size x max_frames x num_units
 
-            output = tf.layers.dense(output, self.num_units, activation=None)
-            output = tf.nn.l2_normalize(output)
+            alpha = \
+                tf.get_variable("alpha",
+                                [1],
+                                initializer=tf.constant_initializer(1))
+            beta = \
+                tf.get_variable("beta",
+                                [1],
+                                initializer=tf.constant_initializer(0.01))
+
+            reshaped_activation = alpha * output
+            reshaped_activation = reshaped_activation + beta
+            output = tf.nn.l2_normalize(reshaped_activation)
             float_cpy = tf.cast(self.num_heads, dtype=tf.float32)
             output = tf.divide(output, tf.sqrt(float_cpy))
 
@@ -110,14 +119,59 @@ class MultiHeadAttentionV2(modules.BaseModule):
             result = tf.identity(result)
             output = self.self_attention(inputs, scope_id=i)
             result = tf.concat([result, output], 2)
-        # result: -> batch_size x max_frames x (num_units * num_heads)
         output = tf.layers.dense(result, self.feature_size, use_bias=False, activation=None)
-        output = output + inputs
         output = tf.contrib.layers.layer_norm(output)
         return output
 
 
-class OneFcAttentionV2(modules.BaseModule):
+class OneFcAttentionV9(modules.BaseModule):
+    def __init__(self, feature_size, num_frames, num_cluster, do_shift=True):
+        self.feature_size = feature_size
+        self.num_frames = num_frames
+        self.num_cluster = num_cluster
+        self.do_shift = do_shift
+
+    def normal_attention(self, inputs, cluster_id):
+        """
+        :param inputs: batch_size x num_frames x feature_size
+        :param cluster_id:
+        :return:
+        """
+        with tf.variable_scope("Block{}".format(str(cluster_id))):
+            attention_weights = tf.layers.dense(inputs, self.num_frames, activation=None)
+            float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
+            attention = tf.nn.softmax(tf.divide(attention_weights, tf.sqrt(float_cpy)))
+            output = tf.matmul(attention, inputs)
+            # output: -> batch_size x max_frames x num_units
+
+            alpha = \
+                tf.get_variable("alpha",
+                                [1],
+                                initializer=tf.constant_initializer(1))
+            beta = \
+                tf.get_variable("beta",
+                                [1],
+                                initializer=tf.constant_initializer(0.01))
+
+            reshaped_activation = alpha * output
+            reshaped_activation = reshaped_activation + beta
+            reshaped_activation = tf.nn.l2_normalize(reshaped_activation, 1)
+            float_cpy = tf.cast(self.num_cluster, dtype=tf.float32)
+            output = tf.divide(reshaped_activation, float_cpy)
+
+            return output
+
+    def forward(self, inputs, **unused_params):
+        result = self.normal_attention(inputs, cluster_id=0)
+        for i in range(1, self.num_cluster):
+            output = self.normal_attention(inputs, cluster_id=i)
+            result = tf.concat([result, output], 2)
+        output = tf.layers.dense(result, self.feature_size, use_bias=False, activation=None)
+        output = tf.contrib.layers.layer_norm(output)
+        return output
+
+
+class OneFcAttentionV3(modules.BaseModule):
     def __init__(self, feature_size, num_frames, num_cluster, do_shift=True):
         self.feature_size = feature_size
         self.num_frames = num_frames
