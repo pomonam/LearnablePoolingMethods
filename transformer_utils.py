@@ -1,5 +1,187 @@
 import tensorflow as tf
 import modules
+import math
+
+
+class JuhanBlock(modules.BaseModule):
+    def __init__(self, feature_size, filter_size, num_cluster, num_units, max_frames,
+                 is_training, block_id):
+        self.feature_size = feature_size
+        self.filter_size = filter_size
+        self.num_cluster = num_cluster
+        self.num_units = num_units
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.block_id = block_id
+
+        self.multi_head = MultiHeadAttentionV2(feature_size=feature_size,
+                                               num_heads=num_cluster,
+                                               num_units=num_units,
+                                               max_frames=max_frames,
+                                               block_id=block_id)
+        self.ff1 = FeedForwardNetwork(feature_size=feature_size,
+                                      filter_size=filter_size,
+                                      relu_dropout=0.1,
+                                      is_train=is_training,
+                                      scope_id=block_id)
+        self.attention_cluster = OneFcAttentionV2(feature_size=feature_size,
+                                                  num_frames=num_cluster,
+                                                  num_cluster=num_cluster,
+                                                  do_shift=True)
+        self.ff2 = FeedForwardNetwork(feature_size=feature_size,
+                                      filter_size=filter_size,
+                                      relu_dropout=0.1,
+                                      is_train=is_training,
+                                      scope_id=block_id)
+
+    def forward(self, inputs, **unused_params):
+        """ Forward method
+        :param inputs: 3D Tensor with size 'batch_size x max_frames x feature_size'
+        :return: 3D Tensor with size 'batch_size x num_cluster x feature_size'
+        """
+        with tf.variable_scope("block{}".format(str(self.block_id))):
+            with tf.variable_scope("multi_head"):
+                mh_output = self.multi_head.forward(inputs)
+                # -> batch_size x max_frames x feature_size
+            with tf.variable_scope("ff1"):
+                ff1_output = self.ff1.forward(mh_output)
+                # -> batch_size x max_frames x feature_size
+            with tf.variable_scope("one_attention"):
+                mh2_output = self.attention_cluster.forward(ff1_output)
+                # -> batch_size x cluster_size x feature_size
+            with tf.variable_scope("ff2"):
+                ff2_output = self.ff2.forward(mh2_output)
+                # -> batch_size x cluster_size x feature_size
+        return ff2_output
+
+
+class MultiHeadAttentionV2(modules.BaseModule):
+    def __init__(self, feature_size, num_heads, num_units, max_frames, block_id):
+        """
+
+        :param num_heads: Number of self-attention modules
+        :param num_units: last dimension of Q, K, V
+        """
+        self.feature_size = feature_size
+        self.num_heads = num_heads
+        self.num_units = num_units
+        self.max_frames = max_frames
+        self.block_id = block_id
+
+    def self_attention(self, inputs, scope_id):
+        """
+        :param Q: batch_size x max_frames x num_units
+        :param K: batch_size x max_frames x num_units
+        :param V: batch_size x max_frames x num_units
+        :return:
+        """
+        with tf.variable_scope("Block{}Layer{}".format(self.block_id, scope_id)):
+            # Calculate query, key, value pair
+            Q = tf.layers.dense(inputs, self.num_units, use_bias=False, activation=None)
+            K = tf.layers.dense(inputs, self.num_units, use_bias=False, activation=None)
+            V = tf.layers.dense(inputs, self.num_units, use_bias=False, activation=None)
+            # Q, K, V: -> (batch_size * max_frames) x num_units
+
+            # Reshape for self-attention calculation
+            Q = tf.reshape(Q, [-1, self.max_frames, self.num_units])
+            K = tf.reshape(K, [-1, self.max_frames, self.num_units])
+            V = tf.reshape(V, [-1, self.max_frames, self.num_units])
+            # Q, K, V: -> batch_size x max_frames x num_units
+
+            # Self-attention
+            attention = tf.matmul(Q, tf.transpose(K, perm=[0, 2, 1]))
+            # attention: -> batch_size x max_frames x max_frames
+            float_cpy = tf.cast(self.num_units, dtype=tf.float32)
+            attention = tf.nn.softmax(tf.divide(attention, tf.sqrt(float_cpy)))
+
+            output = tf.matmul(attention, V)
+            # output: -> batch_size x max_frames x num_units
+
+            output = tf.layers.dense(output, self.num_units, activation=None)
+            output = tf.nn.l2_normalize(output)
+            float_cpy = tf.cast(self.num_heads, dtype=tf.float32)
+            output = tf.divide(output, tf.sqrt(float_cpy))
+
+            return output
+
+    def forward(self, inputs, **unused_params):
+        result = self.self_attention(inputs, scope_id=0)
+        for i in range(1, self.num_heads):
+            result = tf.identity(result)
+            output = self.self_attention(inputs, scope_id=i)
+            result = tf.concat([result, output], 2)
+        # result: -> batch_size x max_frames x (num_units * num_heads)
+        output = tf.layers.dense(result, self.feature_size, use_bias=False, activation=None)
+        output = output + inputs
+        output = tf.contrib.layers.layer_norm(output)
+        return output
+
+
+class OneFcAttentionV2(modules.BaseModule):
+    def __init__(self, feature_size, num_frames, num_cluster, do_shift=True):
+        self.feature_size = feature_size
+        self.num_frames = num_frames
+        self.num_cluster = num_cluster
+        self.do_shift = do_shift
+
+    def forward(self, inputs, **unused_params):
+        attention = tf.layers.dense(inputs, self.num_cluster, activation=None)
+        float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
+        attention = tf.divide(attention, tf.sqrt(float_cpy))
+        attention = tf.nn.softmax(attention)
+
+        attention = tf.transpose(attention, perm=[0, 2, 1])
+        activation = tf.matmul(attention, inputs)
+        # -> batch_size x num_cluster x feature_size
+
+        output = tf.layers.dense(activation, self.feature_size, activation=None)
+        output = tf.nn.l2_normalize(output)
+        float_cpy = tf.cast(self.num_cluster, dtype=tf.float32)
+        output = tf.divide(output, tf.sqrt(float_cpy))
+
+        return output
+
+
+class TransformerEncoderBlockV2(modules.BaseModule):
+    def __init__(self, is_training, num_units, max_frames, feature_size, num_heads, block_id):
+        """
+        :param is_training:
+        :param num_units: Number of hidden units of fully connected layers
+        """
+        self.is_training = is_training
+        self.num_units = num_units
+        self.max_frames = max_frames
+        self.feature_size = feature_size
+        self.num_heads = num_heads
+        self.block_id = block_id
+
+    def forward(self, inputs, **unused_params):
+        """
+        One block of encoder containing one self-attention layer and one fully connected layer.
+        :param inputs: (batch_size * max_frames) x feature_size
+        :param unused_params:
+        :return:
+        """
+        multi_head_layer = MultiHeadAttentionV2(self.num_heads, self.num_units, self.max_frames, self.block_id)
+
+        attention_output = multi_head_layer.forward(inputs)
+        # output: -> batch_size x max_frames x (num_units * num_heads)
+
+        attention_output = tf.reshape(attention_output, [-1, self.num_units * self.num_heads])
+        # output: -> (batch_size * max_frames) x (num_units * num_heads)
+
+        attention_output = tf.layers.dense(attention_output, self.feature_size, activation=tf.nn.relu)
+        # output: -> (batch_size * max_frames) x feature_size
+
+        # Residual connection & Layer normalization
+        attention_output += inputs
+        attention_output = tf.contrib.layers.layer_norm(attention_output)
+
+        # Residual connection & Layer normalization
+        output = tf.contrib.layers.layer_norm(attention_output)
+        # output = tf.reshape(output, [-1, self.feature_size])
+
+        return output
 
 
 class TransformerEncoder(modules.BaseModule):
@@ -206,5 +388,8 @@ class FeedForwardNetwork(modules.BaseModule):
         output = tf.layers.dense(filter_output, self.feature_size,
                                  use_bias=True,
                                  activation=tf.nn.relu,
-                                 name="ff_output".format(self.scope_id))
+                                 name="ff_output{}".format(self.scope_id))
+        output = output + inputs
+        output = tf.contrib.layers.layer_norm(output)
+
         return output
