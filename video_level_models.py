@@ -31,16 +31,18 @@ flags.DEFINE_integer(
 ###############################################################################
 # Baseline (Benchmark) models #################################################
 ###############################################################################
-# Flags for WillowModel
 flags.DEFINE_float(
-    "moe_l2", 1e-6,
+    "moe_l2", 1e-8,
     "L2 penalty for MoeModel.")
 flags.DEFINE_integer(
     "moe_low_rank_gating", -1,
     "Low rank gating for MoeModel.")
 flags.DEFINE_bool(
-    "moe_prob_gating", True,
+    "moe_prob_gating", False,
     "Prob gating for MoeModel.")
+flags.DEFINE_string(
+    "moe_prob_gating_input", "prob",
+    "input Prob gating for MoeModel.")
 
 
 class MoeModel(models.BaseModel):
