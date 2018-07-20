@@ -5,13 +5,14 @@ import math
 
 class JuhanBlock(modules.BaseModule):
     def __init__(self, feature_size, filter_size, num_cluster, num_units, max_frames,
-                 is_training, block_id):
+                 is_training, last_layer, block_id):
         self.feature_size = feature_size
         self.filter_size = filter_size
         self.num_cluster = num_cluster
         self.num_units = num_units
         self.max_frames = max_frames
         self.is_training = is_training
+        self.last_layer = last_layer
         self.block_id = block_id
 
         self.multi_head = MultiHeadAttentionV2(feature_size=feature_size,
@@ -25,8 +26,10 @@ class JuhanBlock(modules.BaseModule):
                                       is_train=is_training,
                                       scope_id=block_id)
         self.attention_cluster = OneFcAttentionV9(feature_size=feature_size,
-                                                  num_frames=num_cluster,
+                                                  hidden_size=num_units,
+                                                  num_frames=max_frames,
                                                   num_cluster=num_cluster,
+                                                  last_layer=last_layer,
                                                   do_shift=True)
         self.ff2 = FeedForwardNetwork(feature_size=feature_size,
                                       filter_size=filter_size,
@@ -50,9 +53,12 @@ class JuhanBlock(modules.BaseModule):
                 mh2_output = self.attention_cluster.forward(ff1_output)
                 # -> batch_size x cluster_size x feature_size
             with tf.variable_scope("ff2"):
-                ff2_output = self.ff2.forward(mh2_output)
+                if not self.last_layer:
+                    ff2_output = self.ff2.forward(mh2_output)
                 # -> batch_size x cluster_size x feature_size
-        return ff2_output
+                    return ff2_output
+                else:
+                    return mh2_output
 
 
 class MultiHeadAttentionV2(modules.BaseModule):
@@ -125,10 +131,12 @@ class MultiHeadAttentionV2(modules.BaseModule):
 
 
 class OneFcAttentionV9(modules.BaseModule):
-    def __init__(self, feature_size, num_frames, num_cluster, do_shift=True):
+    def __init__(self, feature_size, hidden_size, num_frames, last_layer, num_cluster, do_shift=True):
         self.feature_size = feature_size
         self.num_frames = num_frames
+        self.hidden_size = hidden_size
         self.num_cluster = num_cluster
+        self.last_layer =last_layer
         self.do_shift = do_shift
 
     def normal_attention(self, inputs, cluster_id):
@@ -138,10 +146,13 @@ class OneFcAttentionV9(modules.BaseModule):
         :return:
         """
         with tf.variable_scope("Block{}".format(str(cluster_id))):
-            attention_weights = tf.layers.dense(inputs, self.num_frames, activation=None)
+            keys = tf.layers.dense(inputs, self.hidden_size, use_bias=False, activation=None)
+            values = tf.layers.dense(inputs, self.hidden_size, use_bias=False, activation=None)
+
+            attention_weights = tf.layers.dense(keys, self.num_frames, activation=None)
             float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
             attention = tf.nn.softmax(tf.divide(attention_weights, tf.sqrt(float_cpy)))
-            output = tf.matmul(attention, inputs)
+            output = tf.matmul(attention, values)
             # output: -> batch_size x max_frames x num_units
 
             alpha = \
@@ -166,9 +177,10 @@ class OneFcAttentionV9(modules.BaseModule):
         for i in range(1, self.num_cluster):
             output = self.normal_attention(inputs, cluster_id=i)
             result = tf.concat([result, output], 2)
-        output = tf.layers.dense(result, self.feature_size, use_bias=False, activation=None)
-        output = tf.contrib.layers.layer_norm(output)
-        return output
+        if not self.last_layer:
+            output = tf.layers.dense(result, self.feature_size, use_bias=False, activation=None)
+            result = tf.contrib.layers.layer_norm(output)
+        return result
 
 
 class OneFcAttentionV3(modules.BaseModule):
@@ -397,8 +409,8 @@ class MultiHeadAttention(modules.BaseModule):
         logits = tf.matmul(q, k, transpose_b=True)
         weights = tf.nn.softmax(logits, name="attention_weights")
 
-        if self.is_train:
-            weights = tf.nn.dropout(weights, 1.0 - self.attention_dropout)
+        # if self.is_train:
+        #     weights = tf.nn.dropout(weights, 1.0 - self.attention_dropout)
         attention_output = tf.matmul(weights, v)
 
         # -> batch_size x length x hidden_size]
@@ -436,8 +448,8 @@ class FeedForwardNetwork(modules.BaseModule):
                                         use_bias=True,
                                         activation=tf.nn.relu,
                                         name="filter_output{}".format(self.scope_id))
-        if self.is_train:
-            filter_output = tf.nn.dropout(filter_output, 1.0 - self.relu_dropout)
+        # if self.is_train:
+        #     filter_output = tf.nn.dropout(filter_output, 1.0 - self.relu_dropout)
 
         output = tf.layers.dense(filter_output, self.feature_size,
                                  use_bias=True,

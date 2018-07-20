@@ -97,6 +97,7 @@ class JbTransformerEncoderV3(models.BaseModel):
                                                  num_units=video_hidden_size,
                                                  max_frames=max_frames,
                                                  is_training=is_training,
+                                                 last_layer=False,
                                                  block_id=1)
 
         v_block_2 = transformer_utils.JuhanBlock(feature_size=1024,
@@ -105,15 +106,8 @@ class JbTransformerEncoderV3(models.BaseModel):
                                                  num_units=video_hidden_size,
                                                  max_frames=video_num_heads,
                                                  is_training=is_training,
+                                                 last_layer=True,
                                                  block_id=2)
-
-        v_block_3 = transformer_utils.JuhanBlock(feature_size=1024,
-                                                 filter_size=video_filter_size,
-                                                 num_cluster=video_num_heads,
-                                                 num_units=video_hidden_size,
-                                                 max_frames=video_num_heads,
-                                                 is_training=is_training,
-                                                 block_id=3)
 
         a_block_1 = transformer_utils.JuhanBlock(feature_size=128,
                                                  filter_size=audio_filter_size,
@@ -121,6 +115,7 @@ class JbTransformerEncoderV3(models.BaseModel):
                                                  num_units=audio_hidden_size,
                                                  max_frames=max_frames,
                                                  is_training=is_training,
+                                                 last_layer=False,
                                                  block_id=1)
 
         a_block_2 = transformer_utils.JuhanBlock(feature_size=128,
@@ -129,15 +124,8 @@ class JbTransformerEncoderV3(models.BaseModel):
                                                  num_units=audio_hidden_size,
                                                  max_frames=audio_num_heads,
                                                  is_training=is_training,
+                                                 last_layer=True,
                                                  block_id=2)
-
-        a_block_3 = transformer_utils.JuhanBlock(feature_size=128,
-                                                 filter_size=audio_filter_size,
-                                                 num_cluster=audio_num_heads,
-                                                 num_units=audio_hidden_size,
-                                                 max_frames=audio_num_heads,
-                                                 is_training=is_training,
-                                                 block_id=3)
 
         with tf.variable_scope("video"):
             with tf.variable_scope("encode"):
@@ -145,10 +133,8 @@ class JbTransformerEncoderV3(models.BaseModel):
                     encode1 = v_block_1.forward(video_features)
                 with tf.variable_scope("block_2"):
                     encode2 = v_block_2.forward(encode1)
-                with tf.variable_scope("block_3"):
-                    encode3 = v_block_3.forward(encode2)
 
-            video_out = tf.reshape(encode3, [-1, video_num_heads * 1024])
+            video_out = tf.reshape(encode2, [-1, video_num_heads * video_hidden_size])
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("encode"):
@@ -156,10 +142,8 @@ class JbTransformerEncoderV3(models.BaseModel):
                     encode1 = a_block_1.forward(audio_features)
                 with tf.variable_scope("block_2"):
                     encode2 = a_block_2.forward(encode1)
-                with tf.variable_scope("block_3"):
-                    encode3 = a_block_3.forward(encode2)
 
-            audio_out = tf.reshape(encode3, [-1, audio_num_heads * 128])
+            audio_out = tf.reshape(encode2, [-1, audio_num_heads * audio_hidden_size])
 
         activation = tf.concat([video_out, audio_out], 1)
 
