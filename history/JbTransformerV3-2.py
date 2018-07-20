@@ -41,11 +41,11 @@ START_NEW_MODEL = False
 
 EXTRA = "--jbtev3_iteration=64 " \
         "--jbtev3_v_hidden=512 " \
-        "--jbtev3_a_hidden=512 " \
+        "--jbtev3_a_hidden=64 " \
         "--jbtev3_v_filter_size=1024 " \
         "--jbtev3_a_filter_size=128 " \
-        "--jbtev3_v_num_heads=64 " \
-        "--jbtev3_a_num_heads=64 " \
+        "--jbtev3_v_num_heads=16 " \
+        "--jbtev3_a_num_heads=16 " \
         "--jbtev3_v_attention_dropout=0.1 " \
         "--jbtev3_a_attention_dropout=0.1 " \
         "--jbtev3_video_model=WillowMoeModel "
