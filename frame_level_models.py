@@ -338,15 +338,6 @@ class JbTransformerEncoderV4(models.BaseModel):
                                                  last_layer=False,
                                                  block_id=4)
 
-        v_block_5 = transformer_utils.JuhanBlock(feature_size=1024,
-                                                 filter_size=video_filter_size,
-                                                 num_cluster=video_num_heads,
-                                                 num_units=video_hidden_size,
-                                                 max_frames=video_num_heads,
-                                                 is_training=is_training,
-                                                 last_layer=False,
-                                                 block_id=5)
-
         a_block_1 = transformer_utils.JuhanBlock(feature_size=128,
                                                  filter_size=audio_filter_size,
                                                  num_cluster=audio_num_heads,
@@ -383,14 +374,6 @@ class JbTransformerEncoderV4(models.BaseModel):
                                                  last_layer=False,
                                                  block_id=4)
 
-        a_block_5 = transformer_utils.JuhanBlock(feature_size=128,
-                                                 filter_size=audio_filter_size,
-                                                 num_cluster=audio_num_heads,
-                                                 num_units=audio_hidden_size,
-                                                 max_frames=audio_num_heads,
-                                                 is_training=is_training,
-                                                 last_layer=False,
-                                                 block_id=5)
 
         with tf.variable_scope("video"):
             with tf.variable_scope("encode"):
@@ -402,10 +385,8 @@ class JbTransformerEncoderV4(models.BaseModel):
                     encode3 = v_block_3.forward(encode2)
                 with tf.variable_scope("block_4"):
                     encode4 = v_block_4.forward(encode3)
-                with tf.variable_scope("block_5"):
-                    encode5 = v_block_5.forward(encode4)
 
-            video_out = tf.reshape(encode5, [-1, video_num_heads * 1024])
+            video_out = tf.reshape(encode4, [-1, video_num_heads * 1024])
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("encode"):
@@ -417,10 +398,8 @@ class JbTransformerEncoderV4(models.BaseModel):
                     encode3 = a_block_3.forward(encode2)
                 with tf.variable_scope("block_4"):
                     encode4 = a_block_4.forward(encode3)
-                with tf.variable_scope("block_5"):
-                    encode5 = a_block_5.forward(encode4)
 
-            audio_out = tf.reshape(encode5, [-1, audio_num_heads * 128])
+            audio_out = tf.reshape(encode4, [-1, audio_num_heads * 128])
 
         activation = tf.concat([video_out, audio_out], 1)
 
