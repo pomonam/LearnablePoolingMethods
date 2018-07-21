@@ -48,7 +48,7 @@ EXTRA = "--jbtev4_iteration=64 " \
         "--jbtev4_a_num_heads=16 " \
         "--jbtev4_v_attention_dropout=0.1 " \
         "--jbtev4_a_attention_dropout=0.1 " \
-        "--jbtev4_video_model=FourLayerBatchNeuralModel "
+        "--jbtev4_video_model=MoeModel "
 
 
 def main():
