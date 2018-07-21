@@ -195,7 +195,6 @@ class JbTransformerEncoderV4(models.BaseModel):
                     encode5 = v_block_5.forward(encode4)
 
             video_out = tf.reshape(encode5, [-1, video_num_heads * 1024])
-            print(video_out)
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("encode"):
@@ -211,10 +210,8 @@ class JbTransformerEncoderV4(models.BaseModel):
                     encode5 = a_block_5.forward(encode4)
 
             audio_out = tf.reshape(encode5, [-1, audio_num_heads * 128])
-            print(audio_out)
 
         activation = tf.concat([video_out, audio_out], 1)
-        print(activation)
 
         aggregated_model = getattr(video_level_models,
                                    final_model)
