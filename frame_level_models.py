@@ -161,11 +161,8 @@ class CrazyEncoderV1(models.BaseModel):
                 with tf.variable_scope("block_2"):
                     encode2 = crazy_v_mhd_v1.forward(encode1)
                     encode2 = crazy_v_ffn.forward(encode2)
-                with tf.variable_scope("block_3"):
-                    encode3 = crazy_v_mhd_v1.forward(encode2)
-                    encode3 = crazy_v_ffn.forward(encode3)
                 with tf.variable_scope("block_4"):
-                    encode4 = crazy_v_cluster.forward(encode3)
+                    encode4 = crazy_v_cluster.forward(encode2)
                 with tf.variable_scope("block_5"):
                     encode5 = crazy_v_mhd_v2.forward(encode4)
                     encode5 = crazy_v_ffn.forward(encode5)
@@ -184,11 +181,8 @@ class CrazyEncoderV1(models.BaseModel):
                 with tf.variable_scope("block_2"):
                     encode2 = crazy_a_mhd_v1.forward(encode1)
                     encode2 = crazy_a_ffn.forward(encode2)
-                with tf.variable_scope("block_3"):
-                    encode3 = crazy_a_mhd_v1.forward(encode2)
-                    encode3 = crazy_a_ffn.forward(encode3)
                 with tf.variable_scope("block_4"):
-                    encode4 = crazy_a_cluster.forward(encode3)
+                    encode4 = crazy_a_cluster.forward(encode2)
                 with tf.variable_scope("block_5"):
                     encode5 = crazy_a_mhd_v2.forward(encode4)
                     encode5 = crazy_a_ffn.forward(encode5)
