@@ -40,15 +40,15 @@ BASE_LEARNING_RATE = 0.0002
 START_NEW_MODEL = False
 
 EXTRA = "--jbtev4_iteration=32 " \
-        "--jbtev4_v_hidden=64 " \
+        "--jbtev4_v_hidden=128 " \
         "--jbtev4_a_hidden=32 " \
-        "--jbtev4_v_filter_size=1024 " \
+        "--jbtev4_v_filter_size=2048 " \
         "--jbtev4_a_filter_size=128 " \
         "--jbtev4_v_num_heads=16 " \
         "--jbtev4_a_num_heads=16 " \
         "--jbtev4_v_attention_dropout=0.1 " \
         "--jbtev4_a_attention_dropout=0.1 " \
-        "--jbtev4_video_model=MoeModel "
+        "--jbtev4_video_model=FourLayerBatchNeuralModel "
 
 
 def main():

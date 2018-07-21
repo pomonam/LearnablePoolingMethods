@@ -21,7 +21,7 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "JbTransformerEncoderV5"
+MODEL_NAME = "CrazyEncoderV1"
 MODEL_VERSION = "-1"
 
 # Does it require frame-level models?
@@ -39,16 +39,19 @@ BASE_LEARNING_RATE = 0.0003
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--jbtev5_iteration=32 " \
-        "--jbtev5_v_hidden=64 " \
-        "--jbtev5_a_hidden=8 " \
-        "--jbtev5_v_filter_size=1024 " \
-        "--jbtev5_a_filter_size=128 " \
-        "--jbtev5_v_num_heads=16 " \
-        "--jbtev5_a_num_heads=16 " \
-        "--jbtev5_v_attention_dropout=0.1 " \
-        "--jbtev5_a_attention_dropout=0.1 " \
-        "--jbtev5_video_model=FourLayerBatchNeuralModel "
+EXTRA = "--crazy_v1_iteration=64 " \
+        "--crazy_v1_v_hidden=1024 " \
+        "--crazy_v1_a_hidden=128 " \
+        "--crazy_v1_v_filter_size=1024 " \
+        "--crazy_v1_a_filter_size=128 " \
+        "--crazy_v1_v_num_heads=8 " \
+        "--crazy_v1_a_num_heads=8 " \
+        "--crazy_v1_v_num_clusters=64 " \
+        "--crazy_v1_a_num_clusters=64 " \
+        "--crazy_v1_v_attention_dropout=0.1 " \
+        "--crazy_v1_a_attention_dropout=0.1 " \
+        "--crazy_v1_output_dim=2048 " \
+        "--crazy_v1_video_model=MoeModel "
 
 
 def main():

@@ -3,6 +3,138 @@ import modules
 import math
 
 
+class CrazyCluster(modules.BaseModule):
+    def __init__(self, feature_size, hidden_size, num_frames, last_layer, num_cluster, do_shift=True):
+        self.feature_size = feature_size
+        self.num_frames = num_frames
+        self.hidden_size = hidden_size
+        self.num_cluster = num_cluster
+        self.last_layer = last_layer
+        self.do_shift = do_shift
+
+    def normal_attention(self, inputs, cluster_id):
+        """
+        :param inputs: batch_size x num_frames x feature_size
+        :param cluster_id:
+        :return:
+        """
+        with tf.variable_scope("cluster{}".format(str(cluster_id))):
+            attention_weights = tf.layers.dense(inputs, self.num_frames, activation=None, name="attention")
+            float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
+            attention = tf.divide(attention_weights, tf.sqrt(float_cpy))
+            attention = tf.nn.softmax(attention)
+            output = tf.matmul(attention, inputs)
+            output = tf.reduce_mean(output, axis=1, keep_dims=True)
+            alpha = \
+                tf.get_variable("alpha",
+                                [1],
+                                initializer=tf.constant_initializer(1))
+            beta = \
+                tf.get_variable("beta",
+                                [1],
+                                initializer=tf.constant_initializer(0))
+            activation = alpha * output
+            activation = activation + beta
+            activation = tf.nn.l2_normalize(activation)
+            float_cpy = tf.cast(self.num_cluster, dtype=tf.float32)
+            activation = tf.divide(activation, tf.sqrt(float_cpy))
+
+            return activation
+
+    def forward(self, inputs, **unused_params):
+        result = self.normal_attention(inputs, cluster_id=0)
+        for i in range(1, self.num_cluster):
+            output = self.normal_attention(inputs, cluster_id=i)
+            result = tf.concat([result, output], 1)
+        return result
+
+
+class CrazyFeedForward(modules.BaseModule):
+    """ Feed Forward Network. """
+    def __init__(self, feature_size, filter_size, relu_dropout,
+                 is_train, scope_id):
+        """ Initialize class FeedForwardNetwork.
+        :param hidden_size: int
+        :param filter_size: int
+        :param relu_dropout: int
+        :param is_train: bool
+        :param scope_id: String
+        """
+        self.feature_size = feature_size
+        self.filter_size = filter_size
+        self.relu_dropout = relu_dropout
+        self.is_train = is_train
+        self.scope_id = scope_id
+
+    def forward(self, inputs, **unused_params):
+        """ Forward method for FeedForwardNetwork.
+        :param inputs: 3D Tensor with size 'batch_size x num_feature x feature_size'
+        :return: 3D Tensor with size 'batch_size x num_feature x hidden_size'
+        """
+        filter_output = tf.layers.dense(inputs, self.filter_size,
+                                        use_bias=True,
+                                        activation=tf.nn.relu,
+                                        name="filter_output{}".format(self.scope_id))
+        # if self.is_train:
+        #     filter_output = tf.nn.dropout(filter_output, 1.0 - self.relu_dropout)
+
+        output = tf.layers.dense(filter_output, self.feature_size,
+                                 use_bias=True,
+                                 activation=tf.nn.relu,
+                                 name="ff_output{}".format(self.scope_id))
+        output = output + inputs
+        output = tf.contrib.layers.layer_norm(output)
+
+        return output
+
+
+class CrazyMultiHead(modules.BaseModule):
+    def __init__(self, feature_size, num_heads, max_frames, is_training):
+        self.feature_size = feature_size
+        self.num_heads = num_heads
+        self.max_frames = max_frames
+        self.is_training = is_training
+
+    def self_attention(self, inputs, head_id):
+        with tf.variable_scope("head{}".format(head_id)):
+            Q = tf.layers.dense(inputs, self.feature_size, use_bias=False, activation=None)
+            K = tf.layers.dense(inputs, self.feature_size, use_bias=False, activation=None)
+            V = tf.layers.dense(inputs, self.feature_size, use_bias=False, activation=None)
+
+            attention = tf.matmul(Q, tf.transpose(K, perm=[0, 2, 1]))
+            float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
+            attention = tf.divide(attention, tf.sqrt(float_cpy))
+            attention = tf.nn.softmax(attention)
+            activation = tf.matmul(attention, V)
+            # output: -> batch_size x max_frames x num_units
+
+            alpha = \
+                tf.get_variable("alpha",
+                                [1],
+                                initializer=tf.constant_initializer(1))
+            beta = \
+                tf.get_variable("beta",
+                                [1],
+                                initializer=tf.constant_initializer(0))
+
+            activation = activation * alpha
+            activation = activation + beta
+            activation = tf.nn.l2_normalize(activation)
+            float_cpy = tf.cast(self.num_heads, dtype=tf.float32)
+            activation = tf.divide(activation, tf.sqrt(float_cpy))
+
+            return activation
+
+    def forward(self, inputs, **unused_params):
+        result = self.self_attention(inputs, head_id=0)
+        for i in range(1, self.num_heads):
+            output = self.self_attention(inputs, head_id=i)
+            result = tf.concat([result, output], 2)
+        output = tf.layers.dense(result, self.feature_size, use_bias=False, activation=None)
+        output = tf.contrib.layers.layer_norm(output)
+        return output
+
+
 class JuhanBlock(modules.BaseModule):
     def __init__(self, feature_size, filter_size, num_cluster, num_units, max_frames,
                  is_training, last_layer, block_id):
