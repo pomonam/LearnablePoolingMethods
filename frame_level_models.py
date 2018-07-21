@@ -67,16 +67,16 @@ class JbTransformerEncoderV5(models.BaseModel):
                      hidden_size=None,
                      is_training=True,
                      **unused_params):
-        iterations = iterations or FLAGS.jbtev4_iteration
-        video_hidden_size = FLAGS.jbtev4_v_hidden
-        audio_hidden_size = FLAGS.jbtev4_a_hidden
-        video_num_heads = FLAGS.jbtev4_v_num_heads
-        audio_num_heads = FLAGS.jbtev4_a_num_heads
-        video_dropout = FLAGS.jbtev4_v_attention_dropout
-        audio_dropout = FLAGS.jbtev4_a_attention_dropout
-        video_filter_size = FLAGS.jbtev4_v_filter_size
-        audio_filter_size = FLAGS.jbtev4_a_filter_size
-        final_model = FLAGS.jbtev4_video_model
+        iterations = iterations or FLAGS.jbtev5_iteration
+        video_hidden_size = FLAGS.jbtev5_v_hidden
+        audio_hidden_size = FLAGS.jbtev5_a_hidden
+        video_num_heads = FLAGS.jbtev5_v_num_heads
+        audio_num_heads = FLAGS.jbtev5_a_num_heads
+        video_dropout = FLAGS.jbtev5_v_attention_dropout
+        audio_dropout = FLAGS.jbtev5_a_attention_dropout
+        video_filter_size = FLAGS.jbtev5_v_filter_size
+        audio_filter_size = FLAGS.jbtev5_a_filter_size
+        final_model = FLAGS.jbtev5_video_model
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
@@ -243,8 +243,6 @@ class JbTransformerEncoderV5(models.BaseModel):
             vocab_size=vocab_size,
             is_training=is_training,
             **unused_params)
-
-
 
 
 flags.DEFINE_integer("jbtev4_iteration", 64,
