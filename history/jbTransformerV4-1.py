@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0003
@@ -48,7 +48,7 @@ EXTRA = "--jbtev4_iteration=64 " \
         "--jbtev4_a_num_heads=16 " \
         "--jbtev4_v_attention_dropout=0.1 " \
         "--jbtev4_a_attention_dropout=0.1 " \
-        "--jbtev4_video_model=MoeModel "
+        "--jbtev4_video_model=FourLayerBatchNeuralModel "
 
 
 def main():
