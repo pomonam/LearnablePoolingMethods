@@ -139,10 +139,20 @@ class CrazyTestV1(models.BaseModel):
                                                       is_training=is_training)
         crazy_a_ff_v1 = crazy_utils.CrazyFeedForwardV2(feature_size=128,
                                                        max_frames=max_frames,
-                                                       filter_size=video_filter_size,
+                                                       filter_size=audio_filter_size,
                                                        relu_dropout=0.0,
                                                        is_train=is_training,
                                                        scope_id="audio")
+        crazy_v_cluster = crazy_utils.CrazyCluster(feature_size=1024,
+                                                   hidden_size=1024,
+                                                   max_frames=max_frames,
+                                                   last_layer=False,
+                                                   num_cluster=video_num_clusters)
+        crazy_a_cluster = crazy_utils.CrazyCluster(feature_size=128,
+                                                   hidden_size=128,
+                                                   max_frames=max_frames,
+                                                   last_layer=False,
+                                                   num_cluster=audio_num_clusters)
 
         with tf.variable_scope("video"):
             with tf.variable_scope("encode"):
@@ -158,6 +168,7 @@ class CrazyTestV1(models.BaseModel):
                     encode3 = crazy_v_mhd_v1.forward(encode2)
                     with tf.variable_scope("ff"):
                         encode3 = crazy_v_ff_v1.forward(encode3)
+                    encode3 = crazy_v_cluster.forward(encode3)
 
             video_out = tf.reshape(encode3, [-1, video_num_clusters * 1024])
 
@@ -175,6 +186,7 @@ class CrazyTestV1(models.BaseModel):
                     encode3 = crazy_a_mhd_v1.forward(encode2)
                     with tf.variable_scope("ff"):
                         encode3 = crazy_a_ff_v1.forward(encode3)
+                    encode3 = crazy_a_cluster.forward(encode3)
 
             audio_out = tf.reshape(encode3, [-1, audio_num_clusters * 128])
 
