@@ -168,7 +168,7 @@ class CrazyTestV1(models.BaseModel):
                     encode3 = crazy_v_mhd_v1.forward(encode2)
                     with tf.variable_scope("ff"):
                         encode3 = crazy_v_ff_v1.forward(encode3)
-                    encode3 = crazy_v_cluster.forward(encode3)
+                    # encode3 = crazy_v_cluster.forward(encode3)
 
                 # Attention
                 video_activation = tf.reshape(encode3, [-1, max_frames * 1024])
@@ -200,7 +200,7 @@ class CrazyTestV1(models.BaseModel):
                     encode3 = crazy_a_mhd_v1.forward(encode2)
                     with tf.variable_scope("ff"):
                         encode3 = crazy_a_ff_v1.forward(encode3)
-                    encode3 = crazy_a_cluster.forward(encode3)
+                    # encode3 = crazy_a_cluster.forward(encode3)
 
                 # Attention
                 audio_activation = tf.reshape(encode3, [-1, max_frames * 128])
