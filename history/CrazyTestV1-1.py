@@ -50,7 +50,7 @@ EXTRA = "--crazyt_v1_iteration=64 " \
         "--crazyt_v1_a_num_clusters=32 " \
         "--crazyt_v1_v_num_units=1024 " \
         "--crazyt_v1_a_num_units=128 " \
-        "--crazyt_v1_output_dim=1024 " \
+        "--crazyt_v1_output_dim=2048 " \
         "--crazyt_v1_video_model=MoeModel "
 
 

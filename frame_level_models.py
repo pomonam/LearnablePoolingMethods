@@ -170,7 +170,21 @@ class CrazyTestV1(models.BaseModel):
                         encode3 = crazy_v_ff_v1.forward(encode3)
                     encode3 = crazy_v_cluster.forward(encode3)
 
-            video_out = tf.reshape(encode3, [-1, video_num_clusters * 1024])
+                # Attention
+                video_activation = tf.reshape(encode3, [-1, max_frames * 1024])
+                # video_activation: batch_size x (max_frames * 1024)
+                video_activation_weight = tf.layers.dense(video_activation, max_frames, activation=None)
+                # video_activation_weight: batch_size x max_frames
+                video_activation_weight = tf.expand_dims(video_activation_weight, -1)
+                # video_activation_weight: batch_size x max_frames x 1
+                video_activation_weight = tf.nn.softmax(video_activation_weight, axis=1)
+
+                # Weighted sum
+                video_activation = tf.reshape(video_activation, [-1, max_frames, 1024])
+                video_activation = tf.reduce_mean(tf.multiply(video_activation, video_activation_weight), 1)
+                # video_activation: batch_size x 1024
+
+            # video_out = tf.reshape(encode3, [-1, video_num_clusters * 1024])
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("encode"):
@@ -188,9 +202,22 @@ class CrazyTestV1(models.BaseModel):
                         encode3 = crazy_a_ff_v1.forward(encode3)
                     encode3 = crazy_a_cluster.forward(encode3)
 
-            audio_out = tf.reshape(encode3, [-1, audio_num_clusters * 128])
+                # Attention
+                audio_activation = tf.reshape(encode3, [-1, max_frames * 128])
+                # audio_activation: batch_size x (max_frames * 128)
+                audio_activation_weight = tf.layers.dense(audio_activation, max_frames, tf.nn.relu)
+                # audio_activation_weight: batch_size x max_frames
+                audio_activation_weight = tf.expand_dims(audio_activation_weight, -1)
+                # audio_activation_weight: batch_size x max_frames x 1
+                audio_activation_weight = tf.nn.softmax(audio_activation_weight, axis=1)
 
-        activation = tf.concat([video_out, audio_out], 1)
+                # Weighted sum
+                audio_activation = tf.reshape(audio_activation, [-1, max_frames, 128])
+                audio_activation = tf.reduce_mean(tf.multiply(audio_activation, audio_activation_weight), 1)
+                # video_activation: batch_size x 128
+            # audio_out = tf.reshape(encode3, [-1, audio_num_clusters * 128])
+
+        activation = tf.concat([video_activation, audio_activation], 1)
         activation = tf.layers.dense(activation, output_dim, use_bias=False, activation=None)
 
         aggregated_model = getattr(video_level_models,
