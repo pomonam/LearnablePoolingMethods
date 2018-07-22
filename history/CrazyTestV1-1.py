@@ -21,7 +21,7 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "CrazyEncoderV1"
+MODEL_NAME = "CrazyTestV1"
 MODEL_VERSION = "-1"
 
 # Does it require frame-level models?
@@ -31,27 +31,27 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 16
+BATCH_SIZE = 128
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0002
+BASE_LEARNING_RATE = 0.0003
 
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--crazy_v1_iteration=64 " \
-        "--crazy_v1_v_hidden=1024 " \
-        "--crazy_v1_a_hidden=128 " \
-        "--crazy_v1_v_filter_size=1024 " \
-        "--crazy_v1_a_filter_size=128 " \
-        "--crazy_v1_v_num_heads=8 " \
-        "--crazy_v1_a_num_heads=8 " \
-        "--crazy_v1_v_num_clusters=64 " \
-        "--crazy_v1_a_num_clusters=64 " \
-        "--crazy_v1_v_attention_dropout=0.1 " \
-        "--crazy_v1_a_attention_dropout=0.1 " \
-        "--crazy_v1_output_dim=2048 " \
-        "--crazy_v1_video_model=MoeModel "
+EXTRA = "--crazyt_v1_iteration=64 " \
+        "--crazyt_v1_v_hidden=64 " \
+        "--crazyt_v1_a_hidden=8 " \
+        "--crazyt_v1_v_filter_size=1024 " \
+        "--crazyt_v1_a_filter_size=128 " \
+        "--crazyt_v1_v_num_heads=8 " \
+        "--crazyt_v1_a_num_heads=8 " \
+        "--crazyt_v1_v_num_clusters=64 " \
+        "--crazyt_v1_a_num_clusters=64 " \
+        "--crazyt_v1_v_num_units=1024 " \
+        "--crazyt_v1_a_num_units=128 " \
+        "--crazyt_v1_output_dim=2048 " \
+        "--crazyt_v1_video_model=MoeModel "
 
 
 def main():
