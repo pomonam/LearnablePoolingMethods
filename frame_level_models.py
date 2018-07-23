@@ -31,43 +31,12 @@ import attention_modules
 import juhan_modules
 import transformer_utils
 import crazy_utils
+import fish_modules
 
 ###############################################################################
 # Transformer #################################################################
 ###############################################################################
-flags.DEFINE_integer("crazyt_v1_iteration", 64,
-                     "Number of frames per batch")
-flags.DEFINE_integer("crazyt_v1_v_hidden", 1024,
-                     "Number of hidden units")
-flags.DEFINE_integer("crazyt_v1_a_hidden", 128,
-                     "Number of hidden units")
-flags.DEFINE_integer("crazyt_v1_v_filter_size", 4096,
-                     "Number of heads")
-flags.DEFINE_integer("crazyt_v1_a_filter_size", 512,
-                     "Number of heads")
-flags.DEFINE_integer("crazyt_v1_v_num_heads", 64,
-                     "Number of heads")
-flags.DEFINE_integer("crazyt_v1_a_num_heads", 16,
-                     "Number of heads")
-flags.DEFINE_integer("crazyt_v1_v_num_clusters", 64,
-                     "Number of heads")
-flags.DEFINE_integer("crazyt_v1_a_num_clusters", 16,
-                     "Number of heads")
-flags.DEFINE_integer("crazyt_v1_v_num_units", 64,
-                     "Number of heads")
-flags.DEFINE_integer("crazyt_v1_a_num_units", 16,
-                     "Number of heads")
-flags.DEFINE_float("crazyt_v1_v_attention_dropout", 0.1,
-                   "Number of heads")
-flags.DEFINE_float("crazyt_v1_a_attention_dropout", 0.1,
-                   "Number of heads")
-flags.DEFINE_integer("crazyt_v1_output_dim", 2048,
-                     "Number of heads")
-flags.DEFINE_string("crazyt_v1_video_model", "WillowMoeModel",
-                    "Number of heads")
-
-
-class CrazyTestV1(models.BaseModel):
+class CrazyFishV1(models.BaseModel):
     def create_model(self,
                      model_input,
                      vocab_size,
@@ -78,7 +47,7 @@ class CrazyTestV1(models.BaseModel):
                      hidden_size=None,
                      is_training=True,
                      **unused_params):
-        iterations = iterations or FLAGS.crazyt_v1_iteration
+        iterations = iterations or FLAGS.crazyt_v1_iteration or 64
         video_hidden_size = FLAGS.crazyt_v1_v_hidden
         audio_hidden_size = FLAGS.crazyt_v1_a_hidden
         video_num_heads = FLAGS.crazyt_v1_v_num_heads
@@ -121,280 +90,36 @@ class CrazyTestV1(models.BaseModel):
         video_features = tf.reshape(video_features, [-1, max_frames, 1024])
         audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
 
-        crazy_v_mhd_v1 = crazy_utils.CrazyMultiHeadV2(feature_size=1024,
-                                                      num_units=video_num_units,
-                                                      num_heads=video_num_heads,
-                                                      max_frames=max_frames,
-                                                      is_training=is_training)
-        crazy_v_ff_v1 = crazy_utils.CrazyFeedForwardV2(feature_size=1024,
-                                                       max_frames=max_frames,
-                                                       filter_size=video_filter_size,
-                                                       relu_dropout=0.0,
-                                                       is_train=is_training,
-                                                       scope_id="video")
-        crazy_a_mhd_v1 = crazy_utils.CrazyMultiHeadV2(feature_size=128,
-                                                      num_units=audio_num_units,
-                                                      num_heads=audio_num_heads,
-                                                      max_frames=max_frames,
-                                                      is_training=is_training)
-        crazy_a_ff_v1 = crazy_utils.CrazyFeedForwardV2(feature_size=128,
-                                                       max_frames=max_frames,
-                                                       filter_size=audio_filter_size,
-                                                       relu_dropout=0.0,
-                                                       is_train=is_training,
-                                                       scope_id="audio")
-        crazy_v_cluster = crazy_utils.CrazyCluster(feature_size=1024,
-                                                   hidden_size=1024,
-                                                   max_frames=max_frames,
-                                                   last_layer=False,
-                                                   num_cluster=video_num_clusters)
-        crazy_a_cluster = crazy_utils.CrazyCluster(feature_size=128,
-                                                   hidden_size=128,
-                                                   max_frames=max_frames,
-                                                   last_layer=False,
-                                                   num_cluster=audio_num_clusters)
+        first_v_attention_cluster = fish_modules.LuckyFishModule(feature_size=1024,
+                                                                 max_frames=max_frames,
+                                                                 cluster_size=256,
+                                                                 add_batch_norm=True,
+                                                                 shift_operation=True,
+                                                                 is_training=is_training)
+        first_a_attention_cluster = fish_modules.LuckyFishModule(feature_size=1024,
+                                                                 max_frames=max_frames,
+                                                                 cluster_size=64,
+                                                                 add_batch_norm=True,
+                                                                 shift_operation=True,
+                                                                 is_training=is_training)
 
         with tf.variable_scope("video"):
             with tf.variable_scope("encode"):
-                with tf.variable_scope("block_1"):
-                    encode1 = crazy_v_mhd_v1.forward(video_features)
-                    with tf.variable_scope("ff"):
-                        encode1 = crazy_v_ff_v1.forward(encode1)
-                with tf.variable_scope("block_2"):
-                    encode2 = crazy_v_mhd_v1.forward(encode1)
-                    with tf.variable_scope("ff"):
-                        encode2 = crazy_v_ff_v1.forward(encode2)
-                with tf.variable_scope("block_3"):
-                    encode3 = crazy_v_mhd_v1.forward(encode2)
-                    with tf.variable_scope("ff"):
-                        encode3 = crazy_v_ff_v1.forward(encode3)
-                    # encode3 = crazy_v_cluster.forward(encode3)
-
-                # Attention
-                video_activation = tf.reshape(encode3, [-1, max_frames * 1024])
-                # video_activation: batch_size x (max_frames * 1024)
-                video_activation_weight = tf.layers.dense(video_activation, max_frames, activation=None)
-                # video_activation_weight: batch_size x max_frames
-                video_activation_weight = tf.expand_dims(video_activation_weight, -1)
-                # video_activation_weight: batch_size x max_frames x 1
-                video_activation_weight = tf.nn.softmax(video_activation_weight, axis=1)
-
-                # Weighted sum
-                video_activation = tf.reshape(video_activation, [-1, max_frames, 1024])
-                video_activation = tf.reduce_mean(tf.multiply(video_activation, video_activation_weight), 1)
-                # video_activation: batch_size x 1024
-
-            # video_out = tf.reshape(encode3, [-1, video_num_clusters * 1024])
+                video_activation = first_v_attention_cluster.forward(video_features)
+                video_activation = tf.reshape(video_activation, [-1, 256 * 1024])
+                video_activation = tf.layers.dense(video_activation, 1024, use_bias=False, activation=None)
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("encode"):
-                with tf.variable_scope("block_1"):
-                    encode1 = crazy_a_mhd_v1.forward(audio_features)
-                    with tf.variable_scope("ff"):
-                        encode1 = crazy_a_ff_v1.forward(encode1)
-                with tf.variable_scope("block_2"):
-                    encode2 = crazy_a_mhd_v1.forward(encode1)
-                    with tf.variable_scope("ff"):
-                        encode2 = crazy_a_ff_v1.forward(encode2)
-                with tf.variable_scope("block_4"):
-                    encode3 = crazy_a_mhd_v1.forward(encode2)
-                    with tf.variable_scope("ff"):
-                        encode3 = crazy_a_ff_v1.forward(encode3)
-                    # encode3 = crazy_a_cluster.forward(encode3)
-
-                # Attention
-                audio_activation = tf.reshape(encode3, [-1, max_frames * 128])
-                # audio_activation: batch_size x (max_frames * 128)
-                audio_activation_weight = tf.layers.dense(audio_activation, max_frames, tf.nn.relu)
-                # audio_activation_weight: batch_size x max_frames
-                audio_activation_weight = tf.expand_dims(audio_activation_weight, -1)
-                # audio_activation_weight: batch_size x max_frames x 1
-                audio_activation_weight = tf.nn.softmax(audio_activation_weight, axis=1)
-
-                # Weighted sum
-                audio_activation = tf.reshape(audio_activation, [-1, max_frames, 128])
-                audio_activation = tf.reduce_mean(tf.multiply(audio_activation, audio_activation_weight), 1)
-                # video_activation: batch_size x 128
-            # audio_out = tf.reshape(encode3, [-1, audio_num_clusters * 128])
+                audio_activation = first_a_attention_cluster.forward(video_features)
+                audio_activation = tf.reshape(audio_activation, [-1, 64 * 128])
+                audio_activation = tf.layers.dense(audio_activation, 128, use_bias=False, activation=None)
 
         activation = tf.concat([video_activation, audio_activation], 1)
-        activation = tf.layers.dense(activation, output_dim, use_bias=False, activation=None)
+        # activation = tf.layers.dense(activation, output_dim, use_bias=False, activation=None)
 
         aggregated_model = getattr(video_level_models,
-                                   final_model)
-
-        return aggregated_model().create_model(
-            model_input=activation,
-            vocab_size=vocab_size,
-            is_training=is_training,
-            **unused_params)
-
-
-
-flags.DEFINE_integer("crazy_v1_iteration", 64,
-                     "Number of frames per batch")
-flags.DEFINE_integer("crazy_v1_v_hidden", 1024,
-                     "Number of hidden units")
-flags.DEFINE_integer("crazy_v1_a_hidden", 128,
-                     "Number of hidden units")
-flags.DEFINE_integer("crazy_v1_v_filter_size", 4096,
-                     "Number of heads")
-flags.DEFINE_integer("crazy_v1_a_filter_size", 512,
-                     "Number of heads")
-flags.DEFINE_integer("crazy_v1_v_num_heads", 64,
-                     "Number of heads")
-flags.DEFINE_integer("crazy_v1_a_num_heads", 16,
-                     "Number of heads")
-flags.DEFINE_integer("crazy_v1_v_num_clusters", 64,
-                     "Number of heads")
-flags.DEFINE_integer("crazy_v1_a_num_clusters", 16,
-                     "Number of heads")
-flags.DEFINE_float("crazy_v1_v_attention_dropout", 0.1,
-                   "Number of heads")
-flags.DEFINE_float("crazy_v1_a_attention_dropout", 0.1,
-                   "Number of heads")
-flags.DEFINE_integer("crazy_v1_output_dim", 2048,
-                     "Number of heads")
-flags.DEFINE_string("crazy_v1_video_model", "WillowMoeModel",
-                    "Number of heads")
-
-
-class CrazyEncoderV1(models.BaseModel):
-    def create_model(self,
-                     model_input,
-                     vocab_size,
-                     num_frames,
-                     iterations=None,
-                     add_batch_norm=None,
-                     sample_random_frames=None,
-                     hidden_size=None,
-                     is_training=True,
-                     **unused_params):
-        iterations = iterations or FLAGS.crazy_v1_iteration
-        video_hidden_size = FLAGS.crazy_v1_v_hidden
-        audio_hidden_size = FLAGS.crazy_v1_a_hidden
-        video_num_heads = FLAGS.crazy_v1_v_num_heads
-        audio_num_heads = FLAGS.crazy_v1_a_num_heads
-        video_num_clusters = FLAGS.crazy_v1_v_num_clusters
-        audio_num_clusters = FLAGS.crazy_v1_a_num_clusters
-        video_dropout = FLAGS.crazy_v1_v_attention_dropout
-        audio_dropout = FLAGS.crazy_v1_a_attention_dropout
-        video_filter_size = FLAGS.crazy_v1_v_filter_size
-        audio_filter_size = FLAGS.crazy_v1_a_filter_size
-        output_dim = FLAGS.crazy_v1_output_dim
-        final_model = FLAGS.crazy_v1_video_model
-
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
-        # model_input: batch_size x max_frames x feature_size
-        max_frames = model_input.get_shape().as_list()[1]
-        feature_size = model_input.get_shape().as_list()[2]
-        reshaped_input = tf.reshape(model_input, [-1, feature_size])
-
-        # Differentiate video & audio features.
-        video_features = reshaped_input[:, 0:1024]
-        audio_features = reshaped_input[:, 1024:]
-
-        video_features = slim.batch_norm(
-            video_features,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="video_features_bn")
-        audio_features = slim.batch_norm(
-            audio_features,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="audio_features_bn")
-
-        video_features = tf.reshape(video_features, [-1, max_frames, 1024])
-        audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
-
-        crazy_v_mhd_v1 = transformer_utils.CrazyMultiHead(feature_size=1024,
-                                                          num_heads=video_num_heads,
-                                                          max_frames=max_frames,
-                                                          is_training=is_training)
-        crazy_a_mhd_v1 = transformer_utils.CrazyMultiHead(feature_size=128,
-                                                          num_heads=audio_num_heads,
-                                                          max_frames=max_frames,
-                                                          is_training=is_training)
-        crazy_v_mhd_v2 = transformer_utils.CrazyMultiHead(feature_size=1024,
-                                                          num_heads=video_num_heads,
-                                                          max_frames=video_num_clusters,
-                                                          is_training=is_training)
-        crazy_a_mhd_v2 = transformer_utils.CrazyMultiHead(feature_size=128,
-                                                          num_heads=audio_num_heads,
-                                                          max_frames=audio_num_clusters,
-                                                          is_training=is_training)
-        crazy_v_ffn = transformer_utils.CrazyFeedForward(feature_size=1024,
-                                                         filter_size=video_filter_size,
-                                                         relu_dropout=0.0,
-                                                         is_train=is_training,
-                                                         scope_id="video")
-        crazy_a_ffn = transformer_utils.CrazyFeedForward(feature_size=128,
-                                                         filter_size=audio_filter_size,
-                                                         relu_dropout=0.0,
-                                                         is_train=is_training,
-                                                         scope_id="audio")
-        crazy_v_cluster = transformer_utils.CrazyCluster(feature_size=1024,
-                                                         hidden_size=1024,
-                                                         num_frames=max_frames,
-                                                         last_layer=False,
-                                                         num_cluster=video_num_clusters,
-                                                         do_shift=True)
-        crazy_a_cluster = transformer_utils.CrazyCluster(feature_size=1024,
-                                                         hidden_size=1024,
-                                                         num_frames=max_frames,
-                                                         last_layer=False,
-                                                         num_cluster=video_num_clusters,
-                                                         do_shift=True)
-
-        with tf.variable_scope("video"):
-            with tf.variable_scope("encode"):
-                with tf.variable_scope("block_1"):
-                    encode1 = crazy_v_mhd_v1.forward(video_features)
-                    encode1 = crazy_v_ffn.forward(encode1)
-                with tf.variable_scope("block_2"):
-                    encode2 = crazy_v_mhd_v1.forward(encode1)
-                    encode2 = crazy_v_ffn.forward(encode2)
-                with tf.variable_scope("block_4"):
-                    encode4 = crazy_v_cluster.forward(encode2)
-                with tf.variable_scope("block_5"):
-                    encode5 = crazy_v_mhd_v2.forward(encode4)
-                    encode5 = crazy_v_ffn.forward(encode5)
-                with tf.variable_scope("block_6"):
-                    encode6 = crazy_v_mhd_v2.forward(encode5)
-                    encode6 = crazy_v_ffn.forward(encode6)
-                with tf.variable_scope("block_7"):
-                    encode7 = crazy_v_cluster.forward(encode6)
-            video_out = tf.reshape(encode7, [-1, video_num_clusters * 1024])
-
-        with tf.variable_scope("audio"):
-            with tf.variable_scope("encode"):
-                with tf.variable_scope("block_1"):
-                    encode1 = crazy_a_mhd_v1.forward(audio_features)
-                    encode1 = crazy_a_ffn.forward(encode1)
-                with tf.variable_scope("block_2"):
-                    encode2 = crazy_a_mhd_v1.forward(encode1)
-                    encode2 = crazy_a_ffn.forward(encode2)
-                with tf.variable_scope("block_4"):
-                    encode4 = crazy_a_cluster.forward(encode2)
-                with tf.variable_scope("block_5"):
-                    encode5 = crazy_a_mhd_v2.forward(encode4)
-                    encode5 = crazy_a_ffn.forward(encode5)
-                with tf.variable_scope("block_6"):
-                    encode6 = crazy_a_mhd_v2.forward(encode5)
-                    encode6 = crazy_a_ffn.forward(encode6)
-                with tf.variable_scope("block_7"):
-                    encode7 = crazy_a_cluster.forward(encode6)
-            audio_out = tf.reshape(encode7, [-1, audio_num_clusters * 128])
-
-        activation = tf.concat([video_out, audio_out], 1)
-        activation = tf.layers.dense(activation, output_dim, use_bias=False, activation=None)
-
-        aggregated_model = getattr(video_level_models,
-                                   final_model)
+                                   "MoeModel")
 
         return aggregated_model().create_model(
             model_input=activation,
@@ -3816,3 +3541,5 @@ class NetVLAD():
         vlad = tf.nn.l2_normalize(vlad, 1)
 
         return vlad
+
+
