@@ -93,16 +93,32 @@ class CrazyFishV1(models.BaseModel):
             with tf.variable_scope("encode"):
                 video_activation = first_v_attention_cluster.forward(video_features)
                 video_activation = tf.reshape(video_activation, [-1, 256 * 1024])
-                video_activation = tf.layers.dense(video_activation, 1024, use_bias=False, activation=None)
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("encode"):
                 audio_activation = first_a_attention_cluster.forward(audio_features)
                 audio_activation = tf.reshape(audio_activation, [-1, 64 * 128])
-                audio_activation = tf.layers.dense(audio_activation, 128, use_bias=False, activation=None)
 
         activation = tf.concat([video_activation, audio_activation], 1)
-        # activation = tf.layers.dense(activation, output_dim, use_bias=False, activation=None)
+        activation = tf.layers.dense(activation, 1024, use_bias=False, activation=None)
+        activation = tf.contrib.layers.layer_norm(activation)
+
+        filter_output = tf.layers.dense(activation,
+                                        4096,
+                                        use_bias=True,
+                                        activation=tf.nn.relu,
+                                        name="filter")
+        if is_training:
+            filter_output = tf.nn.dropout(filter_output, 0.9)
+
+        output = tf.layers.dense(filter_output,
+                                 1024,
+                                 use_bias=True,
+                                 activation=tf.nn.relu,
+                                 name="output")
+
+        activation = activation + output
+        activation = tf.contrib.layers.layer_norm(activation)
 
         aggregated_model = getattr(video_level_models,
                                    "MoeModel")

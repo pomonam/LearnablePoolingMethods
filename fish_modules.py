@@ -19,14 +19,8 @@ class LuckyFishModule(modules.BaseModule):
         reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
         inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
         attention_weights = tf.layers.dense(reshaped_inputs, self.cluster_size, use_bias=False, activation=None)
-        # float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
-        # attention_weights = tf.divide(attention_weights, tf.sqrt(float_cpy))
-        attention_weights = slim.batch_norm(
-            attention_weights,
-            center=True,
-            scale=True,
-            is_training=self.is_training,
-            scope="cluster_bn")
+        float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
+        attention_weights = tf.divide(attention_weights, tf.sqrt(float_cpy))
         attention_weights = tf.nn.softmax(attention_weights)
 
         reshaped_attention = tf.reshape(attention_weights, [-1, self.max_frames, self.cluster_size])
