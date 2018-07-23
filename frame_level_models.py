@@ -80,13 +80,13 @@ class CrazyFishV1(models.BaseModel):
                                                                  max_frames=max_frames,
                                                                  cluster_size=256,
                                                                  add_batch_norm=True,
-                                                                 shift_operation=False,
+                                                                 shift_operation=True,
                                                                  is_training=is_training)
         first_a_attention_cluster = fish_modules.LuckyFishModule(feature_size=128,
                                                                  max_frames=max_frames,
                                                                  cluster_size=64,
                                                                  add_batch_norm=True,
-                                                                 shift_operation=False,
+                                                                 shift_operation=True,
                                                                  is_training=is_training)
 
         with tf.variable_scope("video"):
@@ -3392,8 +3392,8 @@ class NetVLADModelLF(models.BaseModel):
         feature_size = model_input.get_shape().as_list()[2]
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
-        video_NetVLAD = NetVLAD(1024, max_frames, 256, add_batch_norm, is_training)
-        audio_NetVLAD = NetVLAD(128, max_frames, 64, add_batch_norm, is_training)
+        video_NetVLAD = LightVLAD(1024, max_frames, 256, add_batch_norm, is_training)
+        audio_NetVLAD = LightVLAD(128, max_frames, 64, add_batch_norm, is_training)
 
         if add_batch_norm:  # and not lightvlad:
             reshaped_input = slim.batch_norm(
@@ -3529,3 +3529,51 @@ class NetVLAD():
         return vlad
 
 
+class LightVLAD():
+    def __init__(self, feature_size, max_frames, cluster_size, add_batch_norm, is_training):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.add_batch_norm = add_batch_norm
+        self.cluster_size = cluster_size
+
+    def forward(self, reshaped_input):
+
+        cluster_weights = tf.get_variable("cluster_weights",
+                                          [self.feature_size, self.cluster_size],
+                                          initializer=tf.random_normal_initializer(
+                                              stddev=1 / math.sqrt(self.feature_size)))
+
+        activation = tf.matmul(reshaped_input, cluster_weights)
+
+        if self.add_batch_norm:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="cluster_bn")
+        else:
+            cluster_biases = tf.get_variable("cluster_biases",
+                                             [cluster_size],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(self.feature_size)))
+            tf.summary.histogram("cluster_biases", cluster_biases)
+            activation += cluster_biases
+
+        activation = tf.nn.softmax(activation)
+
+        activation = tf.reshape(activation, [-1, self.max_frames, self.cluster_size])
+
+        activation = tf.transpose(activation, perm=[0, 2, 1])
+
+        reshaped_input = tf.reshape(reshaped_input, [-1, self.max_frames, self.feature_size])
+        vlad = tf.matmul(activation, reshaped_input)
+
+        vlad = tf.transpose(vlad, perm=[0, 2, 1])
+        vlad = tf.nn.l2_normalize(vlad, 1)
+
+        vlad = tf.reshape(vlad, [-1, self.cluster_size * self.feature_size])
+        vlad = tf.nn.l2_normalize(vlad, 1)
+
+        return vlad
