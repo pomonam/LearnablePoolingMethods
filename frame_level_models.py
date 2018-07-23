@@ -240,15 +240,15 @@ class CrazyFishV2(models.BaseModel):
                         final_audio = tf.reshape(final_audio, [-1, 64 * 128])
 
         activation = tf.concat([final_video, final_audio], 1)
-        activation = tf.layers.dense(activation, 2048, use_bias=False, activation=None)
+        activation = tf.layers.dense(activation, 1028, use_bias=False, activation=None)
         activation = tf.contrib.layers.layer_norm(activation)
         filter_output = tf.layers.dense(activation,
-                                        2048,
+                                        1028,
                                         use_bias=True,
                                         activation=tf.nn.relu,
                                         name="filter")
         output = tf.layers.dense(filter_output,
-                                 2048,
+                                 1028,
                                  use_bias=True,
                                  activation=tf.nn.relu,
                                  name="output")
