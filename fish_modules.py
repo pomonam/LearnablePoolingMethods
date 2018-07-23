@@ -25,23 +25,31 @@ class LuckyFishModule(modules.BaseModule):
         # -> transposed_attention: batch_size x cluster_size x max_frames
         activation = tf.matmul(transposed_attention, inputs)
         # -> activation: batch_size x cluster_size x feature_size
-        if self.shift_operation:
-            alpha = tf.get_variable("alpha",
-                                    [1, self.cluster_size, 1],
-                                    initializer=tf.constant_initializer(1.0))
-            beta = tf.get_variable("beta",
-                                   [1, self.cluster_size, 1],
-                                   initializer=tf.constant_initializer(0.0))
-            activation = tf.multiply(activation, alpha)
-            activation = tf.add(activation, beta)
-            float_cpy = tf.cast(self.cluster_size, dtype=tf.float32)
-            activation = tf.divide(activation, tf.sqrt(float_cpy))
-        normalized_activation = tf.nn.l2_normalize(activation, 2)
-        reshaped_normalized_activation = tf.reshape(normalized_activation, [-1, self.cluster_size * self.feature_size])
-        final_activation = tf.contrib.layers.layer_norm(reshaped_normalized_activation)
-        reshaped_final_activation = tf.reshape(final_activation, [-1, self.cluster_size, self.feature_size])
 
-        return reshaped_final_activation
+        # if self.shift_operation:
+        #     alpha = tf.get_variable("alpha",
+        #                             [1, self.cluster_size, 1],
+        #                             initializer=tf.constant_initializer(1.0))
+        #     beta = tf.get_variable("beta",
+        #                            [1, self.cluster_size, 1],
+        #                            initializer=tf.constant_initializer(0.0))
+        #     activation = tf.multiply(activation, alpha)
+        #     activation = tf.add(activation, beta)
+        #     float_cpy = tf.cast(self.cluster_size, dtype=tf.float32)
+        #     activation = tf.divide(activation, tf.sqrt(float_cpy))
+        activation = tf.transpose(activation, perm=[0, 2, 1])
+        activation = tf.nn.l2_normalize(activation, 1)
+
+        activation = tf.reshape(activation, [-1, self.cluster_size * self.feature_size])
+        activation = tf.nn.l2_normalize(activation, 1)
+        #
+        # normalized_activation = tf.nn.l2_normalize(activation, 2)
+        # reshaped_normalized_activation = tf.reshape(normalized_activation, [-1, self.cluster_size * self.feature_size])
+        # final_activation = tf.contrib.layers.layer_norm(reshaped_normalized_activation)
+        # reshaped_final_activation = tf.reshape(final_activation, [-1, self.cluster_size, self.feature_size])
+
+        # return reshaped_final_activation
+        return activation
 
 
 class LuckyFishFastForward(modules.BaseModule):
