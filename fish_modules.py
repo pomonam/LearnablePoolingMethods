@@ -15,7 +15,9 @@ class LuckyFishModule(modules.BaseModule):
         self.cluster_size = cluster_size
 
     def forward(self, inputs, **unused_params):
+
         reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
+        inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
         attention_weights = tf.layers.dense(reshaped_inputs, self.cluster_size, use_bias=False, activation=None)
         # float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
         # attention_weights = tf.divide(attention_weights, tf.sqrt(float_cpy))
