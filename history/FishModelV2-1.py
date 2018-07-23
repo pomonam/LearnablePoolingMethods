@@ -21,8 +21,8 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "CrazyTestV1"
-MODEL_VERSION = "-1"
+MODEL_NAME = "CrazyFishV2"
+MODEL_VERSION = "-2"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -34,24 +34,12 @@ FEATURES = "rgb,audio"
 BATCH_SIZE = 64
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0001
+BASE_LEARNING_RATE = 0.0002
 
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--crazyt_v1_iteration=64 " \
-        "--crazyt_v1_v_hidden=64 " \
-        "--crazyt_v1_a_hidden=8 " \
-        "--crazyt_v1_v_filter_size=1024 " \
-        "--crazyt_v1_a_filter_size=128 " \
-        "--crazyt_v1_v_num_heads=8 " \
-        "--crazyt_v1_a_num_heads=8 " \
-        "--crazyt_v1_v_num_clusters=32 " \
-        "--crazyt_v1_a_num_clusters=32 " \
-        "--crazyt_v1_v_num_units=1024 " \
-        "--crazyt_v1_a_num_units=128 " \
-        "--crazyt_v1_output_dim=2048 " \
-        "--crazyt_v1_video_model=MoeModel "
+EXTRA = " "
 
 
 def main():

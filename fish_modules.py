@@ -43,7 +43,7 @@ class LuckyFishModule(modules.BaseModule):
 
         normalized_activation = tf.nn.l2_normalize(activation, 2)
         reshaped_normalized_activation = tf.reshape(normalized_activation, [-1, self.cluster_size * self.feature_size])
-        final_activation = tf.contrib.layers.layer_norm(reshaped_normalized_activation)
+        final_activation = tf.nn.l2_normalize(reshaped_normalized_activation)
         reshaped_final_activation = tf.reshape(final_activation, [-1, self.cluster_size, self.feature_size])
 
         return reshaped_final_activation
@@ -90,3 +90,62 @@ class LuckyFishFastForward(modules.BaseModule):
         activation = tf.reshape(output, [-1, self.max_frames, self.feature_size])
 
         return activation
+
+
+class FishMultiHead(modules.BaseModule):
+    def __init__(self, feature_size, filter_size, num_units, num_heads, max_frames, is_training):
+        self.feature_size = feature_size
+        self.filter_size = filter_size
+        self.num_units = num_units
+        self.num_heads = num_heads
+        self.max_frames = max_frames
+        self.is_training = is_training
+
+    def self_attention(self, inputs, head_id):
+        with tf.variable_scope("head{}".format(head_id)):
+            reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
+            q = tf.layers.dense(reshaped_inputs, self.num_units, use_bias=False, activation=None)
+            k = tf.layers.dense(reshaped_inputs, self.num_units, use_bias=False, activation=None)
+            v = tf.layers.dense(reshaped_inputs, self.num_units, use_bias=False, activation=None)
+
+            q = tf.reshape(q, [-1, self.max_frames, self.num_units])
+            k = tf.reshape(k, [-1, self.max_frames, self.num_units])
+            v = tf.reshape(v, [-1, self.max_frames, self.num_units])
+
+            attention = tf.matmul(q, tf.transpose(k, perm=[0, 2, 1]))
+            float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
+            attention = tf.divide(attention, tf.sqrt(float_cpy))
+            attention = tf.nn.softmax(attention)
+            activation = tf.matmul(attention, v)
+            # output: -> batch_size x max_frames x num_units
+
+            activation = tf.nn.l2_normalize(activation, 2)
+            reshaped_activation = tf.reshape(activation, [-1, self.max_frames * self.num_units])
+            activation = tf.nn.l2_normalize(reshaped_activation)
+            reshaped_final_activation = tf.reshape(activation, [-1, self.max_frames, self.num_units])
+            return reshaped_final_activation
+
+    def forward(self, inputs, **unused_params):
+        result = self.self_attention(inputs, head_id=0)
+        for i in range(1, self.num_heads):
+            output = self.self_attention(inputs, head_id=i)
+            result = tf.concat([result, output], 2)
+        result = tf.reshape(result, [-1, self.num_units * self.num_heads])
+        output = tf.layers.dense(result, self.feature_size, use_bias=False, activation=None)
+        output = tf.contrib.layers.layer_norm(output)
+
+        filter_output = tf.layers.dense(output, self.filter_size,
+                                        use_bias=True,
+                                        activation=tf.nn.relu,
+                                        name="filter_output")
+
+        final = tf.layers.dense(filter_output, self.feature_size,
+                                use_bias=True,
+                                activation=tf.nn.relu,
+                                name="ff_output")
+
+        output = final + output
+        output = tf.contrib.layers.layer_norm(output)
+        output = tf.reshape(output, [-1, self.max_frames, self.feature_size])
+
+        return output
