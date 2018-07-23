@@ -21,7 +21,7 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "WillowModelReg"
+MODEL_NAME = "NetVLADModelLF"
 MODEL_VERSION = "-1"
 
 # Does it require frame-level models?
