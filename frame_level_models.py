@@ -3635,7 +3635,7 @@ class WillowModelReg(models.BaseModel):
             activation = tf.multiply(activation, gates)
 
         aggregated_model = getattr(video_level_models,
-                                   "WillowMoeModel")
+                                   "MoeModel")
 
         return aggregated_model().create_model(
             model_input=activation,

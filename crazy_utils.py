@@ -97,6 +97,7 @@ class CrazyMultiHeadV2(modules.BaseModule):
             output = self.self_attention(inputs, head_id=i)
             result = tf.concat([result, output], 2)
         reshaped_result = tf.reshape(result, [-1, self.num_units * self.num_heads])
+
         activation = tf.layers.dense(reshaped_result, self.feature_size, use_bias=False, activation=None)
         reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
         reshaped_activation = tf.reshape(activation, [-1, self.feature_size])
