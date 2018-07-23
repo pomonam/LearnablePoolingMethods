@@ -80,13 +80,13 @@ class CrazyFishV1(models.BaseModel):
                                                                  max_frames=max_frames,
                                                                  cluster_size=256,
                                                                  add_batch_norm=True,
-                                                                 shift_operation=True,
+                                                                 shift_operation=False,
                                                                  is_training=is_training)
         first_a_attention_cluster = fish_modules.LuckyFishModule(feature_size=128,
                                                                  max_frames=max_frames,
                                                                  cluster_size=64,
                                                                  add_batch_norm=True,
-                                                                 shift_operation=True,
+                                                                 shift_operation=False,
                                                                  is_training=is_training)
 
         with tf.variable_scope("video"):
