@@ -27,13 +27,13 @@ class LuckyFishModule(modules.BaseModule):
         # -> activation: batch_size x cluster_size x feature_size
         if self.shift_operation:
             alpha = tf.get_variable("alpha",
-                                    [self.cluster_size],
+                                    [1, self.cluster_size, 1],
                                     initializer=tf.constant_initializer(1.0))
             beta = tf.get_variable("beta",
-                                   [self.cluster_size],
+                                   [1, self.cluster_size, 1],
                                    initializer=tf.constant_initializer(0.0))
-            activation = activation * alpha
-            activation = activation + beta
+            activation = tf.multiply(activation, alpha)
+            activation = tf.add(activation, beta)
             float_cpy = tf.cast(self.cluster_size, dtype=tf.float32)
             activation = tf.divide(activation, tf.sqrt(float_cpy))
         normalized_activation = tf.nn.l2_normalize(activation, 2)

@@ -47,21 +47,7 @@ class CrazyFishV1(models.BaseModel):
                      hidden_size=None,
                      is_training=True,
                      **unused_params):
-        iterations = iterations or FLAGS.crazyt_v1_iteration or 64
-        video_hidden_size = FLAGS.crazyt_v1_v_hidden
-        audio_hidden_size = FLAGS.crazyt_v1_a_hidden
-        video_num_heads = FLAGS.crazyt_v1_v_num_heads
-        audio_num_heads = FLAGS.crazyt_v1_a_num_heads
-        video_num_clusters = FLAGS.crazyt_v1_v_num_clusters
-        audio_num_clusters = FLAGS.crazyt_v1_a_num_clusters
-        video_dropout = FLAGS.crazyt_v1_v_attention_dropout
-        audio_dropout = FLAGS.crazyt_v1_a_attention_dropout
-        video_num_units = FLAGS.crazyt_v1_v_num_units
-        audio_num_units = FLAGS.crazyt_v1_a_num_units
-        video_filter_size = FLAGS.crazyt_v1_v_filter_size
-        audio_filter_size = FLAGS.crazyt_v1_a_filter_size
-        output_dim = FLAGS.crazyt_v1_output_dim
-        final_model = FLAGS.crazyt_v1_video_model
+        iterations = iterations or 64
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
@@ -96,7 +82,7 @@ class CrazyFishV1(models.BaseModel):
                                                                  add_batch_norm=True,
                                                                  shift_operation=True,
                                                                  is_training=is_training)
-        first_a_attention_cluster = fish_modules.LuckyFishModule(feature_size=1024,
+        first_a_attention_cluster = fish_modules.LuckyFishModule(feature_size=128,
                                                                  max_frames=max_frames,
                                                                  cluster_size=64,
                                                                  add_batch_norm=True,
@@ -111,7 +97,7 @@ class CrazyFishV1(models.BaseModel):
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("encode"):
-                audio_activation = first_a_attention_cluster.forward(video_features)
+                audio_activation = first_a_attention_cluster.forward(audio_features)
                 audio_activation = tf.reshape(audio_activation, [-1, 64 * 128])
                 audio_activation = tf.layers.dense(audio_activation, 128, use_bias=False, activation=None)
 
