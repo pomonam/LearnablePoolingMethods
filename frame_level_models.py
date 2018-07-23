@@ -261,12 +261,12 @@ class CrazyFishV2(models.BaseModel):
             activation2 = tf.layers.dense(activation2, 128, use_bias=False, activation=None)
             activation2 = tf.contrib.layers.layer_norm(activation2)
             filter_output = tf.layers.dense(activation2,
-                                            2048,
+                                            256,
                                             use_bias=True,
                                             activation=tf.nn.relu,
                                             name="filter")
             output = tf.layers.dense(filter_output,
-                                     1024,
+                                     128,
                                      use_bias=True,
                                      activation=tf.nn.relu,
                                      name="output")
