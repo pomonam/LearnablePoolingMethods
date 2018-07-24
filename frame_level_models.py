@@ -220,7 +220,7 @@ class CrazyFishV2(models.BaseModel):
                     # with tf.variable_scope("block_3"):
                     #     b3 = fish_v_self_attention.forward(b2)
                     with tf.variable_scope("cluster"):
-                        all_concat = tf.concat([video_features, b1, b2], 1)
+                        all_concat = tf.concat([video_features, b1], 1)
                         final_video = second_v_attention_cluster.forward(all_concat)
                         final_video = tf.reshape(final_video, [-1, 512 * 1024])
 
@@ -237,7 +237,7 @@ class CrazyFishV2(models.BaseModel):
                     # with tf.variable_scope("block_3"):
                     #     b3 = fish_a_self_attention.forward(b2)
                     with tf.variable_scope("cluster"):
-                        all_concat = tf.concat([audio_features, b1, b2], 1)
+                        all_concat = tf.concat([audio_features, b1], 1)
                         final_audio = second_a_attention_cluster.forward(all_concat)
                         final_audio = tf.reshape(final_audio, [-1, 128 * 128])
 
