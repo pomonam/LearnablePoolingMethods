@@ -197,7 +197,7 @@ class CrazyFishV2(models.BaseModel):
         fish_v_self_attention = fish_modules.FishMultiHead(feature_size=1024,
                                                            filter_size=1024,
                                                            num_units=1024,
-                                                           num_heads=16,
+                                                           num_heads=8,
                                                            max_frames=max_frames,
                                                            is_training=is_training)
         fish_a_self_attention = fish_modules.FishMultiHead(feature_size=128,
