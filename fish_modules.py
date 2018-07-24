@@ -15,8 +15,8 @@ class LuckyFishModule(modules.BaseModule):
         self.cluster_size = cluster_size
 
     def forward(self, inputs, **unused_params):
-        inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
         reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
+        inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
         attention_weights = tf.layers.dense(reshaped_inputs, self.cluster_size, use_bias=False, activation=None)
         attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
         attention_weights = tf.nn.softmax(attention_weights)
@@ -91,3 +91,24 @@ class FishMultiHead(modules.BaseModule):
         output = tf.layers.batch_normalization(output, training=self.is_training)
         output = tf.reshape(output, [-1, self.cluster_size, self.feature_size])
         return output
+
+
+class FishGate(modules.BaseModule):
+    def __init__(self, hidden_size, is_training):
+        self.hidden_size = hidden_size
+        self.is_training = is_training
+
+    def forward(self, inputs, **unused_params):
+        activation = tf.layers.dense(inputs, self.hidden_size, use_bias=False, activation=None)
+        activation = tf.layers.batch_normalization(activation, training=self.is_training)
+
+        gating_weights = tf.get_variable("gating_weights_2",
+                                         [self.hidden_size, self.hidden_size],
+                                         initializer=tf.random_normal_initializer(
+                                             stddev=1 / math.sqrt(self.hidden_size)))
+
+        gates = tf.matmul(activation, gating_weights)
+        gates = tf.layers.batch_normalization(gates, training=self.is_training)
+        gates = tf.sigmoid(gates)
+        activation = tf.multiply(activation, gates)
+        return activation

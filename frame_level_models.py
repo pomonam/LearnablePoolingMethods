@@ -307,7 +307,7 @@ flags.DEFINE_integer("fish3_video_num_heads", 8,
                      "Number of frames per batch")
 flags.DEFINE_integer("fish3_audio_num_heads", 8,
                      "Number of frames per batch")
-flags.DEFINE_integer("fish3_hidden_size", 2048,
+flags.DEFINE_integer("fish3_hidden_size", 1024,
                      "Number of frames per batch")
 
 
@@ -398,78 +398,67 @@ class CrazyFishV3(models.BaseModel):
                                                            cluster_size=audio_cluster_size,
                                                            is_training=is_training)
 
+        fg_v = fish_modules.FishGate(hidden_size=1024,
+                                     is_training=is_training)
+        fg_a = fish_modules.FishGate(hidden_size=128,
+                                     is_training=is_training)
+
         with tf.variable_scope("video"):
             with tf.variable_scope("block_1"):
                 video_cluster1 = initial_v_attention_cluster.forward(video_features)
+                video_cluster1_temp = tf.reshape(video_cluster1, [-1, video_cluster_size * 1024])
+                video_fg1 = fg_v.forward(video_cluster1_temp)
                 video_mha1 = fish_v_self_attention.forward(video_cluster1)
+
             with tf.variable_scope("block_2"):
                 video_cluster2 = rest_v_attention_cluster.forward(video_mha1)
+                video_cluster2_temp = tf.reshape(video_cluster2, [-1, video_cluster_size * 1024])
+                video_fg2 = fg_v.forward(video_cluster2_temp)
                 video_mha2 = fish_v_self_attention.forward(video_cluster2)
+
             with tf.variable_scope("block_3"):
                 video_cluster3 = rest_v_attention_cluster.forward(video_mha2)
+                video_cluster3_temp = tf.reshape(video_cluster3, [-1, video_cluster_size * 1024])
+                video_fg3 = fg_v.forward(video_cluster3_temp)
                 video_mha3 = fish_v_self_attention.forward(video_cluster3)
+
             with tf.variable_scope("block_4"):
                 video_cluster4 = rest_v_attention_cluster.forward(video_mha3)
-            #     video_mha4 = fish_v_self_attention.forward(video_cluster4)
-            # with tf.variable_scope("block_5"):
-            #     video_cluster5 = rest_v_attention_cluster.forward(video_mha4)
+                video_cluster4_temp = tf.reshape(video_cluster4, [-1, video_cluster_size * 1024])
+                video_fg4 = fg_v.forward(video_cluster4_temp)
 
-            final_video = tf.reshape(video_cluster4, [-1, video_cluster_size * 1024])
+            final_video = tf.concat([video_fg1, video_fg2, video_fg3, video_fg4], 1)
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("block_1"):
                 audio_cluster1 = initial_a_attention_cluster.forward(audio_features)
+                audio_cluster1_temp = tf.reshape(audio_cluster1, [-1, audio_cluster_size * 128])
+                audio_fg1 = fg_a.forward(audio_cluster1_temp)
                 audio_mha1 = fish_a_self_attention.forward(audio_cluster1)
+
             with tf.variable_scope("block_2"):
                 audio_cluster2 = rest_a_attention_cluster.forward(audio_mha1)
+                audio_cluster2_temp = tf.reshape(audio_cluster2, [-1, audio_cluster_size * 128])
+                audio_fg2 = fg_a.forward(audio_cluster2_temp)
                 audio_mha2 = fish_a_self_attention.forward(audio_cluster2)
+
             with tf.variable_scope("block_3"):
                 audio_cluster3 = rest_a_attention_cluster.forward(audio_mha2)
+                audio_cluster3_temp = tf.reshape(audio_cluster3, [-1, audio_cluster_size * 128])
+                audio_fg3 = fg_a.forward(audio_cluster3_temp)
                 audio_mha3 = fish_a_self_attention.forward(audio_cluster3)
+
             with tf.variable_scope("block_4"):
                 audio_cluster4 = rest_a_attention_cluster.forward(audio_mha3)
-            #     audio_mha4 = fish_a_self_attention.forward(audio_cluster4)
-            # with tf.variable_scope("block_5"):
-            #     audio_cluster5 = rest_a_attention_cluster.forward(audio_mha4)
+                audio_cluster4_temp = tf.reshape(audio_cluster4, [-1, audio_cluster_size * 128])
+                audio_fg4 = fg_a.forward(audio_cluster4_temp)
 
-            final_audio = tf.reshape(audio_cluster4, [-1, audio_cluster_size * 128])
+            final_audio = tf.concat([audio_fg1, audio_fg2, audio_fg3, audio_fg4], 1)
 
         activation = tf.concat([final_video, final_audio], 1)
-        activation = tf.layers.dense(activation, hidden_size, use_bias=False, activation=None)
-        activation = tf.layers.batch_normalization(activation, training=is_training)
-
-        gating_weights = tf.get_variable("gating_weights_2",
-                                         [hidden_size, hidden_size],
-                                         initializer=tf.random_normal_initializer(
-                                             stddev=1 / math.sqrt(hidden_size)))
-
-        gates = tf.matmul(activation, gating_weights)
-        gates = tf.layers.batch_normalization(gates, training=is_training)
-        gates = tf.sigmoid(gates)
-        activation = tf.multiply(activation, gates)
-
-        # activation = tf.layers.dense(activation, hidden_size, use_bias=False, activation=None)
-        # activation = tf.contrib.layers.layer_norm(activation)
-        #
-        # filter1 = tf.layers.dense(activation,
-        #                           hidden_size,
-        #                           use_bias=True,
-        #                           activation=tf.nn.relu,
-        #                           name="filter1")
-        #
-        # filter2 = tf.layers.dense(filter1,
-        #                           hidden_size,
-        #                           use_bias=True,
-        #                           activation=None,
-        #                           name="filter2")
-        #
-        # activation = activation + filter2
-        # activation = tf.layers.batch_normalization(activation, training=is_training)
-        #
-        # # activation = tf.contrib.layers.layer_norm(activation)
 
         aggregated_model = getattr(video_level_models,
-                                   "MoeModel")
+                                   "FourLayerBatchNeuralModel")
 
         return aggregated_model().create_model(
             model_input=activation,
