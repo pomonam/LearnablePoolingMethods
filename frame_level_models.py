@@ -240,7 +240,7 @@ class CrazyFishV2(models.BaseModel):
                         final_audio = tf.reshape(final_audio, [-1, 64 * 128])
 
         activation = tf.concat([final_video, final_audio], 1)
-        activation = tf.layers.dense(activation, 1028, use_bias=False, activation=None)
+        activation = tf.layers.dense(activation, 1024, use_bias=False, activation=None)
         activation = tf.layers.batch_normalization(activation, training=is_training)
 
         filter1 = tf.layers.dense(activation, 2048,
