@@ -128,7 +128,7 @@ class CrazyFishV4(models.BaseModel):
                                                                   shift_operation=True,
                                                                   is_training=is_training)
 
-        fg = fish_modules.FishGate(hidden_size=2048, is_training=is_training)
+        fg = fish_modules.FishGate(hidden_size=1024, is_training=is_training)
 
         with tf.variable_scope("video"):
             with tf.variable_scope("individual"):
