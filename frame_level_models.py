@@ -435,25 +435,39 @@ class CrazyFishV3(models.BaseModel):
             final_audio = tf.reshape(audio_cluster4, [-1, audio_cluster_size * 128])
 
         activation = tf.concat([final_video, final_audio], 1)
+
         activation = tf.layers.dense(activation, hidden_size, use_bias=False, activation=None)
-        activation = tf.contrib.layers.layer_norm(activation)
-
-        filter1 = tf.layers.dense(activation,
-                                  hidden_size,
-                                  use_bias=True,
-                                  activation=tf.nn.relu,
-                                  name="filter1")
-
-        filter2 = tf.layers.dense(filter1,
-                                  hidden_size,
-                                  use_bias=True,
-                                  activation=None,
-                                  name="filter2")
-
-        activation = activation + filter2
         activation = tf.layers.batch_normalization(activation, training=is_training)
 
+        gating_weights = tf.get_variable("gating_weights_2",
+                                         [hidden_size, hidden_size],
+                                         initializer=tf.random_normal_initializer(
+                                             stddev=1 / math.sqrt(hidden_size)))
+
+        gates = tf.matmul(activation, gating_weights)
+        gates = tf.layers.batch_normalization(gates, training=is_training)
+        gates = tf.sigmoid(gates)
+        activation = tf.multiply(activation, gates)
+        
+        # activation = tf.layers.dense(activation, hidden_size, use_bias=False, activation=None)
         # activation = tf.contrib.layers.layer_norm(activation)
+        #
+        # filter1 = tf.layers.dense(activation,
+        #                           hidden_size,
+        #                           use_bias=True,
+        #                           activation=tf.nn.relu,
+        #                           name="filter1")
+        #
+        # filter2 = tf.layers.dense(filter1,
+        #                           hidden_size,
+        #                           use_bias=True,
+        #                           activation=None,
+        #                           name="filter2")
+        #
+        # activation = activation + filter2
+        # activation = tf.layers.batch_normalization(activation, training=is_training)
+        #
+        # # activation = tf.contrib.layers.layer_norm(activation)
 
         aggregated_model = getattr(video_level_models,
                                    "MoeModel")
