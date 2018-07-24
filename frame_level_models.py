@@ -343,18 +343,18 @@ class CrazyFishV3(models.BaseModel):
         video_features = reshaped_input[:, 0:1024]
         audio_features = reshaped_input[:, 1024:]
 
-        # video_features = slim.batch_norm(
-        #     video_features,
-        #     center=True,
-        #     scale=True,
-        #     is_training=is_training,
-        #     scope="video_features_bn")
-        # audio_features = slim.batch_norm(
-        #     audio_features,
-        #     center=True,
-        #     scale=True,
-        #     is_training=is_training,
-        #     scope="audio_features_bn")
+        video_features = slim.batch_norm(
+            video_features,
+            center=True,
+            scale=True,
+            is_training=is_training,
+            scope="video_features_bn")
+        audio_features = slim.batch_norm(
+            audio_features,
+            center=True,
+            scale=True,
+            is_training=is_training,
+            scope="audio_features_bn")
 
         video_features = tf.reshape(video_features, [-1, max_frames, 1024])
         audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
