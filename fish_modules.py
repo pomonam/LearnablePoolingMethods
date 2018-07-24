@@ -15,11 +15,9 @@ class LuckyFishModule(modules.BaseModule):
         self.cluster_size = cluster_size
 
     def forward(self, inputs, **unused_params):
-        reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
         inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
+        reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
         attention_weights = tf.layers.dense(reshaped_inputs, self.cluster_size, use_bias=False, activation=None)
-        # float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
-        # attention_weights = tf.divide(attention_weights, tf.sqrt(float_cpy))
         attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
         attention_weights = tf.nn.softmax(attention_weights)
 
@@ -113,9 +111,11 @@ class FishMultiHead(modules.BaseModule):
             v = tf.reshape(v, [-1, self.max_frames, self.num_units])
 
             attention = tf.matmul(q, tf.transpose(k, perm=[0, 2, 1]))
-            # float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
-            # attention = tf.divide(attention, tf.sqrt(float_cpy))
-            attention = tf.layers.batch_normalization(attention, training=self.is_training)
+            # -> batch_size x max_frames x max_frames
+
+            reshaped_attention = tf.reshape(attention, [-1, self.max_frames * self.max_frames])
+            reshaped_attention = tf.layers.batch_normalization(reshaped_attention, training=self.is_training)
+            attention = tf.reshape(reshaped_attention, [-1, self.max_frames, self.max_frames])
             attention = tf.nn.softmax(attention)
             activation = tf.matmul(attention, v)
             # output: -> batch_size x max_frames x num_units
@@ -133,22 +133,8 @@ class FishMultiHead(modules.BaseModule):
             result = tf.concat([result, output], 2)
         result = tf.reshape(result, [-1, self.num_units * self.num_heads])
         output = tf.layers.dense(result, self.feature_size, use_bias=False, activation=None)
-        output = tf.layers.batch_normalization(output, training=self.is_training)
-
-        # filter1 = tf.layers.dense(output, self.filter_size,
-        #                           use_bias=False,
-        #                           activation=tf.nn.leaky_relu,
-        #                           name="filter_output")
-        # filter1 = tf.layers.batch_normalization(filter1, training=self.is_training)
-        #
-        # filter2 = tf.layers.dense(filter1, self.feature_size,
-        #                           use_bias=True,
-        #                           activation=None,
-        #                           name="ff_output")
-        #
-        # output = filter2 + output
-        # output = tf.nn.leaky_relu(output)
-        # output = tf.layers.batch_normalization(output, training=self.is_training)
-        output = tf.reshape(output, [-1, self.max_frames, self.feature_size])
-
+        # -> batch_size x cluster_size x feature_size
+        reshaped_output = tf.reshape(output, [-1, self.feature_size])
+        reshaped_output = tf.layers.batch_normalization(reshaped_output, training=self.is_training)
+        output = tf.reshape(reshaped_output, [-1, self.max_frames, self.feature_size])
         return output
