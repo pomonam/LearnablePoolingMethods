@@ -34,7 +34,7 @@ FEATURES = "rgb,audio"
 BATCH_SIZE = 64
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0001
+BASE_LEARNING_RATE = 0.0002
 
 # Initialize a new model?
 START_NEW_MODEL = False
