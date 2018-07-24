@@ -20,12 +20,7 @@ class LuckyFishModule(modules.BaseModule):
         attention_weights = tf.layers.dense(reshaped_inputs, self.cluster_size, use_bias=False, activation=None)
         # float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
         # attention_weights = tf.divide(attention_weights, tf.sqrt(float_cpy))
-        attention_weights = slim.batch_norm(
-            attention_weights,
-            center=True,
-            scale=True,
-            is_training=self.is_training,
-            scope="attention_weights_bn")
+        attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
         attention_weights = tf.nn.softmax(attention_weights)
 
         reshaped_attention = tf.reshape(attention_weights, [-1, self.max_frames, self.cluster_size])
@@ -120,12 +115,7 @@ class FishMultiHead(modules.BaseModule):
             attention = tf.matmul(q, tf.transpose(k, perm=[0, 2, 1]))
             # float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
             # attention = tf.divide(attention, tf.sqrt(float_cpy))
-            attention = slim.batch_norm(
-                attention,
-                center=True,
-                scale=True,
-                is_training=self.is_training,
-                scope="attention_bn")
+            attention = tf.layers.batch_normalization(attention, training=self.is_training)
             attention = tf.nn.softmax(attention)
             activation = tf.matmul(attention, v)
             # output: -> batch_size x max_frames x num_units
@@ -143,20 +133,22 @@ class FishMultiHead(modules.BaseModule):
             result = tf.concat([result, output], 2)
         result = tf.reshape(result, [-1, self.num_units * self.num_heads])
         output = tf.layers.dense(result, self.feature_size, use_bias=False, activation=None)
-        output = tf.contrib.layers.layer_norm(output)
+        output = tf.layers.batch_normalization(output, training=self.is_training)
 
-        filter_output = tf.layers.dense(output, self.filter_size,
-                                        use_bias=True,
-                                        activation=tf.nn.relu,
-                                        name="filter_output")
+        filter1 = tf.layers.dense(output, self.filter_size,
+                                  use_bias=False,
+                                  activation=tf.nn.leaky_relu,
+                                  name="filter_output")
+        filter1 = tf.layers.batch_normalization(filter1, training=self.is_training)
 
-        final = tf.layers.dense(filter_output, self.feature_size,
-                                use_bias=True,
-                                activation=tf.nn.relu,
-                                name="ff_output")
+        filter2 = tf.layers.dense(filter1, self.feature_size,
+                                  use_bias=True,
+                                  activation=None,
+                                  name="ff_output")
 
-        output = final + output
-        output = tf.contrib.layers.layer_norm(output)
+        output = filter2 + output
+        output = tf.nn.leaky_relu(output)
+        output = tf.layers.batch_normalization(output, training=self.is_training)
         output = tf.reshape(output, [-1, self.max_frames, self.feature_size])
 
         return output

@@ -141,7 +141,7 @@ class CrazyFishV2(models.BaseModel):
                      hidden_size=None,
                      is_training=True,
                      **unused_params):
-        iterations = iterations or 128
+        iterations = iterations or 64
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
@@ -241,44 +241,22 @@ class CrazyFishV2(models.BaseModel):
 
         activation = tf.concat([final_video, final_audio], 1)
         activation = tf.layers.dense(activation, 1028, use_bias=False, activation=None)
-        activation = slim.batch_norm(
-            activation,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="concat_bn")
+        activation = tf.layers.batch_normalization(activation, training=is_training)
 
-        filter_output = tf.layers.dense(activation,
-                                        1028,
-                                        use_bias=False,
-                                        activation=tf.nn.relu,
-                                        name="filter")
-        filter_output = slim.batch_norm(
-            filter_output,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="filter_output_bn")
+        filter1 = tf.layers.dense(activation, 2048,
+                                  use_bias=False,
+                                  activation=tf.nn.leaky_relu,
+                                  name="filter_output")
+        filter1 = tf.layers.batch_normalization(filter1, training=is_training)
 
-        output = tf.layers.dense(filter_output,
-                                 1028,
-                                 use_bias=False,
-                                 activation=tf.nn.relu,
-                                 name="output")
-        output = slim.batch_norm(
-            output,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="output_bn")
+        filter2 = tf.layers.dense(filter1, 1024,
+                                  use_bias=True,
+                                  activation=None,
+                                  name="ff_output")
 
-        activation = activation + output
-        activation = slim.batch_norm(
-            activation,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="activation_bn")
+        activation = activation + filter2
+        activation = tf.nn.leaky_relu(activation)
+        activation = tf.layers.batch_normalization(activation, training=is_training)
 
         aggregated_model = getattr(video_level_models,
                                    "MoeModel")
