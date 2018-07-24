@@ -410,11 +410,11 @@ class CrazyFishV3(models.BaseModel):
                 video_mha3 = fish_v_self_attention.forward(video_cluster3)
             with tf.variable_scope("block_4"):
                 video_cluster4 = rest_v_attention_cluster.forward(video_mha3)
-                video_mha4 = fish_v_self_attention.forward(video_cluster4)
-            with tf.variable_scope("block_5"):
-                video_cluster5 = rest_v_attention_cluster.forward(video_mha4)
+            #     video_mha4 = fish_v_self_attention.forward(video_cluster4)
+            # with tf.variable_scope("block_5"):
+            #     video_cluster5 = rest_v_attention_cluster.forward(video_mha4)
 
-            final_video = tf.reshape(video_cluster5, [-1, video_cluster_size * 1024])
+            final_video = tf.reshape(video_cluster4, [-1, video_cluster_size * 1024])
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("block_1"):
@@ -428,11 +428,11 @@ class CrazyFishV3(models.BaseModel):
                 audio_mha3 = fish_a_self_attention.forward(audio_cluster3)
             with tf.variable_scope("block_4"):
                 audio_cluster4 = rest_a_attention_cluster.forward(audio_mha3)
-                audio_mha4 = fish_a_self_attention.forward(audio_cluster4)
-            with tf.variable_scope("block_5"):
-                audio_cluster5 = rest_a_attention_cluster.forward(audio_mha4)
+            #     audio_mha4 = fish_a_self_attention.forward(audio_cluster4)
+            # with tf.variable_scope("block_5"):
+            #     audio_cluster5 = rest_a_attention_cluster.forward(audio_mha4)
 
-            final_audio = tf.reshape(audio_cluster5, [-1, audio_cluster_size * 128])
+            final_audio = tf.reshape(audio_cluster4, [-1, audio_cluster_size * 128])
 
         activation = tf.concat([final_video, final_audio], 1)
         activation = tf.layers.dense(activation, hidden_size, use_bias=False, activation=None)
