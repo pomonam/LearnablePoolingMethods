@@ -178,7 +178,7 @@ class CrazyFishV2(models.BaseModel):
         #                                                          is_training=is_training)
         second_v_attention_cluster = fish_modules.LuckyFishModule(feature_size=1024,
                                                                   max_frames=max_frames,
-                                                                  cluster_size=512,
+                                                                  cluster_size=256,
                                                                   add_batch_norm=True,
                                                                   shift_operation=True,
                                                                   is_training=is_training)
@@ -190,7 +190,7 @@ class CrazyFishV2(models.BaseModel):
         #                                                          is_training=is_training)
         second_a_attention_cluster = fish_modules.LuckyFishModule(feature_size=128,
                                                                   max_frames=max_frames,
-                                                                  cluster_size=128,
+                                                                  cluster_size=64,
                                                                   add_batch_norm=True,
                                                                   shift_operation=True,
                                                                   is_training=is_training)
