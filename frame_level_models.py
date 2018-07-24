@@ -152,12 +152,12 @@ class CrazyFishV4(models.BaseModel):
         soft = tf.concat([video_soft, audio_soft], 1)
 
         with tf.variable_scope("indi"):
-            individual_act = tf.layers.dense(individual, 2048, use_bias=False, activation=None)
+            individual_act = tf.layers.dense(individual, 1024, use_bias=False, activation=None)
             individual_act = tf.layers.batch_normalization(individual_act, training=is_training)
             individual_act = fg.forward(individual_act)
 
         with tf.variable_scope("soft"):
-            soft_act = tf.layers.dense(soft, 2048, use_bias=False, activation=None)
+            soft_act = tf.layers.dense(soft, 1024, use_bias=False, activation=None)
             soft_act = tf.layers.batch_normalization(soft_act, training=is_training)
             soft_act = fg.forward(soft_act)
 
