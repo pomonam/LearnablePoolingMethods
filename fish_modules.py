@@ -135,20 +135,20 @@ class FishMultiHead(modules.BaseModule):
         output = tf.layers.dense(result, self.feature_size, use_bias=False, activation=None)
         output = tf.layers.batch_normalization(output, training=self.is_training)
 
-        filter1 = tf.layers.dense(output, self.filter_size,
-                                  use_bias=False,
-                                  activation=tf.nn.leaky_relu,
-                                  name="filter_output")
-        filter1 = tf.layers.batch_normalization(filter1, training=self.is_training)
-
-        filter2 = tf.layers.dense(filter1, self.feature_size,
-                                  use_bias=True,
-                                  activation=None,
-                                  name="ff_output")
-
-        output = filter2 + output
-        output = tf.nn.leaky_relu(output)
-        output = tf.layers.batch_normalization(output, training=self.is_training)
+        # filter1 = tf.layers.dense(output, self.filter_size,
+        #                           use_bias=False,
+        #                           activation=tf.nn.leaky_relu,
+        #                           name="filter_output")
+        # filter1 = tf.layers.batch_normalization(filter1, training=self.is_training)
+        #
+        # filter2 = tf.layers.dense(filter1, self.feature_size,
+        #                           use_bias=True,
+        #                           activation=None,
+        #                           name="ff_output")
+        #
+        # output = filter2 + output
+        # output = tf.nn.leaky_relu(output)
+        # output = tf.layers.batch_normalization(output, training=self.is_training)
         output = tf.reshape(output, [-1, self.max_frames, self.feature_size])
 
         return output
