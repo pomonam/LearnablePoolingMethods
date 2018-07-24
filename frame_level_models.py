@@ -241,19 +241,44 @@ class CrazyFishV2(models.BaseModel):
 
         activation = tf.concat([final_video, final_audio], 1)
         activation = tf.layers.dense(activation, 1028, use_bias=False, activation=None)
-        activation = tf.contrib.layers.layer_norm(activation)
+        activation = slim.batch_norm(
+            activation,
+            center=True,
+            scale=True,
+            is_training=is_training,
+            scope="concat_bn")
+
         filter_output = tf.layers.dense(activation,
                                         1028,
-                                        use_bias=True,
+                                        use_bias=False,
                                         activation=tf.nn.relu,
                                         name="filter")
+        filter_output = slim.batch_norm(
+            filter_output,
+            center=True,
+            scale=True,
+            is_training=is_training,
+            scope="filter_output_bn")
+
         output = tf.layers.dense(filter_output,
                                  1028,
-                                 use_bias=True,
+                                 use_bias=False,
                                  activation=tf.nn.relu,
                                  name="output")
+        output = slim.batch_norm(
+            output,
+            center=True,
+            scale=True,
+            is_training=is_training,
+            scope="output_bn")
+
         activation = activation + output
-        activation = tf.contrib.layers.layer_norm(activation)
+        activation = slim.batch_norm(
+            activation,
+            center=True,
+            scale=True,
+            is_training=is_training,
+            scope="activation_bn")
 
         aggregated_model = getattr(video_level_models,
                                    "MoeModel")
@@ -3708,7 +3733,7 @@ class LightVLAD():
                 scope="cluster_bn")
         else:
             cluster_biases = tf.get_variable("cluster_biases",
-                                             [cluster_size],
+                                             [self.cluster_size],
                                              initializer=tf.random_normal_initializer(
                                                  stddev=1 / math.sqrt(self.feature_size)))
             tf.summary.histogram("cluster_biases", cluster_biases)
