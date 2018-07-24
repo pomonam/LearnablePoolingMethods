@@ -15,12 +15,17 @@ class LuckyFishModule(modules.BaseModule):
         self.cluster_size = cluster_size
 
     def forward(self, inputs, **unused_params):
-
         reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
         inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
         attention_weights = tf.layers.dense(reshaped_inputs, self.cluster_size, use_bias=False, activation=None)
-        float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
-        attention_weights = tf.divide(attention_weights, tf.sqrt(float_cpy))
+        # float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
+        # attention_weights = tf.divide(attention_weights, tf.sqrt(float_cpy))
+        attention_weights = slim.batch_norm(
+            attention_weights,
+            center=True,
+            scale=True,
+            is_training=self.is_training,
+            scope="attention_weights_bn")
         attention_weights = tf.nn.softmax(attention_weights)
 
         reshaped_attention = tf.reshape(attention_weights, [-1, self.max_frames, self.cluster_size])
@@ -113,8 +118,14 @@ class FishMultiHead(modules.BaseModule):
             v = tf.reshape(v, [-1, self.max_frames, self.num_units])
 
             attention = tf.matmul(q, tf.transpose(k, perm=[0, 2, 1]))
-            float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
-            attention = tf.divide(attention, tf.sqrt(float_cpy))
+            # float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
+            # attention = tf.divide(attention, tf.sqrt(float_cpy))
+            attention = slim.batch_norm(
+                attention,
+                center=True,
+                scale=True,
+                is_training=self.is_training,
+                scope="attention_bn")
             attention = tf.nn.softmax(attention)
             activation = tf.matmul(attention, v)
             # output: -> batch_size x max_frames x num_units
