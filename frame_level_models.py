@@ -291,23 +291,23 @@ class CrazyFishV2(models.BaseModel):
             **unused_params)
 
 
-flags.DEFINE_integer("fish3_iteration", 64,
+flags.DEFINE_integer("fish3_iteration", 128,
                      "Number of frames per batch")
 flags.DEFINE_integer("fish3_video_cluster_size", 64,
                      "Number of frames per batch")
-flags.DEFINE_integer("fish3_audio_cluster_size", 64,
+flags.DEFINE_integer("fish3_audio_cluster_size", 16,
                      "Number of frames per batch")
 flags.DEFINE_bool("fish3_shift_operation", True,
                   "")
-flags.DEFINE_integer("fish3_video_num_units", 64,
+flags.DEFINE_integer("fish3_video_num_units", 1024,
                      "Number of frames per batch")
-flags.DEFINE_integer("fish3_audio_num_units", 64,
+flags.DEFINE_integer("fish3_audio_num_units", 128,
                      "Number of frames per batch")
-flags.DEFINE_integer("fish3_video_num_heads", 64,
+flags.DEFINE_integer("fish3_video_num_heads", 8,
                      "Number of frames per batch")
-flags.DEFINE_integer("fish3_audio_num_heads", 64,
+flags.DEFINE_integer("fish3_audio_num_heads", 8,
                      "Number of frames per batch")
-flags.DEFINE_integer("fish3_hidden_size", 64,
+flags.DEFINE_integer("fish3_hidden_size", 2048,
                      "Number of frames per batch")
 
 
@@ -343,18 +343,18 @@ class CrazyFishV3(models.BaseModel):
         video_features = reshaped_input[:, 0:1024]
         audio_features = reshaped_input[:, 1024:]
 
-        video_features = slim.batch_norm(
-            video_features,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="video_features_bn")
-        audio_features = slim.batch_norm(
-            audio_features,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="audio_features_bn")
+        # video_features = slim.batch_norm(
+        #     video_features,
+        #     center=True,
+        #     scale=True,
+        #     is_training=is_training,
+        #     scope="video_features_bn")
+        # audio_features = slim.batch_norm(
+        #     audio_features,
+        #     center=True,
+        #     scale=True,
+        #     is_training=is_training,
+        #     scope="audio_features_bn")
 
         video_features = tf.reshape(video_features, [-1, max_frames, 1024])
         audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
@@ -389,13 +389,13 @@ class CrazyFishV3(models.BaseModel):
                                                            filter_size=None,
                                                            num_units=video_num_units,
                                                            num_heads=video_num_heads,
-                                                           max_frames=video_cluster_size,
+                                                           cluster_size=video_cluster_size,
                                                            is_training=is_training)
         fish_a_self_attention = fish_modules.FishMultiHead(feature_size=128,
                                                            filter_size=None,
                                                            num_units=audio_num_units,
                                                            num_heads=audio_num_heads,
-                                                           max_frames=audio_cluster_size,
+                                                           cluster_size=audio_cluster_size,
                                                            is_training=is_training)
 
         with tf.variable_scope("video"):
@@ -435,7 +435,6 @@ class CrazyFishV3(models.BaseModel):
             final_audio = tf.reshape(audio_cluster4, [-1, audio_cluster_size * 128])
 
         activation = tf.concat([final_video, final_audio], 1)
-
         activation = tf.layers.dense(activation, hidden_size, use_bias=False, activation=None)
         activation = tf.layers.batch_normalization(activation, training=is_training)
 
