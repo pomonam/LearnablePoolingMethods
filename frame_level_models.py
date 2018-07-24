@@ -458,7 +458,7 @@ class CrazyFishV3(models.BaseModel):
         activation = tf.concat([final_video, final_audio], 1)
 
         aggregated_model = getattr(video_level_models,
-                                   "FourLayerBatchNeuralModel")
+                                   "MoeModel")
 
         return aggregated_model().create_model(
             model_input=activation,
