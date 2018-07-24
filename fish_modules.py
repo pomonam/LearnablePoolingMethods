@@ -114,7 +114,7 @@ class FishMultiHead(modules.BaseModule):
             # -> batch_size x max_frames x max_frames
 
             # reshaped_attention = tf.reshape(attention, [-1, self.max_frames * self.max_frames])
-            reshaped_attention = tf.layers.batch_normalization(attention, training=self.is_training)
+            attention = tf.layers.batch_normalization(attention, training=self.is_training)
             # attention = tf.reshape(reshaped_attention, [-1, self.max_frames, self.max_frames])
             attention = tf.nn.softmax(attention)
             activation = tf.matmul(attention, v)

@@ -448,7 +448,7 @@ class CrazyFishV3(models.BaseModel):
         gates = tf.layers.batch_normalization(gates, training=is_training)
         gates = tf.sigmoid(gates)
         activation = tf.multiply(activation, gates)
-        
+
         # activation = tf.layers.dense(activation, hidden_size, use_bias=False, activation=None)
         # activation = tf.contrib.layers.layer_norm(activation)
         #
