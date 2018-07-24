@@ -197,13 +197,13 @@ class CrazyFishV2(models.BaseModel):
         fish_v_self_attention = fish_modules.FishMultiHead(feature_size=1024,
                                                            filter_size=1024,
                                                            num_units=1024,
-                                                           num_heads=8,
+                                                           num_heads=16,
                                                            max_frames=max_frames,
                                                            is_training=is_training)
         fish_a_self_attention = fish_modules.FishMultiHead(feature_size=128,
                                                            filter_size=128,
                                                            num_units=128,
-                                                           num_heads=8,
+                                                           num_heads=16,
                                                            max_frames=max_frames,
                                                            is_training=is_training)
 
@@ -215,8 +215,8 @@ class CrazyFishV2(models.BaseModel):
                 with tf.variable_scope("not_virgin"):
                     with tf.variable_scope("block_1"):
                         b1 = fish_v_self_attention.forward(video_features)
-                    with tf.variable_scope("block_2"):
-                        b2 = fish_v_self_attention.forward(b1)
+                    # with tf.variable_scope("block_2"):
+                    #     b2 = fish_v_self_attention.forward(b1)
                     # with tf.variable_scope("block_3"):
                     #     b3 = fish_v_self_attention.forward(b2)
                     with tf.variable_scope("cluster"):
@@ -232,8 +232,8 @@ class CrazyFishV2(models.BaseModel):
                 with tf.variable_scope("not_virgin"):
                     with tf.variable_scope("block_1"):
                         b1 = fish_a_self_attention.forward(audio_features)
-                    with tf.variable_scope("block_2"):
-                        b2 = fish_a_self_attention.forward(b1)
+                    # with tf.variable_scope("block_2"):
+                    #     b2 = fish_a_self_attention.forward(b1)
                     # with tf.variable_scope("block_3"):
                     #     b3 = fish_a_self_attention.forward(b2)
                     with tf.variable_scope("cluster"):
