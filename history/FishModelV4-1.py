@@ -39,15 +39,7 @@ BASE_LEARNING_RATE = 0.0002
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--fish3_iteration=64 " \
-        "--fish3_video_cluster_size=64 " \
-        "--fish3_audio_cluster_size=16 " \
-        "--fish3_shift_operation=True " \
-        "--fish3_video_num_units=1024 " \
-        "--fish3_audio_num_units=128 " \
-        "--fish3_video_num_heads=8 " \
-        "--fish3_audio_num_heads=8 " \
-        "--fish3_hidden_size=2048 "
+EXTRA = " "
 
 
 def main():

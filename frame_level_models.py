@@ -36,24 +36,24 @@ import fish_modules
 ###############################################################################
 # Transformer #################################################################
 ###############################################################################
-flags.DEFINE_integer("fish3_iteration", 128,
-                     "Number of frames per batch")
-flags.DEFINE_integer("fish3_video_cluster_size", 64,
-                     "Number of frames per batch")
-flags.DEFINE_integer("fish3_audio_cluster_size", 16,
-                     "Number of frames per batch")
-flags.DEFINE_bool("fish3_shift_operation", True,
-                  "")
-flags.DEFINE_integer("fish3_video_num_units", 1024,
-                     "Number of frames per batch")
-flags.DEFINE_integer("fish3_audio_num_units", 128,
-                     "Number of frames per batch")
-flags.DEFINE_integer("fish3_video_num_heads", 8,
-                     "Number of frames per batch")
-flags.DEFINE_integer("fish3_audio_num_heads", 8,
-                     "Number of frames per batch")
-flags.DEFINE_integer("fish3_hidden_size", 1024,
-                     "Number of frames per batch")
+# flags.DEFINE_integer("fish3_iteration", 128,
+#                      "Number of frames per batch")
+# flags.DEFINE_integer("fish3_video_cluster_size", 64,
+#                      "Number of frames per batch")
+# flags.DEFINE_integer("fish3_audio_cluster_size", 16,
+#                      "Number of frames per batch")
+# flags.DEFINE_bool("fish3_shift_operation", True,
+#                   "")
+# flags.DEFINE_integer("fish3_video_num_units", 1024,
+#                      "Number of frames per batch")
+# flags.DEFINE_integer("fish3_audio_num_units", 128,
+#                      "Number of frames per batch")
+# flags.DEFINE_integer("fish3_video_num_heads", 8,
+#                      "Number of frames per batch")
+# flags.DEFINE_integer("fish3_audio_num_heads", 8,
+#                      "Number of frames per batch")
+# flags.DEFINE_integer("fish3_hidden_size", 1024,
+#                      "Number of frames per batch")
 
 
 class CrazyFishV4(models.BaseModel):
@@ -108,7 +108,7 @@ class CrazyFishV4(models.BaseModel):
                                                                add_batch_norm=True,
                                                                shift_operation=True,
                                                                is_training=True)
-        audio_attention_cluster = fish_modules.LuckyFishModule(feature_size=1024,
+        audio_attention_cluster = fish_modules.LuckyFishModule(feature_size=128,
                                                                max_frames=max_frames,
                                                                cluster_size=32,
                                                                add_batch_norm=True,
@@ -121,7 +121,7 @@ class CrazyFishV4(models.BaseModel):
                                                                   add_batch_norm=True,
                                                                   shift_operation=True,
                                                                   is_training=is_training)
-        audio_soft_attention_cluster = fish_modules.BadFishModule(feature_size=1024,
+        audio_soft_attention_cluster = fish_modules.BadFishModule(feature_size=128,
                                                                   max_frames=max_frames,
                                                                   cluster_size=32,
                                                                   add_batch_norm=True,
