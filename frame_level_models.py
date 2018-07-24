@@ -197,13 +197,13 @@ class CrazyFishV2(models.BaseModel):
         fish_v_self_attention = fish_modules.FishMultiHead(feature_size=1024,
                                                            filter_size=1024,
                                                            num_units=1024,
-                                                           num_heads=16,
+                                                           num_heads=12,
                                                            max_frames=max_frames,
                                                            is_training=is_training)
         fish_a_self_attention = fish_modules.FishMultiHead(feature_size=128,
                                                            filter_size=128,
                                                            num_units=128,
-                                                           num_heads=16,
+                                                           num_heads=12,
                                                            max_frames=max_frames,
                                                            is_training=is_training)
 
@@ -222,7 +222,7 @@ class CrazyFishV2(models.BaseModel):
                     with tf.variable_scope("cluster"):
                         all_concat = tf.concat([video_features, b1], 1)
                         final_video = second_v_attention_cluster.forward(all_concat)
-                        final_video = tf.reshape(final_video, [-1, 512 * 1024])
+                        final_video = tf.reshape(final_video, [-1, 256 * 1024])
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("encode"):
@@ -239,7 +239,7 @@ class CrazyFishV2(models.BaseModel):
                     with tf.variable_scope("cluster"):
                         all_concat = tf.concat([audio_features, b1], 1)
                         final_audio = second_a_attention_cluster.forward(all_concat)
-                        final_audio = tf.reshape(final_audio, [-1, 128 * 128])
+                        final_audio = tf.reshape(final_audio, [-1, 64 * 128])
 
         activation = tf.concat([final_video, final_audio], 1)
 
