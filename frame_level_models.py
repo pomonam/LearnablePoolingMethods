@@ -3882,11 +3882,11 @@ class NetVLADModelLF(models.BaseModel):
 
         with tf.variable_scope("video_VLAD"):
             vlad_video = video_NetVLAD.forward(reshaped_input[:, 0:1024])
-            vlad_video = tf.reshape(vlad_video, [-1, 256 * 512])
+            vlad_video = tf.reshape(vlad_video, [-1, 256 * 1024])
 
         with tf.variable_scope("audio_VLAD"):
             vlad_audio = audio_NetVLAD.forward(reshaped_input[:, 1024:])
-            vlad_audio = tf.reshape(vlad_audio, [-1, 64 * 64])
+            vlad_audio = tf.reshape(vlad_audio, [-1, 64 * 128])
 
         vlad = tf.concat([vlad_video, vlad_audio], 1)
 
