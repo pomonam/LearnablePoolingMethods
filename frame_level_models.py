@@ -115,14 +115,14 @@ class CrazyFishV4(models.BaseModel):
                                                                shift_operation=True,
                                                                is_training=True)
 
-        video_soft_attention_cluster = fish_modules.FishEncoderStack(num_layers=4,
+        video_soft_attention_cluster = fish_modules.FishEncoderStack(num_layers=3,
                                                                      hidden_size=1024,
                                                                      num_heads=8,
                                                                      filter_size=2048,
                                                                      relu_dropout=0.0,
                                                                      attention_dropout=0.0,
                                                                      is_training=is_training)
-        audio_soft_attention_cluster = fish_modules.FishEncoderStack(num_layers=4,
+        audio_soft_attention_cluster = fish_modules.FishEncoderStack(num_layers=3,
                                                                      hidden_size=128,
                                                                      num_heads=8,
                                                                      filter_size=256,
@@ -130,7 +130,7 @@ class CrazyFishV4(models.BaseModel):
                                                                      attention_dropout=0.0,
                                                                      is_training=is_training)
 
-        fg = fish_modules.FishGate2(hidden_size=1024, is_training=is_training)
+        fg = fish_modules.FishGate(hidden_size=1024, is_training=is_training)
 
         with tf.variable_scope("video"):
             with tf.variable_scope("encoder_stack"):
