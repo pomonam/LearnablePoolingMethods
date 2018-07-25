@@ -93,9 +93,9 @@ class LuckyFishModuleV2(modules.BaseModule):
             activation = tf.divide(activation, tf.sqrt(float_cpy))
 
         normalized_activation = tf.nn.l2_normalize(activation, 2)
-        reshaped_normalized_activation = tf.reshape(normalized_activation, [-1, self.cluster_size * self.feature_size])
+        reshaped_normalized_activation = tf.reshape(normalized_activation, [-1, self.cluster_size * self.hidden_size])
         final_activation = tf.nn.l2_normalize(reshaped_normalized_activation)
-        reshaped_final_activation = tf.reshape(final_activation, [-1, self.cluster_size, self.feature_size])
+        reshaped_final_activation = tf.reshape(final_activation, [-1, self.cluster_size, self.hidden_size])
 
         return reshaped_final_activation
 
