@@ -155,7 +155,7 @@ class CrazyFishV4(models.BaseModel):
         activation = fg.forward(soft_act)
 
         aggregated_model = getattr(video_level_models,
-                                   "MoeModel2")
+                                   "MoeModel")
 
         return aggregated_model().create_model(
             model_input=activation,
