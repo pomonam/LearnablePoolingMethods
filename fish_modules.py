@@ -399,26 +399,18 @@ class FishFowardNetwork(modules.BaseModule):
         """Return outputs of the feedforward network.
         Args:
           x: tensor with shape [batch_size, length, hidden_size]
-          padding: (optional) If set, the padding values are temporarily removed
-            from x (provided self.allow_pad is set). The padding values are placed
-            back in the output tensor in the same locations.
-            shape [batch_size, length]
         Returns:
           Output of the feedforward network.
           tensor with shape [batch_size, length, hidden_size]
         """
         # output = self.filter_dense_layer(x)
         # output = self.output_dense_layer(output)
-        reshaped_input = tf.reshape(x, [-1, self.hidden_size])
-        gating_weights = tf.get_variable("gating_weights_2",
-                                         [self.hidden_size, self.hidden_size],
-                                         initializer=tf.random_normal_initializer(
-                                             stddev=1 / math.sqrt(self.hidden_size)))
-
-        gates = tf.matmul(reshaped_input, gating_weights)
+        gating_weights = tf.layers.dense(x, self.hidden_size, use_bias=False, activation=None)
+        gates = tf.matmul(x, gating_weights)
         gates = tf.layers.batch_normalization(gates, training=self.train)
         gates = tf.sigmoid(gates)
-        activation = tf.multiply(reshaped_input, gates)
+        activation = tf.multiply(x, gates)
+
         return activation
 
 
