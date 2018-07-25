@@ -239,12 +239,12 @@ class FishEncoderStack(modules.BaseModule):
     1. Self-attention layer
     2. Feedforward network (which is 2 fully-connected layers)
     """
-    def __init__(self, num_layers, hidden_size, num_heads, filter_size, relu_dropout, attention_dropout, is_training):
+    def __init__(self, num_layers, max_frames, hidden_size, num_heads, filter_size, relu_dropout, attention_dropout, is_training):
         self.layers = []
         for _ in range(num_layers):
             # Create sublayers for each layer.
             self_attention_layer = FishSelfAttention(hidden_size, num_heads, attention_dropout, is_training)
-            feed_forward_network = FishFowardNetwork(hidden_size, filter_size, relu_dropout, is_training, False)
+            feed_forward_network = FishFowardNetwork(hidden_size, max_frames, filter_size, relu_dropout, is_training, False)
             self.layers.append([
                 PrePostProcessingWrapper(self_attention_layer, 0, is_training),
                 PrePostProcessingWrapper(feed_forward_network, 0, is_training)])
@@ -383,9 +383,10 @@ class FishSelfAttention(modules.BaseModule):
 class FishFowardNetwork(modules.BaseModule):
     """Fully connected feedforward network."""
 
-    def __init__(self, hidden_size, filter_size, relu_dropout, train, allow_pad):
+    def __init__(self, hidden_size, max_frames, filter_size, relu_dropout, train, allow_pad):
         self.hidden_size = hidden_size
         self.filter_size = filter_size
+        self.max_frames = max_frames
         self.relu_dropout = relu_dropout
         self.train = train
         self.allow_pad = allow_pad
@@ -405,12 +406,14 @@ class FishFowardNetwork(modules.BaseModule):
         """
         # output = self.filter_dense_layer(x)
         # output = self.output_dense_layer(output)
-        gating_weights = tf.layers.dense(x, self.hidden_size, use_bias=False, activation=None)
+        reshaped_inputs = tf.reshape(x, [-1, self.hidden_size])
+        gating_weights = tf.layers.dense(reshaped_inputs, self.hidden_size, use_bias=False, activation=None)
         gates = tf.layers.batch_normalization(gating_weights, training=self.train)
         gates = tf.sigmoid(gates)
-        activation = tf.multiply(x, gates)
+        activation = tf.multiply(reshaped_inputs, gates)
+        reshaped_activation = tf.reshape(activation, [-1, self.max_frames, self.hidden_size])
 
-        return activation
+        return reshaped_activation
 
 
 class PrePostProcessingWrapper(modules.BaseModule):
