@@ -126,7 +126,7 @@ class CrazyFishV5(models.BaseModel):
                 audio_cluster = tf.reshape(audio_cluster, [-1, 64 * 128])
 
         combined_cluster = tf.concat([video_cluster, audio_cluster], 1)
-        combined_cluster = tf.layers.dense(combined_cluster, 2048, use_bias=False, activation=None)
+        combined_cluster = tf.layers.dense(combined_cluster, 1024, use_bias=False, activation=None)
 
         filter1 = tf.layers.dense(combined_cluster,
                                   4096,
@@ -139,7 +139,7 @@ class CrazyFishV5(models.BaseModel):
             filter1 = tf.nn.dropout(filter1, 0.8)
 
         filter2 = tf.layers.dense(filter1,
-                                  2048,
+                                  1024,
                                   use_bias=False,
                                   activation=None,
                                   name="filter2")
