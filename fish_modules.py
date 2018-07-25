@@ -407,10 +407,19 @@ class FishFowardNetwork(modules.BaseModule):
           Output of the feedforward network.
           tensor with shape [batch_size, length, hidden_size]
         """
-        output = self.filter_dense_layer(x)
-        output = self.output_dense_layer(output)
+        # output = self.filter_dense_layer(x)
+        # output = self.output_dense_layer(output)
+        reshaped_input = tf.reshape(x, [-1, self.hidden_size])
+        gating_weights = tf.get_variable("gating_weights_2",
+                                         [self.hidden_size, self.hidden_size],
+                                         initializer=tf.random_normal_initializer(
+                                             stddev=1 / math.sqrt(self.hidden_size)))
 
-        return output
+        gates = tf.matmul(reshaped_input, gating_weights)
+        gates = tf.layers.batch_normalization(gates, training=self.train)
+        gates = tf.sigmoid(gates)
+        activation = tf.multiply(reshaped_input, gates)
+        return activation
 
 
 class PrePostProcessingWrapper(modules.BaseModule):
