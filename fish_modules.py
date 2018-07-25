@@ -65,8 +65,8 @@ class LuckyFishModuleV2(modules.BaseModule):
         q = tf.layers.dense(inputs, self.hidden_size, use_bias=False, activation=None)
         v = tf.layers.dense(inputs, self.hidden_size, use_bias=False, activation=None)
 
-        reshaped_q = tf.reshape(q, [-1, self.max_frames, 512])
-        reshaped_v = tf.reshape(v, [-1, self.max_frames, 512])
+        reshaped_q = tf.reshape(q, [-1, self.max_frames, self.hidden_size])
+        reshaped_v = tf.reshape(v, [-1, self.max_frames, self.hidden_size])
 
         attention_weights = tf.layers.dense(reshaped_q, self.cluster_size, use_bias=False, activation=None)
         attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
