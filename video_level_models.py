@@ -73,7 +73,7 @@ class MoeModel(models.BaseModel):
           model in the 'predictions' key. The dimensions of the tensor are
           batch_size x num_classes.
         """
-        num_mixtures = 4
+        num_mixtures = 3
         l2_penalty = FLAGS.moe_l2
 
         gate_activations = slim.fully_connected(
@@ -147,14 +147,11 @@ class MoeModel2(models.BaseModel):
           model in the 'predictions' key. The dimensions of the tensor are
           batch_size x num_classes.
         """
-        num_mixtures = num_mixtures or FLAGS.moe_num_mixtures
+        num_mixtures = 3
         low_rank_gating = FLAGS.moe_low_rank_gating
         l2_penalty = FLAGS.moe_l2
         gating_probabilities = FLAGS.moe_prob_gating
         gating_input = FLAGS.moe_prob_gating_input
-
-        input_size = model_input.get_shape().as_list()[1]
-        remove_diag = FLAGS.gating_remove_diag
 
         if low_rank_gating == -1:
             gate_activations = slim.fully_connected(
@@ -199,36 +196,28 @@ class MoeModel2(models.BaseModel):
         probabilities = tf.reshape(probabilities_by_class_and_batch,
                                    [-1, vocab_size])
 
-        if gating_probabilities:
-            if gating_input == 'prob':
-                gating_weights = tf.get_variable("gating_prob_weights",
-                                                 [vocab_size, vocab_size],
-                                                 initializer=tf.random_normal_initializer(
-                                                     stddev=1 / math.sqrt(vocab_size)))
-                gates = tf.matmul(probabilities, gating_weights)
-            else:
-                gating_weights = tf.get_variable("gating_prob_weights",
-                                                 [input_size, vocab_size],
-                                                 initializer=tf.random_normal_initializer(
-                                                     stddev=1 / math.sqrt(vocab_size)))
+        filter1 = tf.layers.dense(probabilities,
+                                  vocab_size * 2,
+                                  use_bias=True,
+                                  activation=tf.nn.relu,
+                                  name="v-filter1")
+        filter1 = tf.layers.batch_normalization(filter1, training=is_training)
 
-                gates = tf.matmul(model_input, gating_weights)
+        if is_training:
+            filter1 = tf.nn.dropout(filter1, 0.8)
 
-            if remove_diag:
-                # removes diagonals coefficients
-                diagonals = tf.matrix_diag_part(gating_weights)
-                gates = gates - tf.multiply(diagonals, probabilities)
+        filter2 = tf.layers.dense(filter1,
+                                  vocab_size,
+                                  use_bias=False,
+                                  activation=None,
+                                  name="v-filter2")
 
-            gates = slim.batch_norm(
-                gates,
-                center=True,
-                scale=True,
-                is_training=is_training,
-                scope="gating_prob_bn")
+        probabilities = probabilities + filter2
+        probabilities = tf.nn.relu(probabilities)
+        probabilities = tf.layers.batch_normalization(probabilities, training=is_training)
 
-            gates = tf.sigmoid(gates)
-
-            probabilities = tf.multiply(probabilities, gates)
+        probabilities = tf.layers.dense(probabilities, vocab_size, use_bias=True,
+                                        activation=tf.nn.sigmoid, name="v-final_output")
 
         return {"predictions": probabilities}
 

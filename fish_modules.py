@@ -61,12 +61,7 @@ class LuckyFishModuleV2(modules.BaseModule):
     def forward(self, inputs, **unused_params):
         inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
         reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
-        q = tf.layers.dense(reshaped_inputs, self.feature_size, use_bias=False, activation=None)
-        v = tf.layers.dense(reshaped_inputs, self.feature_size, use_bias=False, activation=None)
-        reshaped_v = tf.reshape(v, [-1, self.max_frames, self.feature_size])
-
-        attention_weights = tf.layers.dense(q, self.cluster_size, use_bias=False, activation=None)
-        # -> (batch_size * max_frames) x cluster_size
+        attention_weights = tf.layers.dense(reshaped_inputs, self.cluster_size, use_bias=False, activation=None)
         attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
         if self.is_training:
             attention_weights = tf.nn.dropout(attention_weights, 0.7)
@@ -75,7 +70,7 @@ class LuckyFishModuleV2(modules.BaseModule):
         reshaped_attention = tf.reshape(attention_weights, [-1, self.max_frames, self.cluster_size])
         transposed_attention = tf.transpose(reshaped_attention, perm=[0, 2, 1])
         # -> transposed_attention: batch_size x cluster_size x max_frames
-        activation = tf.matmul(transposed_attention, reshaped_v)
+        activation = tf.matmul(transposed_attention, inputs)
         # -> activation: batch_size x cluster_size x feature_size
 
         if self.shift_operation:

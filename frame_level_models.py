@@ -67,7 +67,7 @@ class CrazyFishV5(models.BaseModel):
                      hidden_size=None,
                      is_training=True,
                      **unused_params):
-        iterations = iterations or FLAGS.fish3_iteration
+        iterations = 128
         video_cluster_size = FLAGS.fish3_video_cluster_size
         audio_cluster_size = FLAGS.fish3_audio_cluster_size
         shift_operation = FLAGS.fish3_shift_operation
@@ -77,6 +77,8 @@ class CrazyFishV5(models.BaseModel):
         audio_num_heads = FLAGS.fish3_audio_num_heads
         hidden_size = FLAGS.fish3_hidden_size
 
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
         # model_input: batch_size x max_frames x feature_size
         max_frames = model_input.get_shape().as_list()[1]
         feature_size = model_input.get_shape().as_list()[2]
@@ -149,7 +151,7 @@ class CrazyFishV5(models.BaseModel):
         activation = tf.layers.batch_normalization(activation, training=is_training)
 
         aggregated_model = getattr(video_level_models,
-                                   "MoeModel")
+                                   "MoeModel2")
 
         return aggregated_model().create_model(
             model_input=activation,
