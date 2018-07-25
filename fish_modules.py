@@ -406,8 +406,7 @@ class FishFowardNetwork(modules.BaseModule):
         # output = self.filter_dense_layer(x)
         # output = self.output_dense_layer(output)
         gating_weights = tf.layers.dense(x, self.hidden_size, use_bias=False, activation=None)
-        gates = tf.matmul(x, gating_weights)
-        gates = tf.layers.batch_normalization(gates, training=self.train)
+        gates = tf.layers.batch_normalization(gating_weights, training=self.train)
         gates = tf.sigmoid(gates)
         activation = tf.multiply(x, gates)
 
