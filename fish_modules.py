@@ -348,17 +348,13 @@ class FishSelfAttention(modules.BaseModule):
         # multiple heads. Multi-head attention uses multiple queries, keys, and
         # values rather than regular attention (which uses a single q, k, v).
         q = self.q_dense_layer(x)
+        q = tf.layers.batch_normalization(q, training=self.is_training)
+
         k = self.k_dense_layer(y)
+        k = tf.layers.batch_normalization(k, training=self.is_training)
+
         v = self.v_dense_layer(y)
-
-        if cache is not None:
-            # Combine cached keys and values with new keys and values.
-            k = tf.concat([cache["k"], k], axis=1)
-            v = tf.concat([cache["v"], v], axis=1)
-
-            # Update cache
-            cache["k"] = k
-            cache["v"] = v
+        v = tf.layers.batch_normalization(v, training=self.is_training)
 
         # Split q, k, v into heads.
         q = self.split_heads(q)
@@ -366,8 +362,8 @@ class FishSelfAttention(modules.BaseModule):
         v = self.split_heads(v)
 
         # Scale q to prevent the dot product between q and k from growing too large.
-        depth = (self.hidden_size // self.num_heads)
-        q *= depth ** -0.5
+        # depth = (self.hidden_size // self.num_heads)
+        # q *= depth ** -0.5
 
         # Calculate dot product attention
         logits = tf.matmul(q, k, transpose_b=True)
