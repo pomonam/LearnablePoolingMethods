@@ -59,9 +59,15 @@ class LuckyFishModuleV2(modules.BaseModule):
         self.cluster_size = cluster_size
 
     def forward(self, inputs, **unused_params):
-        inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
         reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
-        attention_weights = tf.layers.dense(reshaped_inputs, self.cluster_size, use_bias=False, activation=None)
+        inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
+        q = tf.layers.dense(inputs, 512, use_bias=False, activation=None)
+        v = tf.layers.dense(inputs, 512, use_bias=False, activation=None)
+
+        reshaped_q = tf.reshape(q, [-1, self.max_frames, 512])
+        reshaped_v = tf.reshape(v, [-1, self.max_frames, 512])
+
+        attention_weights = tf.layers.dense(reshaped_q, self.cluster_size, use_bias=False, activation=None)
         attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
         if self.is_training:
             attention_weights = tf.nn.dropout(attention_weights, 0.7)
@@ -70,7 +76,7 @@ class LuckyFishModuleV2(modules.BaseModule):
         reshaped_attention = tf.reshape(attention_weights, [-1, self.max_frames, self.cluster_size])
         transposed_attention = tf.transpose(reshaped_attention, perm=[0, 2, 1])
         # -> transposed_attention: batch_size x cluster_size x max_frames
-        activation = tf.matmul(transposed_attention, inputs)
+        activation = tf.matmul(transposed_attention, reshaped_v)
         # -> activation: batch_size x cluster_size x feature_size
 
         if self.shift_operation:
@@ -87,7 +93,7 @@ class LuckyFishModuleV2(modules.BaseModule):
 
         normalized_activation = tf.nn.l2_normalize(activation, 2)
         reshaped_normalized_activation = tf.reshape(normalized_activation, [-1, self.cluster_size * self.feature_size])
-        final_activation = tf.contrib.layers.layer_norm(reshaped_normalized_activation)
+        final_activation = tf.nn.l2_normalize(reshaped_normalized_activation)
         reshaped_final_activation = tf.reshape(final_activation, [-1, self.cluster_size, self.feature_size])
 
         return reshaped_final_activation
