@@ -115,56 +115,47 @@ class CrazyFishV4(models.BaseModel):
                                                                shift_operation=True,
                                                                is_training=True)
 
-        video_soft_attention_cluster = fish_modules.BadFishModule(feature_size=1024,
-                                                                  max_frames=max_frames,
-                                                                  cluster_size=128,
-                                                                  add_batch_norm=True,
-                                                                  shift_operation=True,
-                                                                  is_training=is_training)
-        audio_soft_attention_cluster = fish_modules.BadFishModule(feature_size=128,
-                                                                  max_frames=max_frames,
-                                                                  cluster_size=32,
-                                                                  add_batch_norm=True,
-                                                                  shift_operation=True,
-                                                                  is_training=is_training)
+        video_soft_attention_cluster = fish_modules.FishEncoderStack(num_layers=4,
+                                                                     hidden_size=1024,
+                                                                     num_heads=8,
+                                                                     filter_size=2048,
+                                                                     relu_dropout=0.0,
+                                                                     attention_dropout=0.0,
+                                                                     is_training=is_training)
+        audio_soft_attention_cluster = fish_modules.FishEncoderStack(num_layers=4,
+                                                                     hidden_size=128,
+                                                                     num_heads=8,
+                                                                     filter_size=256,
+                                                                     relu_dropout=0.0,
+                                                                     attention_dropout=0.0,
+                                                                     is_training=is_training)
 
-        fg = fish_modules.FishGate(hidden_size=1024, is_training=is_training)
+        fg = fish_modules.FishGate2(hidden_size=1024, is_training=is_training)
 
         with tf.variable_scope("video"):
-            with tf.variable_scope("individual"):
-                video_individual = video_attention_cluster.forward(video_features)
-                video_individual = tf.reshape(video_individual, [-1, 128 * 1024])
+            with tf.variable_scope("encoder_stack"):
+                v_encoder_stack = video_soft_attention_cluster.forward(video_features, 0.0, None)
 
-            with tf.variable_scope("soft"):
-                video_soft = video_soft_attention_cluster.forward(video_features)
+            with tf.variable_scope("cluster"):
+                video_soft = video_attention_cluster.forward(v_encoder_stack)
                 video_soft = tf.reshape(video_soft, [-1, 128 * 1024])
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("individual"):
-                audio_individual = audio_attention_cluster.forward(audio_features)
-                audio_individual = tf.reshape(audio_individual, [-1, 32 * 128])
+                a_encoder_stack = audio_soft_attention_cluster.forward(audio_features, 0.0, None)
 
             with tf.variable_scope("soft"):
-                audio_soft = audio_soft_attention_cluster.forward(audio_features)
+                audio_soft = audio_attention_cluster.forward(a_encoder_stack)
                 audio_soft = tf.reshape(audio_soft, [-1, 32 * 128])
 
-        individual = tf.concat([video_individual, audio_individual], 1)
         soft = tf.concat([video_soft, audio_soft], 1)
 
-        with tf.variable_scope("indi"):
-            individual_act = tf.layers.dense(individual, 1024, use_bias=False, activation=None)
-            individual_act = tf.layers.batch_normalization(individual_act, training=is_training)
-            individual_act = fg.forward(individual_act)
-
-        with tf.variable_scope("soft"):
-            soft_act = tf.layers.dense(soft, 1024, use_bias=False, activation=None)
-            soft_act = tf.layers.batch_normalization(soft_act, training=is_training)
-            soft_act = fg.forward(soft_act)
-
-        activation = tf.concat([individual_act, soft_act], 1)
+        soft_act = tf.layers.dense(soft, 1024, use_bias=False, activation=None)
+        soft_act = tf.layers.batch_normalization(soft_act, training=is_training)
+        activation = fg.forward(soft_act)
 
         aggregated_model = getattr(video_level_models,
-                                   "MoeModel")
+                                   "MoeModel2")
 
         return aggregated_model().create_model(
             model_input=activation,

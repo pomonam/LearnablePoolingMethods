@@ -73,9 +73,83 @@ class MoeModel(models.BaseModel):
           model in the 'predictions' key. The dimensions of the tensor are
           batch_size x num_classes.
         """
+        num_mixtures = 4
+        l2_penalty = FLAGS.moe_l2
+
+        gate_activations = slim.fully_connected(
+            model_input,
+            vocab_size * (num_mixtures + 1),
+            activation_fn=None,
+            biases_initializer=None,
+            weights_regularizer=slim.l2_regularizer(l2_penalty),
+            scope="gates")
+
+        expert_activations = slim.fully_connected(
+            model_input,
+            vocab_size * num_mixtures,
+            activation_fn=None,
+            weights_regularizer=slim.l2_regularizer(l2_penalty),
+            scope="experts")
+
+        gating_distribution = tf.nn.softmax(tf.reshape(
+            gate_activations,
+            [-1, num_mixtures + 1]))  # (Batch * #Labels) x (num_mixtures + 1)
+        expert_distribution = tf.nn.sigmoid(tf.reshape(
+            expert_activations,
+            [-1, num_mixtures]))  # (Batch * #Labels) x num_mixtures
+
+        probabilities_by_class_and_batch = tf.reduce_sum(
+            gating_distribution[:, :num_mixtures] * expert_distribution, 1)
+        probabilities = tf.reshape(probabilities_by_class_and_batch,
+                                   [-1, vocab_size])
+
+        weight1 = tf.layers.dense(probabilities, vocab_size, use_bias=False, activation=tf.nn.relu)
+        weight1 = tf.layers.batch_normalization(weight1, training=is_training)
+
+        weight2 = tf.layers.dense(weight1, vocab_size, use_bias=False, activation=tf.nn.relu)
+        weight2 = tf.layers.batch_normalization(weight2, training=is_training)
+
+        weight3 = tf.layers.dense(weight2, vocab_size, use_bias=False, activation=None)
+
+        output = probabilities + weight3
+        output = tf.nn.relu(output)
+        output = tf.layers.batch_normalization(output, training=is_training)
+        output = tf.layers.dense(output, vocab_size, use_bias=True, activation=tf.nn.sigmoid)
+
+        return {"predictions": output}
+
+
+class MoeModel2(models.BaseModel):
+    """A softmax over a mixture of logistic models (with L2 regularization)."""
+
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     is_training,
+                     num_mixtures=None,
+                     l2_penalty=1e-8,
+                     **unused_params):
+        """Creates a Mixture of (Logistic) Experts model.
+         It also includes the possibility of gating the probabilities
+         The model consists of a per-class softmax distribution over a
+         configurable number of logistic classifiers. One of the classifiers in the
+         mixture is not trained, and always predicts 0.
+        Args:
+          model_input: 'batch_size' x 'num_features' matrix of input features.
+          vocab_size: The number of classes in the dataset.
+          is_training: Is this the training phase ?
+          num_mixtures: The number of mixtures (excluding a dummy 'expert' that
+            always predicts the non-existence of an entity).
+          l2_penalty: How much to penalize the squared magnitudes of parameter
+            values.
+        Returns:
+          A dictionary with a tensor containing the probability predictions of the
+          model in the 'predictions' key. The dimensions of the tensor are
+          batch_size x num_classes.
+        """
         num_mixtures = num_mixtures or FLAGS.moe_num_mixtures
         low_rank_gating = FLAGS.moe_low_rank_gating
-        l2_penalty = FLAGS.moe_l2;
+        l2_penalty = FLAGS.moe_l2
         gating_probabilities = FLAGS.moe_prob_gating
         gating_input = FLAGS.moe_prob_gating_input
 
