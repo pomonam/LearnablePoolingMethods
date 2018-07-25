@@ -367,7 +367,6 @@ class FishSelfAttention(modules.BaseModule):
 
         # Calculate dot product attention
         logits = tf.matmul(q, k, transpose_b=True)
-        logits = tf.layers.batch_normalization(logits, training=self.is_training)
         weights = tf.nn.softmax(logits, name="attention_weights")
         # if self.train:
         #     weights = tf.nn.dropout(weights, 1.0 - self.attention_dropout)
