@@ -118,6 +118,7 @@ class FishMultiHead(modules.BaseModule):
             v = tf.reshape(v, [-1, self.cluster_size, self.num_units])
 
             attention = tf.matmul(q, tf.transpose(k, perm=[0, 2, 1]))
+
             # -> batch_size x max_frames x max_frames
             attention = tf.layers.batch_normalization(attention, training=self.is_training)
             attention = tf.nn.softmax(attention)
@@ -283,7 +284,7 @@ class FishSelfAttention(modules.BaseModule):
         self.hidden_size = hidden_size
         self.num_heads = num_heads
         self.attention_dropout = attention_dropout
-        self.train = is_training
+        self.is_training = is_training
 
         # Layers for linearly projecting the queries, keys, and values.
         self.q_dense_layer = tf.layers.Dense(hidden_size, use_bias=False, name="q")
@@ -370,9 +371,10 @@ class FishSelfAttention(modules.BaseModule):
 
         # Calculate dot product attention
         logits = tf.matmul(q, k, transpose_b=True)
+        logits = tf.layers.batch_normalization(logits, training=self.is_training)
         weights = tf.nn.softmax(logits, name="attention_weights")
-        if self.train:
-            weights = tf.nn.dropout(weights, 1.0 - self.attention_dropout)
+        # if self.train:
+        #     weights = tf.nn.dropout(weights, 1.0 - self.attention_dropout)
         attention_output = tf.matmul(weights, v)
 
         # Recombine heads --> [batch_size, length, hidden_size]
