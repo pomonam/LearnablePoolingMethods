@@ -3869,8 +3869,8 @@ class NetVLADModelLF(models.BaseModel):
         feature_size = model_input.get_shape().as_list()[2]
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
-        video_NetVLAD = fish_modules.LuckyFishModuleV2(1024, max_frames, 256, add_batch_norm, True, is_training)
-        audio_NetVLAD = fish_modules.LuckyFishModuleV2(128, max_frames, 64, add_batch_norm, True, is_training)
+        video_NetVLAD = fish_modules.LuckyFishModuleV2(1024, 512, max_frames, 256, add_batch_norm, True, is_training)
+        audio_NetVLAD = fish_modules.LuckyFishModuleV2(128, 64, max_frames, 64, add_batch_norm, True, is_training)
 
         if add_batch_norm:  # and not lightvlad:
             reshaped_input = slim.batch_norm(
@@ -3882,11 +3882,11 @@ class NetVLADModelLF(models.BaseModel):
 
         with tf.variable_scope("video_VLAD"):
             vlad_video = video_NetVLAD.forward(reshaped_input[:, 0:1024])
-            vlad_video = tf.reshape(vlad_video, [-1, 256 * 1024])
+            vlad_video = tf.reshape(vlad_video, [-1, 256 * 512])
 
         with tf.variable_scope("audio_VLAD"):
             vlad_audio = audio_NetVLAD.forward(reshaped_input[:, 1024:])
-            vlad_audio = tf.reshape(vlad_audio, [-1, 64 * 128])
+            vlad_audio = tf.reshape(vlad_audio, [-1, 64 * 64])
 
         vlad = tf.concat([vlad_video, vlad_audio], 1)
 

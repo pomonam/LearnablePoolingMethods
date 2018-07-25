@@ -50,8 +50,9 @@ class LuckyFishModule(modules.BaseModule):
 
 class LuckyFishModuleV2(modules.BaseModule):
     """ Attention cluster. """
-    def __init__(self, feature_size, max_frames, cluster_size, add_batch_norm, shift_operation, is_training):
+    def __init__(self, feature_size, hidden_size, max_frames, cluster_size, add_batch_norm, shift_operation, is_training):
         self.feature_size = feature_size
+        self.hidden_size = hidden_size
         self.max_frames = max_frames
         self.is_training = is_training
         self.add_batch_norm = add_batch_norm
@@ -61,8 +62,8 @@ class LuckyFishModuleV2(modules.BaseModule):
     def forward(self, inputs, **unused_params):
         reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
         inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
-        q = tf.layers.dense(inputs, 512, use_bias=False, activation=None)
-        v = tf.layers.dense(inputs, 512, use_bias=False, activation=None)
+        q = tf.layers.dense(inputs, self.hidden_size, use_bias=False, activation=None)
+        v = tf.layers.dense(inputs, self.hidden_size, use_bias=False, activation=None)
 
         reshaped_q = tf.reshape(q, [-1, self.max_frames, 512])
         reshaped_v = tf.reshape(v, [-1, self.max_frames, 512])
