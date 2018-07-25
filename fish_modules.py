@@ -70,8 +70,8 @@ class LuckyFishModuleV2(modules.BaseModule):
 
         attention_weights = tf.layers.dense(reshaped_inputs, self.cluster_size, use_bias=False, activation=None)
         attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
-        if self.is_training:
-            attention_weights = tf.nn.dropout(attention_weights, 0.7)
+        # if self.is_training:
+        #     attention_weights = tf.nn.dropout(attention_weights, 0.7)
         attention_weights = tf.nn.softmax(attention_weights)
 
         reshaped_attention = tf.reshape(attention_weights, [-1, self.max_frames, self.cluster_size])
