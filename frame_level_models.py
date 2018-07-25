@@ -117,14 +117,14 @@ class CrazyFishV4(models.BaseModel):
 
         video_soft_attention_cluster = fish_modules.FishEncoderStack(num_layers=3,
                                                                      hidden_size=1024,
-                                                                     num_heads=8,
+                                                                     num_heads=16,
                                                                      filter_size=2048,
                                                                      relu_dropout=0.0,
                                                                      attention_dropout=0.0,
                                                                      is_training=is_training)
         audio_soft_attention_cluster = fish_modules.FishEncoderStack(num_layers=3,
                                                                      hidden_size=128,
-                                                                     num_heads=8,
+                                                                     num_heads=16,
                                                                      filter_size=256,
                                                                      relu_dropout=0.0,
                                                                      attention_dropout=0.0,
