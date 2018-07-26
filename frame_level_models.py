@@ -73,8 +73,8 @@ class CrazyFishV3(models.BaseModel):
         shift_operation = FLAGS.fish3_shift_operation
         hidden_size = FLAGS.fish3_hidden_size
 
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        # num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        # model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
         # model_input: batch_size x max_frames x feature_size
         max_frames = model_input.get_shape().as_list()[1]
         feature_size = model_input.get_shape().as_list()[2]
@@ -109,33 +109,34 @@ class CrazyFishV3(models.BaseModel):
             with tf.variable_scope("cluster"):
                 audio_cluster_activation = audio_cluster.forward(audio_features)
 
-        video_activation = tf.layers.dense(video_cluster_activation, 2048, use_bias=False, activation=None)
-        video_activation = tf.layers.batch_normalization(video_activation, training=is_training)
+        video_activation = tf.layers.dense(video_cluster_activation, vocab_size, use_bias=False, activation=None)
 
-        audio_activation = tf.layers.dense(audio_cluster_activation, 256, use_bias=False, activation=None)
-        audio_activation = tf.layers.batch_normalization(audio_activation, training=is_training)
+        audio_activation = tf.layers.dense(audio_cluster_activation, vocab_size, use_bias=False, activation=None)
 
         activation = tf.concat([video_activation, audio_activation], 1)
-        activation = tf.layers.dense(activation, 1024, use_bias=False, activation=None)
-        activation = tf.layers.batch_normalization(activation, training=is_training)
+        activation = tf.layers.dense(activation, vocab_size, use_bias=False, activation=None)
 
-        activation = tf.layers.dense(activation, 1024, use_bias=True, activation=tf.nn.leaky_relu)
+        activation1 = tf.layers.dense(activation, vocab_size, use_bias=True, activation=tf.nn.leaky_relu)
+        activation1 = tf.layers.batch_normalization(activation1, training=is_training)
         if is_training:
-            activation = tf.nn.dropout(activation, 0.5)
+            activation1 = tf.nn.dropout(activation1, 0.8)
 
-        activation = tf.layers.dense(activation, 1024, use_bias=True, activation=tf.nn.leaky_relu)
+        activation2 = tf.layers.dense(activation1, vocab_size, use_bias=True, activation=tf.nn.leaky_relu)
+        activation2 = tf.layers.batch_normalization(activation2, training=is_training)
         if is_training:
-            activation = tf.nn.dropout(activation, 0.5)
+            activation2 = tf.nn.dropout(activation2, 0.8)
 
-        activation = tf.layers.dense(activation, 1024, use_bias=True, activation=tf.nn.leaky_relu)
-        if is_training:
-            activation = tf.nn.dropout(activation, 0.5)
+        activation3 = tf.layers.dense(activation2, vocab_size, use_bias=True, activation=None)
+
+        final_activation = activation + activation3
+        final_activation = tf.nn.leaky_relu(final_activation)
+        final_activation = tf.layers.batch_normalization(final_activation, training=is_training)
 
         aggregated_model = getattr(video_level_models,
                                    "MoeModel")
 
         return aggregated_model().create_model(
-            model_input=activation,
+            model_input=final_activation,
             vocab_size=vocab_size,
             is_training=is_training,
             **unused_params)
