@@ -112,7 +112,7 @@ class CrazyFishV3(models.BaseModel):
         activation0 = tf.concat([video_cluster_activation, audio_cluster_activation], 1)
         activation0 = tf.layers.dense(activation0, vocab_size, use_bias=False, activation=None)
 
-        activation1 = tf.layers.dense(activation0, vocab_size * 2, use_bias=True, activation=tf.nn.leaky_relu)
+        activation1 = tf.layers.dense(activation0, vocab_size, use_bias=True, activation=tf.nn.leaky_relu)
         activation1 = tf.layers.batch_normalization(activation1, training=is_training)
         if is_training:
             activation1 = tf.nn.dropout(activation1, 0.8)
