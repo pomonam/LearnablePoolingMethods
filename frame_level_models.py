@@ -109,26 +109,20 @@ class CrazyFishV3(models.BaseModel):
             with tf.variable_scope("cluster"):
                 audio_cluster_activation = audio_cluster.forward(audio_features)
 
-        video_activation = tf.layers.dense(video_cluster_activation, vocab_size, use_bias=False, activation=None)
+        video_activation = tf.layers.dense(video_cluster_activation, 2048, use_bias=False, activation=None)
+        audio_activation = tf.layers.dense(audio_cluster_activation, 256, use_bias=False, activation=None)
 
-        audio_activation = tf.layers.dense(audio_cluster_activation, vocab_size, use_bias=False, activation=None)
+        activation0 = tf.concat([video_activation, audio_activation], 1)
+        activation0 = tf.layers.dense(activation0, vocab_size, use_bias=False, activation=None)
 
-        activation = tf.concat([video_activation, audio_activation], 1)
-        activation = tf.layers.dense(activation, vocab_size, use_bias=False, activation=None)
-
-        activation1 = tf.layers.dense(activation, vocab_size, use_bias=True, activation=tf.nn.leaky_relu)
+        activation1 = tf.layers.dense(activation0, vocab_size, use_bias=True, activation=tf.nn.leaky_relu)
         activation1 = tf.layers.batch_normalization(activation1, training=is_training)
         if is_training:
             activation1 = tf.nn.dropout(activation1, 0.8)
 
-        activation2 = tf.layers.dense(activation1, vocab_size, use_bias=True, activation=tf.nn.leaky_relu)
-        activation2 = tf.layers.batch_normalization(activation2, training=is_training)
-        if is_training:
-            activation2 = tf.nn.dropout(activation2, 0.8)
+        activation2 = tf.layers.dense(activation1, vocab_size, use_bias=True, activation=None)
 
-        activation3 = tf.layers.dense(activation2, vocab_size, use_bias=True, activation=None)
-
-        final_activation = activation + activation3
+        final_activation = activation0 + activation2
         final_activation = tf.nn.leaky_relu(final_activation)
         final_activation = tf.layers.batch_normalization(final_activation, training=is_training)
 
