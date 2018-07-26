@@ -133,7 +133,7 @@ class CrazyFishV3(models.BaseModel):
         #     vocab_size=vocab_size,
         #     is_training=is_training,
         #     **unused_params)
-        return {"prediction": final_activation}
+        return {"predictions": final_activation}
 
 
 flags.DEFINE_integer("jbtev5_iteration", 64,
