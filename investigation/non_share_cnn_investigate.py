@@ -25,6 +25,8 @@ weight = tf.constant(
     shape=[ANCHOR_SIZE, KERNEL_SIZE, FEATURE_SIZE]
 )
 
+normalized_inputs = tf.nn.l2_normalize(inputs, 2)
+
 # Transpose the inputs.
 tp_weight = tf.transpose(weight, perm=[0, 2, 1])
 # -> weight: anchor_size x feature_size x kernel_size
@@ -44,6 +46,7 @@ with tf.Session():
     print("Initial Input:")
     print(inputs)
     print(inputs.eval())
+    print(normalized_inputs.eval())
     print("Initial Weight:")
     print(weight)
     print(weight.eval())

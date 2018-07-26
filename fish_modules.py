@@ -15,16 +15,19 @@ class LuckyFishModule(modules.BaseModule):
         self.cluster_size = cluster_size
 
     def forward(self, inputs, **unused_params):
-        reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
         inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
+        reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
+        # -> reshaped_inputs: (batch_size * max_frames) x feature_size
         attention_weights = tf.layers.dense(reshaped_inputs, self.cluster_size, use_bias=False, activation=None)
-        # -> (batch_size * max_frames) x cluster_size
+        float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
+        attention_weights = tf.divide(attention_weights, tf.sqrt(float_cpy))
         attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
+        if self.is_training:
+            attention_weights = tf.nn.dropout(attention_weights, 0.8)
         attention_weights = tf.nn.softmax(attention_weights)
 
         reshaped_attention = tf.reshape(attention_weights, [-1, self.max_frames, self.cluster_size])
         transposed_attention = tf.transpose(reshaped_attention, perm=[0, 2, 1])
-        # -> transposed_attention: batch_size x cluster_size x max_frames
         activation = tf.matmul(transposed_attention, inputs)
         # -> activation: batch_size x cluster_size x feature_size
 
@@ -60,44 +63,43 @@ class LuckyFishModuleV2(modules.BaseModule):
         self.cluster_size = cluster_size
 
     def forward(self, inputs, **unused_params):
-        reshaped_inputs = tf.reshape(inputs, [-1, self.feature_size])
         inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
-        # q = tf.layers.dense(inputs, self.hidden_size, use_bias=False, activation=None)
-        # v = tf.layers.dense(inputs, self.hidden_size, use_bias=False, activation=None)
+        queries = tf.layers.dense(inputs, self.hidden_size, use_bias=False, activation=None)
+        values = tf.layers.dense(inputs, self.hidden_size, use_bias=False, activation=None)
+        reshaped_values = tf.reshape(values, [-1, self.max_frames, self.hidden_size])
 
-        # reshaped_q = tf.reshape(q, [-1, self.max_frames, self.hidden_size])
-        # reshaped_v = tf.reshape(v, [-1, self.max_frames, self.hidden_size])
-
-        attention_weights = tf.layers.dense(reshaped_inputs, self.cluster_size, use_bias=False, activation=None)
+        attention_weights = tf.layers.dense(queries, self.cluster_size, use_bias=False, activation=None)
+        float_cpy = tf.cast(self.hidden_size, dtype=tf.float32)
+        attention_weights = tf.divide(attention_weights, tf.sqrt(float_cpy))
         attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
-        # if self.is_training:
-        #     attention_weights = tf.nn.dropout(attention_weights, 0.7)
+        if self.is_training:
+            attention_weights = tf.nn.dropout(attention_weights, 0.8)
         attention_weights = tf.nn.softmax(attention_weights)
 
         reshaped_attention = tf.reshape(attention_weights, [-1, self.max_frames, self.cluster_size])
         transposed_attention = tf.transpose(reshaped_attention, perm=[0, 2, 1])
         # -> transposed_attention: batch_size x cluster_size x max_frames
-        activation = tf.matmul(transposed_attention, inputs)
+        activation = tf.matmul(transposed_attention, reshaped_values)
         # -> activation: batch_size x cluster_size x feature_size
+        transformed_activation = tf.transpose(activation, perm=[0, 2, 1])
+        # -> transformed_activation: batch_size x feature_size x cluster_size
 
         if self.shift_operation:
             alpha = tf.get_variable("alpha",
-                                    [1, self.cluster_size, 1],
+                                    [self.cluster_size],
                                     initializer=tf.constant_initializer(1.0))
             beta = tf.get_variable("beta",
-                                   [1, self.cluster_size, 1],
+                                   [self.cluster_size],
                                    initializer=tf.constant_initializer(0.0))
-            activation = tf.multiply(activation, alpha)
-            activation = tf.add(activation, beta)
+            transformed_activation = tf.multiply(transformed_activation, alpha)
+            transformed_activation = tf.add(transformed_activation, beta)
             float_cpy = tf.cast(self.cluster_size, dtype=tf.float32)
-            activation = tf.divide(activation, tf.sqrt(float_cpy))
+            transformed_activation = tf.divide(transformed_activation, tf.sqrt(float_cpy))
 
-        normalized_activation = tf.nn.l2_normalize(activation, 2)
-        reshaped_normalized_activation = tf.reshape(normalized_activation, [-1, self.cluster_size * self.feature_size])
-        final_activation = tf.nn.l2_normalize(reshaped_normalized_activation)
-        reshaped_final_activation = tf.reshape(final_activation, [-1, self.cluster_size, self.feature_size])
+        normalized_activation = tf.nn.l2_normalize(transformed_activation, 2)
+        normalized_activation = tf.reshape(normalized_activation, [-1, self.cluster_size * self.hidden_size])
 
-        return reshaped_final_activation
+        return normalized_activation
 
 
 class BadFishModule(modules.BaseModule):

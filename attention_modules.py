@@ -100,6 +100,7 @@ class MultiHeadAttention(modules.BaseModule):
             attention = tf.matmul(Q, tf.transpose(K, perm=[0, 2, 1]))
             # attention: -> batch_size x max_frames x max_frames
             float_cpy = tf.cast(self.num_units, dtype=tf.float32)
+            attention = tf.divide(attention, tf.sqrt(float_cpy))
             attention = tf.nn.softmax(tf.divide(attention, tf.sqrt(float_cpy)))
 
             output = tf.matmul(attention, V)

@@ -36,385 +36,6 @@ import fish_modules
 ###############################################################################
 # Transformer #################################################################
 ###############################################################################
-# flags.DEFINE_integer("fish3_iteration", 128,
-#                      "Number of frames per batch")
-# flags.DEFINE_integer("fish3_video_cluster_size", 64,
-#                      "Number of frames per batch")
-# flags.DEFINE_integer("fish3_audio_cluster_size", 16,
-#                      "Number of frames per batch")
-# flags.DEFINE_bool("fish3_shift_operation", True,
-#                   "")
-# flags.DEFINE_integer("fish3_video_num_units", 1024,
-#                      "Number of frames per batch")
-# flags.DEFINE_integer("fish3_audio_num_units", 128,
-#                      "Number of frames per batch")
-# flags.DEFINE_integer("fish3_video_num_heads", 8,
-#                      "Number of frames per batch")
-# flags.DEFINE_integer("fish3_audio_num_heads", 8,
-#                      "Number of frames per batch")
-# flags.DEFINE_integer("fish3_hidden_size", 1024,
-#                      "Number of frames per batch")
-
-
-class CrazyFishV5(models.BaseModel):
-    def create_model(self,
-                     model_input,
-                     vocab_size,
-                     num_frames,
-                     iterations=None,
-                     add_batch_norm=None,
-                     sample_random_frames=None,
-                     hidden_size=None,
-                     is_training=True,
-                     **unused_params):
-        iterations = 128
-        video_cluster_size = FLAGS.fish3_video_cluster_size
-        audio_cluster_size = FLAGS.fish3_audio_cluster_size
-        shift_operation = FLAGS.fish3_shift_operation
-        video_num_units = FLAGS.fish3_video_num_units
-        audio_num_units = FLAGS.fish3_audio_num_units
-        video_num_heads = FLAGS.fish3_video_num_heads
-        audio_num_heads = FLAGS.fish3_audio_num_heads
-        hidden_size = FLAGS.fish3_hidden_size
-
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
-        # model_input: batch_size x max_frames x feature_size
-        max_frames = model_input.get_shape().as_list()[1]
-        feature_size = model_input.get_shape().as_list()[2]
-        reshaped_input = tf.reshape(model_input, [-1, feature_size])
-
-        # Differentiate video & audio features.
-        video_features = reshaped_input[:, 0:1024]
-        audio_features = reshaped_input[:, 1024:]
-
-        video_features = slim.batch_norm(
-            video_features,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="video_features_bn")
-        audio_features = slim.batch_norm(
-            audio_features,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="audio_features_bn")
-
-        video_features = tf.reshape(video_features, [-1, max_frames, 1024])
-        audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
-
-        video_attention_cluster = fish_modules.LuckyFishModuleV2(feature_size=1024,
-                                                                 max_frames=max_frames,
-                                                                 cluster_size=256,
-                                                                 add_batch_norm=True,
-                                                                 shift_operation=True,
-                                                                 is_training=is_training)
-        audio_attention_cluster = fish_modules.LuckyFishModuleV2(feature_size=128,
-                                                                 max_frames=max_frames,
-                                                                 cluster_size=64,
-                                                                 add_batch_norm=True,
-                                                                 shift_operation=True,
-                                                                 is_training=is_training)
-
-        with tf.variable_scope("video"):
-            with tf.variable_scope("cluster"):
-                video_cluster = video_attention_cluster.forward(video_features)
-                video_cluster = tf.reshape(video_cluster, [-1, 256 * 1024])
-
-        with tf.variable_scope("audio"):
-            with tf.variable_scope("cluster"):
-                audio_cluster = audio_attention_cluster.forward(audio_features)
-                audio_cluster = tf.reshape(audio_cluster, [-1, 64 * 128])
-
-        combined_cluster = tf.concat([video_cluster, audio_cluster], 1)
-        combined_cluster = tf.layers.dense(combined_cluster, 1024, use_bias=False, activation=None)
-
-        filter1 = tf.layers.dense(combined_cluster,
-                                  4096,
-                                  use_bias=True,
-                                  activation=tf.nn.relu,
-                                  name="filter1")
-        filter1 = tf.layers.batch_normalization(filter1, training=is_training)
-
-        if is_training:
-            filter1 = tf.nn.dropout(filter1, 0.8)
-
-        filter2 = tf.layers.dense(filter1,
-                                  1024,
-                                  use_bias=False,
-                                  activation=None,
-                                  name="filter2")
-
-        activation = combined_cluster + filter2
-        activation = tf.nn.relu(activation)
-        activation = tf.layers.batch_normalization(activation, training=is_training)
-
-        aggregated_model = getattr(video_level_models,
-                                   "MoeModel2")
-
-        return aggregated_model().create_model(
-            model_input=activation,
-            vocab_size=vocab_size,
-            is_training=is_training,
-            **unused_params)
-
-
-class CrazyFishV1(models.BaseModel):
-    def create_model(self,
-                     model_input,
-                     vocab_size,
-                     num_frames,
-                     iterations=None,
-                     add_batch_norm=None,
-                     sample_random_frames=None,
-                     hidden_size=None,
-                     is_training=True,
-                     **unused_params):
-        iterations = iterations or 64
-
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
-        # model_input: batch_size x max_frames x feature_size
-        max_frames = model_input.get_shape().as_list()[1]
-        feature_size = model_input.get_shape().as_list()[2]
-        reshaped_input = tf.reshape(model_input, [-1, feature_size])
-
-        # Differentiate video & audio features.
-        video_features = reshaped_input[:, 0:1024]
-        audio_features = reshaped_input[:, 1024:]
-
-        video_features = slim.batch_norm(
-            video_features,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="video_features_bn")
-        audio_features = slim.batch_norm(
-            audio_features,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="audio_features_bn")
-
-        video_features = tf.reshape(video_features, [-1, max_frames, 1024])
-        audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
-
-        first_v_attention_cluster = fish_modules.LuckyFishModule(feature_size=1024,
-                                                                 max_frames=max_frames,
-                                                                 cluster_size=256,
-                                                                 add_batch_norm=True,
-                                                                 shift_operation=True,
-                                                                 is_training=is_training)
-        first_a_attention_cluster = fish_modules.LuckyFishModule(feature_size=128,
-                                                                 max_frames=max_frames,
-                                                                 cluster_size=64,
-                                                                 add_batch_norm=True,
-                                                                 shift_operation=True,
-                                                                 is_training=is_training)
-
-        with tf.variable_scope("video"):
-            with tf.variable_scope("encode"):
-                video_activation = first_v_attention_cluster.forward(video_features)
-                video_activation = tf.reshape(video_activation, [-1, 256 * 1024])
-
-        with tf.variable_scope("audio"):
-            with tf.variable_scope("encode"):
-                audio_activation = first_a_attention_cluster.forward(audio_features)
-                audio_activation = tf.reshape(audio_activation, [-1, 64 * 128])
-
-        activation = tf.concat([video_activation, audio_activation], 1)
-        activation = tf.layers.dense(activation, 1024, use_bias=False, activation=None)
-        activation = tf.contrib.layers.layer_norm(activation)
-
-        filter_output = tf.layers.dense(activation,
-                                        4096,
-                                        use_bias=True,
-                                        activation=tf.nn.relu,
-                                        name="filter")
-        if is_training:
-            filter_output = tf.nn.dropout(filter_output, 0.9)
-
-        output = tf.layers.dense(filter_output,
-                                 1024,
-                                 use_bias=True,
-                                 activation=tf.nn.relu,
-                                 name="output")
-
-        activation = activation + output
-        activation = tf.contrib.layers.layer_norm(activation)
-
-        aggregated_model = getattr(video_level_models,
-                                   "MoeModel")
-
-        return aggregated_model().create_model(
-            model_input=activation,
-            vocab_size=vocab_size,
-            is_training=is_training,
-            **unused_params)
-
-
-class CrazyFishV2(models.BaseModel):
-    def create_model(self,
-                     model_input,
-                     vocab_size,
-                     num_frames,
-                     iterations=None,
-                     add_batch_norm=None,
-                     sample_random_frames=None,
-                     hidden_size=None,
-                     is_training=True,
-                     **unused_params):
-        iterations = iterations or 64
-
-        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
-        # model_input: batch_size x max_frames x feature_size
-        max_frames = model_input.get_shape().as_list()[1]
-        feature_size = model_input.get_shape().as_list()[2]
-        reshaped_input = tf.reshape(model_input, [-1, feature_size])
-
-        # Differentiate video & audio features.
-        video_features = reshaped_input[:, 0:1024]
-        audio_features = reshaped_input[:, 1024:]
-
-        video_features = slim.batch_norm(
-            video_features,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="video_features_bn")
-        audio_features = slim.batch_norm(
-            audio_features,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="audio_features_bn")
-
-        video_features = tf.reshape(video_features, [-1, max_frames, 1024])
-        audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
-
-        # first_v_attention_cluster = fish_modules.LuckyFishModule(feature_size=1024,
-        #                                                          max_frames=max_frames,
-        #                                                          cluster_size=256,
-        #                                                          add_batch_norm=True,
-        #                                                          shift_operation=True,
-        #                                                          is_training=is_training)
-        second_v_attention_cluster = fish_modules.LuckyFishModule(feature_size=1024,
-                                                                  max_frames=max_frames,
-                                                                  cluster_size=256,
-                                                                  add_batch_norm=True,
-                                                                  shift_operation=True,
-                                                                  is_training=is_training)
-        # first_a_attention_cluster = fish_modules.LuckyFishModule(feature_size=128,
-        #                                                          max_frames=max_frames,
-        #                                                          cluster_size=64,
-        #                                                          add_batch_norm=True,
-        #                                                          shift_operation=True,
-        #                                                          is_training=is_training)
-        second_a_attention_cluster = fish_modules.LuckyFishModule(feature_size=128,
-                                                                  max_frames=max_frames,
-                                                                  cluster_size=64,
-                                                                  add_batch_norm=True,
-                                                                  shift_operation=True,
-                                                                  is_training=is_training)
-        fish_v_self_attention = fish_modules.FishMultiHead(feature_size=1024,
-                                                           filter_size=1024,
-                                                           num_units=1024,
-                                                           num_heads=12,
-                                                           max_frames=max_frames,
-                                                           is_training=is_training)
-        fish_a_self_attention = fish_modules.FishMultiHead(feature_size=128,
-                                                           filter_size=128,
-                                                           num_units=128,
-                                                           num_heads=12,
-                                                           max_frames=max_frames,
-                                                           is_training=is_training)
-
-        with tf.variable_scope("video"):
-            with tf.variable_scope("encode"):
-                # with tf.variable_scope("virgin"):
-                #     video_activation = first_v_attention_cluster.forward(video_features)
-                #     video_activation = tf.reshape(video_activation, [-1, 256 * 1024])
-                with tf.variable_scope("not_virgin"):
-                    with tf.variable_scope("block_1"):
-                        b1 = fish_v_self_attention.forward(video_features)
-                    # with tf.variable_scope("block_2"):
-                    #     b2 = fish_v_self_attention.forward(b1)
-                    # with tf.variable_scope("block_3"):
-                    #     b3 = fish_v_self_attention.forward(b2)
-                    with tf.variable_scope("cluster"):
-                        all_concat = tf.concat([video_features, b1], 1)
-                        final_video = second_v_attention_cluster.forward(all_concat)
-                        final_video = tf.reshape(final_video, [-1, 256 * 1024])
-
-        with tf.variable_scope("audio"):
-            with tf.variable_scope("encode"):
-                # with tf.variable_scope("virgin"):
-                #     audio_activation = first_a_attention_cluster.forward(audio_features)
-                #     audio_activation = tf.reshape(audio_activation, [-1, 64 * 128])
-                with tf.variable_scope("not_virgin"):
-                    with tf.variable_scope("block_1"):
-                        b1 = fish_a_self_attention.forward(audio_features)
-                    # with tf.variable_scope("block_2"):
-                    #     b2 = fish_a_self_attention.forward(b1)
-                    # with tf.variable_scope("block_3"):
-                    #     b3 = fish_a_self_attention.forward(b2)
-                    with tf.variable_scope("cluster"):
-                        all_concat = tf.concat([audio_features, b1], 1)
-                        final_audio = second_a_attention_cluster.forward(all_concat)
-                        final_audio = tf.reshape(final_audio, [-1, 64 * 128])
-
-        activation = tf.concat([final_video, final_audio], 1)
-
-        # activation = tf.layers.dense(activation, 1024, use_bias=False, activation=None)
-        # activation = tf.layers.batch_normalization(activation, training=is_training)
-        #
-        # filter1 = tf.layers.dense(activation, 2048,
-        #                           use_bias=False,
-        #                           activation=tf.nn.leaky_relu,
-        #                           name="filter_output")
-        # filter1 = tf.layers.batch_normalization(filter1, training=is_training)
-        #
-        # filter2 = tf.layers.dense(filter1, 1024,
-        #                           use_bias=True,
-        #                           activation=None,
-        #                           name="ff_output")
-        #
-        # activation = activation + filter2
-        # activation = tf.nn.leaky_relu(activation)
-        # activation = tf.layers.batch_normalization(activation, training=is_training)
-
-        activation = tf.layers.dense(activation, 1024, use_bias=False, activation=None)
-        activation = tf.contrib.layers.layer_norm(activation)
-
-        filter_output = tf.layers.dense(activation,
-                                        1024,
-                                        use_bias=True,
-                                        activation=tf.nn.relu,
-                                        name="filter")
-        if is_training:
-            filter_output = tf.nn.dropout(filter_output, 0.9)
-
-        output = tf.layers.dense(filter_output,
-                                 1024,
-                                 use_bias=True,
-                                 activation=tf.nn.relu,
-                                 name="output")
-
-        activation = activation + output
-        activation = tf.contrib.layers.layer_norm(activation)
-
-        aggregated_model = getattr(video_level_models,
-                                   "MoeModel")
-
-        return aggregated_model().create_model(
-            model_input=activation,
-            vocab_size=vocab_size,
-            is_training=is_training,
-            **unused_params)
-
-
 flags.DEFINE_integer("fish3_iteration", 128,
                      "Number of frames per batch")
 flags.DEFINE_integer("fish3_video_cluster_size", 64,
@@ -450,10 +71,6 @@ class CrazyFishV3(models.BaseModel):
         video_cluster_size = FLAGS.fish3_video_cluster_size
         audio_cluster_size = FLAGS.fish3_audio_cluster_size
         shift_operation = FLAGS.fish3_shift_operation
-        video_num_units = FLAGS.fish3_video_num_units
-        audio_num_units = FLAGS.fish3_audio_num_units
-        video_num_heads = FLAGS.fish3_video_num_heads
-        audio_num_heads = FLAGS.fish3_audio_num_heads
         hidden_size = FLAGS.fish3_hidden_size
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
@@ -467,119 +84,54 @@ class CrazyFishV3(models.BaseModel):
         video_features = reshaped_input[:, 0:1024]
         audio_features = reshaped_input[:, 1024:]
 
-        video_features = slim.batch_norm(
-            video_features,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="video_features_bn")
-        audio_features = slim.batch_norm(
-            audio_features,
-            center=True,
-            scale=True,
-            is_training=is_training,
-            scope="audio_features_bn")
-
         video_features = tf.reshape(video_features, [-1, max_frames, 1024])
         audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
 
-        initial_v_attention_cluster = fish_modules.LuckyFishModule(feature_size=1024,
-                                                                   max_frames=max_frames,
-                                                                   cluster_size=video_cluster_size,
-                                                                   add_batch_norm=True,
-                                                                   shift_operation=shift_operation,
-                                                                   is_training=True)
-        rest_v_attention_cluster = fish_modules.LuckyFishModule(feature_size=1024,
-                                                                max_frames=video_cluster_size,
-                                                                cluster_size=video_cluster_size,
-                                                                add_batch_norm=True,
-                                                                shift_operation=shift_operation,
-                                                                is_training=True)
+        video_cluster = fish_modules.LuckyFishModuleV2(feature_size=1024,
+                                                       hidden_size=512,
+                                                       max_frames=max_frames,
+                                                       cluster_size=video_cluster_size,
+                                                       add_batch_norm=True,
+                                                       shift_operation=shift_operation,
+                                                       is_training=is_training)
 
-        initial_a_attention_cluster = fish_modules.LuckyFishModule(feature_size=128,
-                                                                   max_frames=max_frames,
-                                                                   cluster_size=audio_cluster_size,
-                                                                   add_batch_norm=True,
-                                                                   shift_operation=shift_operation,
-                                                                   is_training=True)
-        rest_a_attention_cluster = fish_modules.LuckyFishModule(feature_size=128,
-                                                                max_frames=audio_cluster_size,
-                                                                cluster_size=audio_cluster_size,
-                                                                add_batch_norm=True,
-                                                                shift_operation=shift_operation,
-                                                                is_training=True)
-
-        fish_v_self_attention = fish_modules.FishMultiHead(feature_size=1024,
-                                                           filter_size=None,
-                                                           num_units=video_num_units,
-                                                           num_heads=video_num_heads,
-                                                           cluster_size=video_cluster_size,
-                                                           is_training=is_training)
-        fish_a_self_attention = fish_modules.FishMultiHead(feature_size=128,
-                                                           filter_size=None,
-                                                           num_units=audio_num_units,
-                                                           num_heads=audio_num_heads,
-                                                           cluster_size=audio_cluster_size,
-                                                           is_training=is_training)
-
-        fg_v = fish_modules.FishGate(hidden_size=1024,
-                                     is_training=is_training)
-        fg_a = fish_modules.FishGate(hidden_size=128,
-                                     is_training=is_training)
+        audio_cluster = fish_modules.LuckyFishModuleV2(feature_size=128,
+                                                       hidden_size=64,
+                                                       max_frames=max_frames,
+                                                       cluster_size=audio_cluster_size,
+                                                       add_batch_norm=True,
+                                                       shift_operation=shift_operation,
+                                                       is_training=is_training)
 
         with tf.variable_scope("video"):
-            with tf.variable_scope("block_1"):
-                video_cluster1 = initial_v_attention_cluster.forward(video_features)
-                video_cluster1_temp = tf.reshape(video_cluster1, [-1, video_cluster_size * 1024])
-                video_fg1 = fg_v.forward(video_cluster1_temp)
-                video_mha1 = fish_v_self_attention.forward(video_cluster1)
-
-            with tf.variable_scope("block_2"):
-                video_cluster2 = rest_v_attention_cluster.forward(video_mha1)
-                video_cluster2_temp = tf.reshape(video_cluster2, [-1, video_cluster_size * 1024])
-                video_fg2 = fg_v.forward(video_cluster2_temp)
-                video_mha2 = fish_v_self_attention.forward(video_cluster2)
-
-            with tf.variable_scope("block_3"):
-                video_cluster3 = rest_v_attention_cluster.forward(video_mha2)
-                video_cluster3_temp = tf.reshape(video_cluster3, [-1, video_cluster_size * 1024])
-                video_fg3 = fg_v.forward(video_cluster3_temp)
-                video_mha3 = fish_v_self_attention.forward(video_cluster3)
-
-            with tf.variable_scope("block_4"):
-                video_cluster4 = rest_v_attention_cluster.forward(video_mha3)
-                video_cluster4_temp = tf.reshape(video_cluster4, [-1, video_cluster_size * 1024])
-                video_fg4 = fg_v.forward(video_cluster4_temp)
-
-            final_video = tf.concat([video_fg1, video_fg2, video_fg3, video_fg4], 1)
+            with tf.variable_scope("cluster"):
+                video_cluster_activation = video_cluster.forward(video_features)
 
         with tf.variable_scope("audio"):
-            with tf.variable_scope("block_1"):
-                audio_cluster1 = initial_a_attention_cluster.forward(audio_features)
-                audio_cluster1_temp = tf.reshape(audio_cluster1, [-1, audio_cluster_size * 128])
-                audio_fg1 = fg_a.forward(audio_cluster1_temp)
-                audio_mha1 = fish_a_self_attention.forward(audio_cluster1)
+            with tf.variable_scope("cluster"):
+                audio_cluster_activation = audio_cluster.forward(audio_features)
 
-            with tf.variable_scope("block_2"):
-                audio_cluster2 = rest_a_attention_cluster.forward(audio_mha1)
-                audio_cluster2_temp = tf.reshape(audio_cluster2, [-1, audio_cluster_size * 128])
-                audio_fg2 = fg_a.forward(audio_cluster2_temp)
-                audio_mha2 = fish_a_self_attention.forward(audio_cluster2)
+        video_activation = tf.layers.dense(video_cluster_activation, 2048, use_bias=False, activation=None)
+        video_activation = tf.layers.batch_normalization(video_activation, training=is_training)
 
-            with tf.variable_scope("block_3"):
-                audio_cluster3 = rest_a_attention_cluster.forward(audio_mha2)
-                audio_cluster3_temp = tf.reshape(audio_cluster3, [-1, audio_cluster_size * 128])
-                audio_fg3 = fg_a.forward(audio_cluster3_temp)
-                audio_mha3 = fish_a_self_attention.forward(audio_cluster3)
+        audio_activation = tf.layers.dense(audio_cluster_activation, 256, use_bias=False, activation=None)
+        audio_activation = tf.layers.batch_normalization(audio_activation, training=is_training)
 
-            with tf.variable_scope("block_4"):
-                audio_cluster4 = rest_a_attention_cluster.forward(audio_mha3)
-                audio_cluster4_temp = tf.reshape(audio_cluster4, [-1, audio_cluster_size * 128])
-                audio_fg4 = fg_a.forward(audio_cluster4_temp)
+        activation = tf.concat([video_activation, audio_activation], 1)
+        activation = tf.layers.dense(activation, 1024, use_bias=False, activation=None)
+        activation = tf.layers.batch_normalization(activation, training=is_training)
 
-            final_audio = tf.concat([audio_fg1, audio_fg2, audio_fg3, audio_fg4], 1)
+        activation = tf.layers.dense(activation, 1024, use_bias=True, activation=tf.nn.leaky_relu)
+        if is_training:
+            activation = tf.nn.dropout(activation, 0.9)
 
-        activation = tf.concat([final_video, final_audio], 1)
+        activation = tf.layers.dense(activation, 1024, use_bias=True, activation=tf.nn.leaky_relu)
+        if is_training:
+            activation = tf.nn.dropout(activation, 0.9)
+
+        activation = tf.layers.dense(activation, 1024, use_bias=True, activation=tf.nn.leaky_relu)
+        if is_training:
+            activation = tf.nn.dropout(activation, 0.9)
 
         aggregated_model = getattr(video_level_models,
                                    "MoeModel")
