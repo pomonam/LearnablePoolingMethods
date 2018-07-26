@@ -112,7 +112,7 @@ class CrazyFishV3(models.BaseModel):
         activation0 = tf.concat([video_cluster_activation, audio_cluster_activation], 1)
         activation0 = tf.layers.dense(activation0, vocab_size, use_bias=False, activation=None)
 
-        activation1 = tf.layers.dense(activation0, vocab_size, use_bias=True, activation=tf.nn.leaky_relu)
+        activation1 = tf.layers.dense(activation0, vocab_size * 2, use_bias=True, activation=tf.nn.leaky_relu)
         activation1 = tf.layers.batch_normalization(activation1, training=is_training)
         if is_training:
             activation1 = tf.nn.dropout(activation1, 0.8)
@@ -123,14 +123,17 @@ class CrazyFishV3(models.BaseModel):
         final_activation = tf.nn.leaky_relu(final_activation)
         final_activation = tf.layers.batch_normalization(final_activation, training=is_training)
 
-        aggregated_model = getattr(video_level_models,
-                                   "MoeModel")
+        final_activation = tf.layers.dense(final_activation, vocab_size, use_bias=True, activation=tf.nn.sigmoid)
 
-        return aggregated_model().create_model(
-            model_input=final_activation,
-            vocab_size=vocab_size,
-            is_training=is_training,
-            **unused_params)
+        # aggregated_model = getattr(video_level_models,
+        #                            "MoeModel")
+        #
+        # return aggregated_model().create_model(
+        #     model_input=final_activation,
+        #     vocab_size=vocab_size,
+        #     is_training=is_training,
+        #     **unused_params)
+        return {"prediction": final_activation}
 
 
 flags.DEFINE_integer("jbtev5_iteration", 64,
