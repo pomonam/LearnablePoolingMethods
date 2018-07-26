@@ -88,7 +88,6 @@ class CrazyFishV3(models.BaseModel):
         audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
 
         video_cluster = fish_modules.LuckyFishModuleV2(feature_size=1024,
-                                                       hidden_size=512,
                                                        max_frames=max_frames,
                                                        cluster_size=video_cluster_size,
                                                        add_batch_norm=True,
@@ -96,7 +95,6 @@ class CrazyFishV3(models.BaseModel):
                                                        is_training=is_training)
 
         audio_cluster = fish_modules.LuckyFishModuleV2(feature_size=128,
-                                                       hidden_size=64,
                                                        max_frames=max_frames,
                                                        cluster_size=audio_cluster_size,
                                                        add_batch_norm=True,
@@ -123,15 +121,15 @@ class CrazyFishV3(models.BaseModel):
 
         activation = tf.layers.dense(activation, 1024, use_bias=True, activation=tf.nn.leaky_relu)
         if is_training:
-            activation = tf.nn.dropout(activation, 0.9)
+            activation = tf.nn.dropout(activation, 0.5)
 
         activation = tf.layers.dense(activation, 1024, use_bias=True, activation=tf.nn.leaky_relu)
         if is_training:
-            activation = tf.nn.dropout(activation, 0.9)
+            activation = tf.nn.dropout(activation, 0.5)
 
         activation = tf.layers.dense(activation, 1024, use_bias=True, activation=tf.nn.leaky_relu)
         if is_training:
-            activation = tf.nn.dropout(activation, 0.9)
+            activation = tf.nn.dropout(activation, 0.5)
 
         aggregated_model = getattr(video_level_models,
                                    "MoeModel")
