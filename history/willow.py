@@ -22,7 +22,7 @@ import os
 
 # Name and version of the model
 MODEL_NAME = "NetVLADModelLF"
-MODEL_VERSION = "-1"
+MODEL_VERSION = "-2"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -34,7 +34,7 @@ FEATURES = "rgb,audio"
 BATCH_SIZE = 128
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0002
+BASE_LEARNING_RATE = 0.0005
 
 # Initialize a new model?
 START_NEW_MODEL = False
