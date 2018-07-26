@@ -68,7 +68,7 @@ class LuckyFishModuleV2(modules.BaseModule):
         attention_weights = tf.layers.dense(inputs, self.cluster_size, use_bias=False, activation=None)
         float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
         attention_weights = tf.divide(attention_weights, tf.sqrt(float_cpy))
-        attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
+        # attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
         if self.is_training:
             attention_weights = tf.nn.dropout(attention_weights, 0.7)
         attention_weights = tf.nn.softmax(attention_weights)

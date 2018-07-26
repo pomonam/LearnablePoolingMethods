@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 
 # Base LR.
 BASE_LEARNING_RATE = 0.001
@@ -40,7 +40,7 @@ BASE_LEARNING_RATE = 0.001
 START_NEW_MODEL = False
 
 EXTRA = "--fish3_iteration=128 " \
-        "--fish3_video_cluster_size=256 " \
+        "--fish3_video_cluster_size=128 " \
         "--fish3_audio_cluster_size=32 " \
         "--fish3_shift_operation=True " \
         "--fish3_hidden_size=2048 "
