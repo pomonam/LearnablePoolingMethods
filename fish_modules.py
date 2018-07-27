@@ -102,6 +102,42 @@ class LuckyFishModuleV2(modules.BaseModule):
         return normalized_activation
 
 
+class SexyFishModule(modules.BaseModule):
+    """ Attention cluster. """
+    def __init__(self, feature_size, max_frames, dropout_rate, cluster_size,
+                 add_batch_norm, shift_operation, is_training):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.add_batch_norm = add_batch_norm
+        self.dropout_rate = dropout_rate
+        self.shift_operation = shift_operation
+        self.cluster_size = cluster_size
+
+    def forward(self, inputs, **unused_params):
+        reshaped_inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
+        attention = tf.matmul(reshaped_inputs, tf.transpose(reshaped_inputs, perm=[0, 2, 1]))
+        float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
+        attention = tf.divide(attention, tf.sqrt(float_cpy))
+        attention = tf.layers.batch_normalization(attention, training=self.is_training)
+        # -> batch_size x max_frames x max_frames
+        attention = tf.expand_dims(attention, -1)
+
+        # Zero-out negative weight.
+        # attention = tf.nn.relu(attention)
+        attention = tf.reduce_sum(attention, axis=2)
+
+        # -> batch_size x max_frames x 1
+        attention = tf.nn.softmax(attention, axis=1)
+
+        mean_pool = tf.reduce_mean(tf.multiply(reshaped_inputs, attention), axis=1)
+        # -> batch_size x num_features
+
+        normalized_pool = tf.nn.l2_normalize(mean_pool)
+
+        return normalized_pool
+
+
 class BadFishModule(modules.BaseModule):
     """ Attention cluster. """
     def __init__(self, feature_size, max_frames, cluster_size, add_batch_norm, shift_operation, is_training):
