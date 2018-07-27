@@ -21,8 +21,8 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "NetVLADModelLF"
-MODEL_VERSION = "-2"
+MODEL_NAME = "CrazyFishV4"
+MODEL_VERSION = "-69"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -39,7 +39,16 @@ BASE_LEARNING_RATE = 0.0005
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = ""
+EXTRA = "--fish3_iteration=128 " \
+        "--fish3_video_cluster_size=128 " \
+        "--fish3_audio_cluster_size=32 " \
+        "--fish3_shift_operation=True " \
+        "--fish3_filter_size=2 " \
+        "--fish3_cluster_dropout=0.7 " \
+        "--fish3_ff_dropout=0.7 " \
+        "--fish3_linear_proj_dropout=0.7 " \
+        "--fish3_l2_regularization_rate=1e-8 " \
+        "--fish3_hidden_size=2048 "
 
 
 def main():
@@ -74,7 +83,7 @@ def main():
     eval_command += "--feature_names='{}' ".format(FEATURES)
     eval_command += "--feature_sizes='1024,128' "
     eval_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    eval_command += "--train_dir=/home/soopowja/jb3/ ".format(MODEL_NAME + str(MODEL_VERSION))
+    eval_command += "--train_dir=/home/deeptopology2/JuhanTestModelV3-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
     eval_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
     eval_command += "--run_once=True "
     eval_command += EXTRA
@@ -88,9 +97,9 @@ def main():
     inference_command += "--feature_names='{}' ".format(FEATURES)
     inference_command += "--feature_sizes='1024,128' "
     inference_command += "--batch_size=256 ".format(str(BATCH_SIZE))
-    inference_command += "--train_dir=/home/soopowja/jb3/ ".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--train_dir=/home/deeptopology2/JuhanTestModelV3-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
-    inference_command += "--output_file=/home/soopowja/jb3/predictions.csv ".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--output_file=/home/deeptopology2/JuhanTestModelV3-2/predictions.csv ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += EXTRA
 
     return local_command, eval_command, inference_command

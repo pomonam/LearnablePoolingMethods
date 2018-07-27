@@ -174,6 +174,124 @@ class CrazyFishV3(models.BaseModel):
         return {"predictions": activation9}
 
 
+flags.DEFINE_integer("fish4_iteration", 128,
+                     "Number of frames per batch")
+flags.DEFINE_integer("fish4_video_cluster_size", 256,
+                     "Video clustering size")
+flags.DEFINE_integer("fish4_audio_cluster_size", 32,
+                     "Audio clustering size")
+flags.DEFINE_integer("fish4_filter_size", 2,
+                     "Video clustering size")
+flags.DEFINE_integer("fish4_hidden_size", 1024,
+                     "Hidden size")
+flags.DEFINE_bool("fish4_shift_operation", True,
+                  "Perform shift operation?")
+flags.DEFINE_float("fish4_cluster_dropout", 0.7,
+                   "Dropout rate for clustering operation")
+flags.DEFINE_float("fish4_ff_dropout", 0.8,
+                   "Dropout rate for Feed Forward operation")
+flags.DEFINE_float("fish4_linear_proj_dropout", 0.8,
+                   "Dropout rate for linear projection")
+flags.DEFINE_float("fish4_l2_regularization_rate", 1e-8,
+                   "Regularization rate")
+
+
+class CrazyFishV4(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.fish4_iteration
+        video_cluster_size = FLAGS.fish4_video_cluster_size
+        audio_cluster_size = FLAGS.fish4_audio_cluster_size
+        shift_operation = FLAGS.fish4_shift_operation
+        cluster_dropout = FLAGS.fish4_cluster_dropout
+        ff_dropout = FLAGS.fish4_ff_dropout
+        linear_dropout = FLAGS.fish4_linear_proj_dropout
+        filter_size = FLAGS.fish4_filter_size
+        l2_reg_rate = FLAGS.fish4_l2_regularization_rate
+        hidden_size = FLAGS.fish4_hidden_size
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        # Differentiate video & audio features.
+        video_features = reshaped_input[:, 0:1024]
+        audio_features = reshaped_input[:, 1024:]
+
+        video_features = tf.reshape(video_features, [-1, max_frames, 1024])
+        audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
+
+        video_cluster = fish_modules.LuckyFishModuleV2(feature_size=1024,
+                                                       max_frames=max_frames,
+                                                       dropout_rate=cluster_dropout,
+                                                       cluster_size=video_cluster_size,
+                                                       add_batch_norm=True,
+                                                       shift_operation=shift_operation,
+                                                       is_training=is_training)
+
+        audio_cluster = fish_modules.LuckyFishModuleV2(feature_size=128,
+                                                       max_frames=max_frames,
+                                                       dropout_rate=cluster_dropout,
+                                                       cluster_size=audio_cluster_size,
+                                                       add_batch_norm=True,
+                                                       shift_operation=shift_operation,
+                                                       is_training=is_training)
+
+        with tf.variable_scope("video"):
+            with tf.variable_scope("cluster"):
+                video_cluster_activation = video_cluster.forward(video_features)
+
+        with tf.variable_scope("audio"):
+            with tf.variable_scope("cluster"):
+                audio_cluster_activation = audio_cluster.forward(audio_features)
+
+        activation0 = tf.concat([video_cluster_activation, audio_cluster_activation], 1)
+        activation0 = tf.layers.dense(activation0, hidden_size, use_bias=False, activation=None,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+        if is_training:
+            activation0 = tf.nn.dropout(activation0, linear_dropout)
+
+        activation1 = tf.layers.dense(activation0, hidden_size * filter_size,
+                                      use_bias=True, activation=tf.nn.leaky_relu,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+        activation1 = tf.layers.batch_normalization(activation1, training=is_training)
+        if is_training:
+            activation1 = tf.nn.dropout(activation1, ff_dropout)
+
+        activation2 = tf.layers.dense(activation1, hidden_size, use_bias=True, activation=None,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+
+        activation3 = activation0 + activation2
+        activation3 = tf.nn.leaky_relu(activation3)
+        activation3 = tf.layers.batch_normalization(activation3, training=is_training)
+
+        activation4 = tf.layers.dense(activation3, hidden_size, use_bias=True, activation=tf.nn.leaky_relu,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+        activation4 = tf.layers.batch_normalization(activation4, training=is_training)
+        if is_training:
+            activation4 = tf.nn.dropout(activation4, linear_dropout)
+
+        aggregated_model = getattr(video_level_models,
+                                   "JuhanMoeModel")
+
+        return aggregated_model().create_model(
+            model_input=activation4,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
+
+
 flags.DEFINE_integer("jbtev5_iteration", 64,
                      "Number of frames per batch")
 flags.DEFINE_integer("jbtev5_v_hidden", 1024,
