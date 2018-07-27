@@ -38,22 +38,24 @@ import fish_modules
 ###############################################################################
 flags.DEFINE_integer("fish3_iteration", 128,
                      "Number of frames per batch")
-flags.DEFINE_integer("fish3_video_cluster_size", 64,
-                     "Number of frames per batch")
-flags.DEFINE_integer("fish3_audio_cluster_size", 16,
-                     "Number of frames per batch")
-flags.DEFINE_bool("fish3_shift_operation", True,
-                  "")
-flags.DEFINE_integer("fish3_video_num_units", 1024,
-                     "Number of frames per batch")
-flags.DEFINE_integer("fish3_audio_num_units", 128,
-                     "Number of frames per batch")
-flags.DEFINE_integer("fish3_video_num_heads", 8,
-                     "Number of frames per batch")
-flags.DEFINE_integer("fish3_audio_num_heads", 8,
-                     "Number of frames per batch")
+flags.DEFINE_integer("fish3_video_cluster_size", 256,
+                     "Video clustering size")
+flags.DEFINE_integer("fish3_audio_cluster_size", 32,
+                     "Audio clustering size")
+flags.DEFINE_integer("fish3_filter_size", 2,
+                     "Video clustering size")
 flags.DEFINE_integer("fish3_hidden_size", 1024,
-                     "Number of frames per batch")
+                     "Hidden size")
+flags.DEFINE_bool("fish3_shift_operation", True,
+                  "Perform shift operation?")
+flags.DEFINE_float("fish3_cluster_dropout", 0.7,
+                   "Dropout rate for clustering operation")
+flags.DEFINE_float("fish3_ff_dropout", 0.8,
+                   "Dropout rate for Feed Forward operation")
+flags.DEFINE_float("fish3_linear_proj_dropout", 0.8,
+                   "Dropout rate for linear projection")
+flags.DEFINE_float("fish3_l2_regularization_rate", 1e-8,
+                   "Regularization rate")
 
 
 class CrazyFishV3(models.BaseModel):
@@ -71,6 +73,11 @@ class CrazyFishV3(models.BaseModel):
         video_cluster_size = FLAGS.fish3_video_cluster_size
         audio_cluster_size = FLAGS.fish3_audio_cluster_size
         shift_operation = FLAGS.fish3_shift_operation
+        cluster_dropout = FLAGS.fish3_cluster_dropout
+        ff_dropout = FLAGS.fish3_ff_dropout
+        linear_dropout = FLAGS.fish3_linear_proj_dropout
+        filter_size = FLAGS.fish3_filter_size
+        l2_reg_rate = FLAGS.fish3_l2_regularization_rate
         hidden_size = FLAGS.fish3_hidden_size
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
@@ -89,6 +96,7 @@ class CrazyFishV3(models.BaseModel):
 
         video_cluster = fish_modules.LuckyFishModuleV2(feature_size=1024,
                                                        max_frames=max_frames,
+                                                       dropout_rate=cluster_dropout,
                                                        cluster_size=video_cluster_size,
                                                        add_batch_norm=True,
                                                        shift_operation=shift_operation,
@@ -96,6 +104,7 @@ class CrazyFishV3(models.BaseModel):
 
         audio_cluster = fish_modules.LuckyFishModuleV2(feature_size=128,
                                                        max_frames=max_frames,
+                                                       dropout_rate=cluster_dropout,
                                                        cluster_size=audio_cluster_size,
                                                        add_batch_norm=True,
                                                        shift_operation=shift_operation,
@@ -110,48 +119,59 @@ class CrazyFishV3(models.BaseModel):
                 audio_cluster_activation = audio_cluster.forward(audio_features)
 
         activation0 = tf.concat([video_cluster_activation, audio_cluster_activation], 1)
-        activation0 = tf.layers.dense(activation0, 1024, use_bias=False, activation=None)
+        activation0 = tf.layers.dense(activation0, hidden_size, use_bias=False, activation=None,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+        if is_training:
+            activation0 = tf.nn.dropout(activation0, linear_dropout)
 
-        activation1 = tf.layers.dense(activation0, 2048, use_bias=True, activation=tf.nn.leaky_relu)
+        activation1 = tf.layers.dense(activation0, hidden_size * filter_size,
+                                      use_bias=True, activation=tf.nn.leaky_relu,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
         activation1 = tf.layers.batch_normalization(activation1, training=is_training)
         if is_training:
-            activation1 = tf.nn.dropout(activation1, 0.8)
+            activation1 = tf.nn.dropout(activation1, ff_dropout)
 
-        activation2 = tf.layers.dense(activation1, 1024, use_bias=True, activation=None)
+        activation2 = tf.layers.dense(activation1, hidden_size, use_bias=True, activation=None,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
 
         activation3 = activation0 + activation2
         activation3 = tf.nn.leaky_relu(activation3)
         activation3 = tf.layers.batch_normalization(activation3, training=is_training)
         if is_training:
-            activation3 = tf.nn.dropout(activation3, 0.8)
+            activation3 = tf.nn.dropout(activation3, ff_dropout)
 
-        activation4 = tf.layers.dense(activation3, vocab_size, use_bias=False, activation=None)
+        activation4 = tf.layers.dense(activation3, vocab_size, use_bias=False, activation=None,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+        if is_training:
+            activation4 = tf.nn.dropout(activation4, linear_dropout)
 
-        activation5 = tf.layers.dense(activation4, vocab_size * 2, use_bias=True, activation=tf.nn.leaky_relu)
+        activation5 = tf.layers.dense(activation4, vocab_size * filter_size,
+                                      use_bias=True, activation=tf.nn.leaky_relu,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
         activation5 = tf.layers.batch_normalization(activation5, training=is_training)
         if is_training:
-            activation5 = tf.nn.dropout(activation5, 0.8)
+            activation5 = tf.nn.dropout(activation5, ff_dropout)
 
-        activation6 = tf.layers.dense(activation5, vocab_size, use_bias=True, activation=None)
+        activation6 = tf.layers.dense(activation5, vocab_size, use_bias=True, activation=None,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
 
         activation7 = activation4 + activation6
         activation7 = tf.nn.leaky_relu(activation7)
         activation7 = tf.layers.batch_normalization(activation7, training=is_training)
         if is_training:
-            activation7 = tf.nn.dropout(activation7, 0.8)
+            activation7 = tf.nn.dropout(activation7, ff_dropout)
 
-        activation8 = tf.layers.dense(activation7, vocab_size, use_bias=True, activation=tf.nn.sigmoid)
+        activation8 = tf.layers.dense(activation7, vocab_size,
+                                      use_bias=True, activation=tf.nn.leaky_relu,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+        activation8 = tf.layers.batch_normalization(activation8, training=is_training)
+        if is_training:
+            activation8 = tf.nn.dropout(activation8, ff_dropout)
 
+        activation9 = tf.layers.dense(activation8, vocab_size, use_bias=True, activation=tf.nn.sigmoid,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
 
-        # aggregated_model = getattr(video_level_models,
-        #                            "MoeModel")
-        #
-        # return aggregated_model().create_model(
-        #     model_input=final_activation,
-        #     vocab_size=vocab_size,
-        #     is_training=is_training,
-        #     **unused_params)
-        return {"predictions": activation8}
+        return {"predictions": activation9}
 
 
 flags.DEFINE_integer("jbtev5_iteration", 64,

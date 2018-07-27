@@ -53,11 +53,13 @@ class LuckyFishModule(modules.BaseModule):
 
 class LuckyFishModuleV2(modules.BaseModule):
     """ Attention cluster. """
-    def __init__(self, feature_size, max_frames, cluster_size, add_batch_norm, shift_operation, is_training):
+    def __init__(self, feature_size, max_frames, dropout_rate, cluster_size,
+                 add_batch_norm, shift_operation, is_training):
         self.feature_size = feature_size
         self.max_frames = max_frames
         self.is_training = is_training
         self.add_batch_norm = add_batch_norm
+        self.dropout_rate = dropout_rate
         self.shift_operation = shift_operation
         self.cluster_size = cluster_size
 
@@ -70,7 +72,7 @@ class LuckyFishModuleV2(modules.BaseModule):
         attention_weights = tf.divide(attention_weights, tf.sqrt(float_cpy))
         attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
         if self.is_training:
-            attention_weights = tf.nn.dropout(attention_weights, 0.7)
+            attention_weights = tf.nn.dropout(attention_weights, self.dropout_rate)
         attention_weights = tf.nn.softmax(attention_weights)
 
         reshaped_attention = tf.reshape(attention_weights, [-1, self.max_frames, self.cluster_size])
