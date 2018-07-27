@@ -73,8 +73,8 @@ class CrazyFishV3(models.BaseModel):
         shift_operation = FLAGS.fish3_shift_operation
         hidden_size = FLAGS.fish3_hidden_size
 
-        # num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        # model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
         # model_input: batch_size x max_frames x feature_size
         max_frames = model_input.get_shape().as_list()[1]
         feature_size = model_input.get_shape().as_list()[2]
@@ -112,18 +112,36 @@ class CrazyFishV3(models.BaseModel):
         activation0 = tf.concat([video_cluster_activation, audio_cluster_activation], 1)
         activation0 = tf.layers.dense(activation0, 1024, use_bias=False, activation=None)
 
-        activation1 = tf.layers.dense(activation0, 4096, use_bias=True, activation=tf.nn.leaky_relu)
+        activation1 = tf.layers.dense(activation0, 2048, use_bias=True, activation=tf.nn.leaky_relu)
         activation1 = tf.layers.batch_normalization(activation1, training=is_training)
         if is_training:
             activation1 = tf.nn.dropout(activation1, 0.8)
 
         activation2 = tf.layers.dense(activation1, 1024, use_bias=True, activation=None)
 
-        final_activation = activation0 + activation2
-        final_activation = tf.nn.leaky_relu(final_activation)
-        final_activation = tf.layers.batch_normalization(final_activation, training=is_training)
+        activation3 = activation0 + activation2
+        activation3 = tf.nn.leaky_relu(activation3)
+        activation3 = tf.layers.batch_normalization(activation3, training=is_training)
+        if is_training:
+            activation3 = tf.nn.dropout(activation3, 0.8)
 
-        final_activation = tf.layers.dense(final_activation, vocab_size, use_bias=True, activation=tf.nn.sigmoid)
+        activation4 = tf.layers.dense(activation3, vocab_size, use_bias=False, activation=None)
+
+        activation5 = tf.layers.dense(activation4, vocab_size * 2, use_bias=True, activation=tf.nn.leaky_relu)
+        activation5 = tf.layers.batch_normalization(activation5, training=is_training)
+        if is_training:
+            activation5 = tf.nn.dropout(activation5, 0.8)
+
+        activation6 = tf.layers.dense(activation5, vocab_size, use_bias=True, activation=None)
+
+        activation7 = activation4 + activation6
+        activation7 = tf.nn.leaky_relu(activation7)
+        activation7 = tf.layers.batch_normalization(activation7, training=is_training)
+        if is_training:
+            activation7 = tf.nn.dropout(activation7, 0.8)
+
+        activation8 = tf.layers.dense(activation7, vocab_size, use_bias=True, activation=tf.nn.sigmoid)
+
 
         # aggregated_model = getattr(video_level_models,
         #                            "MoeModel")
@@ -133,7 +151,7 @@ class CrazyFishV3(models.BaseModel):
         #     vocab_size=vocab_size,
         #     is_training=is_training,
         #     **unused_params)
-        return {"predictions": final_activation}
+        return {"predictions": activation8}
 
 
 flags.DEFINE_integer("jbtev5_iteration", 64,
