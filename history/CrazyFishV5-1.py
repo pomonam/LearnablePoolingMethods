@@ -39,7 +39,7 @@ BASE_LEARNING_RATE = 0.0005
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--fish5_iteration=300 " \
+EXTRA = "--fish5_iteration=128 " \
         "--fish5_video_cluster_size=512 " \
         "--fish5_audio_cluster_size=64 " \
         "--fish5_shift_operation=True " \
