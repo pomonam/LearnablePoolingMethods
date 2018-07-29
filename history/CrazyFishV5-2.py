@@ -34,7 +34,7 @@ FEATURES = "rgb,audio"
 BATCH_SIZE = 128
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0005
+BASE_LEARNING_RATE = 0.0002
 
 # Initialize a new model?
 START_NEW_MODEL = False
@@ -42,13 +42,13 @@ START_NEW_MODEL = False
 EXTRA = "--fish5_iteration=128 " \
         "--fish5_video_cluster_size=512 " \
         "--fish5_audio_cluster_size=128 " \
-        "--fish5_shift_operation=False " \
+        "--fish5_shift_operation=True " \
         "--fish5_filter_size=2 " \
         "--fish5_cluster_dropout=0.9 " \
         "--fish5_ff_dropout=0.9 " \
         "--fish5_linear_proj_dropout=0.9 " \
         "--fish5_l2_regularization_rate=1e-8 " \
-        "--fish5_hidden_size=1024 "
+        "--fish5_hidden_size=2048 "
 
 
 def main():

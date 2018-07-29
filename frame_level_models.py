@@ -386,14 +386,14 @@ class CrazyFishV5(models.BaseModel):
                 video_activation = tf.transpose(video_activation, perm=[1, 0, 2])
                 # -> batch_size x cluster_size x kernel_size
                 video_activation = tf.reshape(video_activation, [-1, video_cluster_size * video_kernel_size])
-                video_activation = tf.nn.relu(video_activation)
+                video_activation = tf.layers.batch_normalization(video_activation, training=is_training)
+                video_activation = tf.nn.relu6(video_activation)
                 if is_training:
                     video_activation = tf.nn.dropout(video_activation, 0.9)
                 video_activation = tf.reshape(video_activation, [-1, video_cluster_size, video_kernel_size])
                 video_activation = tf.nn.l2_normalize(video_activation)
                 video_activation = tf.reshape(video_activation, [-1, video_cluster_size * video_kernel_size])
                 video_activation = tf.nn.l2_normalize(video_activation)
-
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("cluster"):
@@ -413,7 +413,8 @@ class CrazyFishV5(models.BaseModel):
                 audio_activation = tf.transpose(audio_activation, perm=[1, 0, 2])
                 # -> batch_size x cluster_size x kernel_size
                 audio_activation = tf.reshape(audio_activation, [-1, audio_cluster_size * audio_kernel_size])
-                audio_activation = tf.nn.relu(audio_activation)
+                audio_activation = tf.layers.batch_normalization(audio_activation, training=is_training)
+                audio_activation = tf.nn.relu6(audio_activation)
                 if is_training:
                     audio_activation = tf.nn.dropout(audio_activation, 0.9)
                 audio_activation = tf.reshape(audio_activation, [-1, audio_cluster_size, audio_kernel_size])
