@@ -21,7 +21,7 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "CrazyFishV3"
+MODEL_NAME = "CrazyFishV5"
 MODEL_VERSION = "-2"
 
 # Does it require frame-level models?
@@ -34,16 +34,21 @@ FEATURES = "rgb,audio"
 BATCH_SIZE = 128
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0006
+BASE_LEARNING_RATE = 0.0005
 
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--fish3_iteration=128 " \
-        "--fish3_video_cluster_size=128 " \
-        "--fish3_audio_cluster_size=32 " \
-        "--fish3_shift_operation=True " \
-        "--fish3_hidden_size=2048 "
+EXTRA = "--fish5_iteration=128 " \
+        "--fish5_video_cluster_size=512 " \
+        "--fish5_audio_cluster_size=128 " \
+        "--fish5_shift_operation=False " \
+        "--fish5_filter_size=2 " \
+        "--fish5_cluster_dropout=0.9 " \
+        "--fish5_ff_dropout=0.9 " \
+        "--fish5_linear_proj_dropout=0.9 " \
+        "--fish5_l2_regularization_rate=1e-8 " \
+        "--fish5_hidden_size=1024 "
 
 
 def main():
@@ -78,7 +83,7 @@ def main():
     eval_command += "--feature_names='{}' ".format(FEATURES)
     eval_command += "--feature_sizes='1024,128' "
     eval_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    eval_command += "--train_dir=/home/koreasecretweapon/CrazyFishV3-2 ".format(MODEL_NAME + str(MODEL_VERSION))
+    eval_command += "--train_dir=/home/deeptopology2/JuhanTestModelV3-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
     eval_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
     eval_command += "--run_once=True "
     eval_command += EXTRA
@@ -92,9 +97,9 @@ def main():
     inference_command += "--feature_names='{}' ".format(FEATURES)
     inference_command += "--feature_sizes='1024,128' "
     inference_command += "--batch_size=256 ".format(str(BATCH_SIZE))
-    inference_command += "--train_dir=/home/koreasecretweapon/CrazyFishV3-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--train_dir=/home/deeptopology2/JuhanTestModelV3-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
-    inference_command += "--output_file=/home/koreasecretweapon/CrazyFishV3-2/predictions.csv ".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--output_file=/home/deeptopology2/JuhanTestModelV3-2/predictions.csv ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += EXTRA
 
     return local_command, eval_command, inference_command

@@ -335,8 +335,8 @@ class CrazyFishV5(models.BaseModel):
         filter_size = FLAGS.fish5_filter_size
         l2_reg_rate = FLAGS.fish5_l2_regularization_rate
         hidden_size = FLAGS.fish5_hidden_size
-        video_kernel_size = video_cluster_size
-        audio_kernel_size = audio_cluster_size
+        video_kernel_size = 256
+        audio_kernel_size = 32
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
@@ -386,8 +386,14 @@ class CrazyFishV5(models.BaseModel):
                 video_activation = tf.transpose(video_activation, perm=[1, 0, 2])
                 # -> batch_size x cluster_size x kernel_size
                 video_activation = tf.reshape(video_activation, [-1, video_cluster_size * video_kernel_size])
-                video_activation = tf.nn.leaky_relu(video_activation)
-                video_activation = tf.layers.batch_normalization(video_activation, training=is_training)
+                video_activation = tf.nn.relu(video_activation)
+                if is_training:
+                    video_activation = tf.nn.dropout(video_activation, 0.9)
+                video_activation = tf.reshape(video_activation, [-1, video_cluster_size, video_kernel_size])
+                video_activation = tf.nn.l2_normalize(video_activation)
+                video_activation = tf.reshape(video_activation, [-1, video_cluster_size * video_kernel_size])
+                video_activation = tf.nn.l2_normalize(video_activation)
+
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("cluster"):
@@ -407,41 +413,33 @@ class CrazyFishV5(models.BaseModel):
                 audio_activation = tf.transpose(audio_activation, perm=[1, 0, 2])
                 # -> batch_size x cluster_size x kernel_size
                 audio_activation = tf.reshape(audio_activation, [-1, audio_cluster_size * audio_kernel_size])
-                audio_activation = tf.nn.leaky_relu(audio_activation)
-                audio_activation = tf.layers.batch_normalization(audio_activation, training=is_training)
+                audio_activation = tf.nn.relu(audio_activation)
+                if is_training:
+                    audio_activation = tf.nn.dropout(audio_activation, 0.9)
+                audio_activation = tf.reshape(audio_activation, [-1, audio_cluster_size, audio_kernel_size])
+                audio_activation = tf.nn.l2_normalize(audio_activation, 1)
+                audio_activation = tf.reshape(audio_activation, [-1, audio_cluster_size * audio_kernel_size])
+                audio_activation = tf.nn.l2_normalize(audio_activation, 1)
 
         activation0 = tf.concat([video_activation, audio_activation], 1)
         activation0 = tf.layers.dense(activation0, hidden_size, use_bias=False, activation=None,
                                       kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
-
         if is_training:
             activation0 = tf.nn.dropout(activation0, linear_dropout)
 
-        activation1 = tf.layers.dense(activation0, hidden_size * filter_size,
-                                      use_bias=True, activation=tf.nn.leaky_relu,
-                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
-        activation1 = tf.layers.batch_normalization(activation1, training=is_training)
-        if is_training:
-            activation1 = tf.nn.dropout(activation1, ff_dropout)
+        gates = tf.layers.dense(activation0, hidden_size,
+                                use_bias=None, activation=None,
+                                kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+        gates = tf.layers.batch_normalization(gates, training=is_training)
+        gates = tf.nn.sigmoid(gates)
 
-        activation2 = tf.layers.dense(activation1, hidden_size, use_bias=True, activation=None,
-                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
-
-        activation3 = activation0 + activation2
-        activation3 = tf.nn.leaky_relu(activation3)
-        activation3 = tf.layers.batch_normalization(activation3, training=is_training)
-
-        activation4 = tf.layers.dense(activation3, hidden_size, use_bias=True, activation=tf.nn.leaky_relu,
-                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
-        activation4 = tf.layers.batch_normalization(activation4, training=is_training)
-        if is_training:
-            activation4 = tf.nn.dropout(activation4, linear_dropout)
+        activation = tf.multiply(activation0, gates)
 
         aggregated_model = getattr(video_level_models,
                                    "MoeModel")
 
         return aggregated_model().create_model(
-            model_input=activation4,
+            model_input=activation,
             vocab_size=vocab_size,
             is_training=is_training,
             **unused_params)
@@ -3915,8 +3913,11 @@ class LightVLAD():
 
         reshaped_input = tf.reshape(reshaped_input, [-1, self.max_frames, self.feature_size])
         vlad = tf.matmul(activation, reshaped_input)
+        # batch x cluster x feature
 
         vlad = tf.transpose(vlad, perm=[0, 2, 1])
+        # batch x cluster x feature
+
         vlad = tf.nn.l2_normalize(vlad, 1)
 
         vlad = tf.reshape(vlad, [-1, self.cluster_size * self.feature_size])
