@@ -97,7 +97,7 @@ class LuckyFishModuleV2(modules.BaseModule):
 
         normalized_activation = tf.nn.l2_normalize(transformed_activation, 1)
         normalized_activation = tf.reshape(normalized_activation, [-1, self.cluster_size * self.feature_size])
-        normalized_activation = tf.nn.l2_normalize(normalized_activation, 1)
+        # normalized_activation = tf.nn.l2_normalize(normalized_activation, 1)
 
         return normalized_activation
 

@@ -40,7 +40,7 @@ BASE_LEARNING_RATE = 0.0005
 START_NEW_MODEL = False
 
 EXTRA = "--fish5_iteration=128 " \
-        "--fish5_video_cluster_size=512 " \
+        "--fish5_video_cluster_size=256 " \
         "--fish5_audio_cluster_size=64 " \
         "--fish5_shift_operation=True " \
         "--fish5_filter_size=2 " \

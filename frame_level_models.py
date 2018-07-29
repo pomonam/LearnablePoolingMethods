@@ -335,8 +335,8 @@ class CrazyFishV5(models.BaseModel):
         filter_size = FLAGS.fish5_filter_size
         l2_reg_rate = FLAGS.fish5_l2_regularization_rate
         hidden_size = FLAGS.fish5_hidden_size
-        video_kernel_size = 512
-        audio_kernel_size = 64
+        video_kernel_size = video_cluster_size
+        audio_kernel_size = audio_cluster_size
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
@@ -412,7 +412,7 @@ class CrazyFishV5(models.BaseModel):
 
         activation0 = tf.concat([video_activation, audio_activation], 1)
         activation0 = tf.layers.dense(activation0, hidden_size, use_bias=False, activation=None,
-                                     kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
 
         if is_training:
             activation0 = tf.nn.dropout(activation0, linear_dropout)
