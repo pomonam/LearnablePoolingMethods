@@ -97,3 +97,26 @@ def FramePooling(frames, method, **unused_params):
         return tf.reshape(frames, [-1, feature_size])
     else:
         raise ValueError("Unrecognized pooling method: %s" % method)
+        
+def SampleUniformFrames(model_input, num_frames, num_samples):
+    """ Uniformally samples (deterministically) a set of frames of size num_samples.
+
+          Args:
+            model_input: A tensor of size batch_size x max_frames x feature_size
+            num_frames: A tensor of size batch_size x 1
+            num_samples: A scalar
+
+          Returns:
+            `model_input`: A tensor of size batch_size x num_samples x feature_size
+          """
+    batch_size      = tf.shape(model_input)[0]
+    even_dist_samp  = tf.expand_dims(tf.linspace(0.0, 1.0, num_samples+1), axis=0)
+    even_dist_samp  = tf.slice(even_dist_samp, [0, 0], [1, num_samples])
+    frame_index = tf.cast(
+        tf.multiply(
+            tf.tile(even_dist_samp, [batch_size, 1]),
+            tf.tile(tf.cast(num_frames, tf.float32), [1, num_samples])), tf.int32)
+    batch_index = tf.tile(
+        tf.expand_dims(tf.range(batch_size), 1), [1, num_samples])
+    index = tf.stack([batch_index, frame_index], 2)
+    return tf.gather_nd(model_input, index)
