@@ -21,8 +21,8 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "CrazyFishV3"
-MODEL_VERSION = "-69"
+MODEL_NAME = "CrazyFishV6"
+MODEL_VERSION = "-1"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 128
+BATCH_SIZE = 100
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0003
@@ -39,16 +39,16 @@ BASE_LEARNING_RATE = 0.0003
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--fish3_iteration=128 " \
-        "--fish3_video_cluster_size=64 " \
-        "--fish3_audio_cluster_size=8 " \
-        "--fish3_shift_operation=True " \
-        "--fish3_filter_size=1 " \
-        "--fish3_cluster_dropout=0.8 " \
-        "--fish3_ff_dropout=0.8 " \
-        "--fish3_linear_proj_dropout=0.8 " \
-        "--fish3_l2_regularization_rate=1e-8 " \
-        "--fish3_hidden_size=1024 "
+EXTRA = "--fish6_iteration=128 " \
+        "--fish6_video_cluster_size=128 " \
+        "--fish6_audio_cluster_size=16 " \
+        "--fish6_shift_operation=True " \
+        "--fish6_filter_size=1 " \
+        "--fish6_cluster_dropout=0.7 " \
+        "--fish6_ff_dropout=0.9 " \
+        "--fish6_linear_proj_dropout=0.9 " \
+        "--fish6_l2_regularization_rate=1e-8 " \
+        "--fish6_hidden_size=1024 "
 
 
 def main():
