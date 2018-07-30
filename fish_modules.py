@@ -82,6 +82,7 @@ class LuckyFishModuleV2(modules.BaseModule):
         # -> activation: batch_size x cluster_size x feature_size
         transformed_activation = tf.transpose(activation, perm=[0, 2, 1])
         # -> transformed_activation: batch_size x feature_size x cluster_size
+        transformed_activation = tf.nn.l2_normalize(transformed_activation, 1)
 
         if self.shift_operation:
             alpha = tf.get_variable("alpha",
@@ -97,10 +98,7 @@ class LuckyFishModuleV2(modules.BaseModule):
 
         normalized_activation = tf.nn.l2_normalize(transformed_activation, 1)
         normalized_activation = tf.reshape(normalized_activation, [-1, self.cluster_size * self.feature_size])
-        normalized_activation = tf.contrib.layers.layer_norm(normalized_activation)
-        #
-        # normalized_activation = tf.nn.la
-        # normalized_activation = tf.nn.l2_normalize(normalized_activation, 1)
+        normalized_activation = tf.nn.l2_normalize(normalized_activation)
 
         return normalized_activation
 
@@ -221,9 +219,12 @@ class LuckyFishModuleV4(modules.BaseModule):
 
         if self.global_shift:
             cluster_attention = tf.reshape(cluster_attention, [-1, self.cluster_size])
-            cluster_attention = tf.nn.l2_normalize(cluster_attention)
-            cluster_attention = tf.nn.softmax(cluster_attention)
+            cluster_attention = tf.layers.dense(cluster_attention, self.cluster_size, use_bias=False, activation=None)
+            cluster_attention = tf.layers.batch_normalization(cluster_attention, training=self.is_training)
+            cluster_attention = tf.sigmoid(cluster_attention)
+            print(cluster_attention)
             cluster_attention = tf.expand_dims(cluster_attention, 1)
+            print(cluster_attention)
             transformed_activation2 = tf.multiply(normalized_activation, cluster_attention)
             transformed_activation2 = tf.reshape(transformed_activation2, [-1, self.cluster_size * self.feature_size])
         else:

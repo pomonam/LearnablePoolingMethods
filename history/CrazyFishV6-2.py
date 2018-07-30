@@ -44,7 +44,7 @@ EXTRA = "--fish6_iteration=128 " \
         "--fish6_audio_cluster_size=64 " \
         "--fish6_shift_operation=True " \
         "--fish6_filter_size=1 " \
-        "--fish6_cluster_dropout=0.9 " \
+        "--fish6_cluster_dropout=0.8 " \
         "--fish6_ff_dropout=0.9 " \
         "--fish6_linear_proj_dropout=0.9 " \
         "--fish6_l2_regularization_rate=1e-8 " \

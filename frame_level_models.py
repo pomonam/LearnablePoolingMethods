@@ -90,11 +90,12 @@ class CrazyFishV6(models.BaseModel):
         # Differentiate video & audio features.
         video_features = reshaped_input[:, 0:1024]
         audio_features = reshaped_input[:, 1024:]
-
+        video_features = tf.nn.l2_normalize(video_features)
+        audio_features = tf.nn.l2_normalize(audio_features)
         video_features = tf.reshape(video_features, [-1, max_frames, 1024])
         audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
 
-        video_cluster = fish_modules.LuckyFishModuleV3(feature_size=1024,
+        video_cluster = fish_modules.LuckyFishModuleV2(feature_size=1024,
                                                        max_frames=max_frames,
                                                        dropout_rate=cluster_dropout,
                                                        cluster_size=video_cluster_size,
@@ -102,7 +103,7 @@ class CrazyFishV6(models.BaseModel):
                                                        shift_operation=shift_operation,
                                                        is_training=is_training)
 
-        audio_cluster = fish_modules.LuckyFishModuleV3(feature_size=128,
+        audio_cluster = fish_modules.LuckyFishModuleV2(feature_size=128,
                                                        max_frames=max_frames,
                                                        dropout_rate=cluster_dropout,
                                                        cluster_size=audio_cluster_size,
@@ -113,67 +114,52 @@ class CrazyFishV6(models.BaseModel):
         with tf.variable_scope("video"):
             with tf.variable_scope("cluster"):
                 video_cluster_activation = video_cluster.forward(video_features)
+                video_bottleneck = tf.layers.dense(video_cluster_activation, 1024,
+                                                   use_bias=False, activation=None)
+                video_bottleneck = tf.layers.batch_normalization(video_bottleneck, training=is_training)
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("cluster"):
                 audio_cluster_activation = audio_cluster.forward(audio_features)
+                audio_bottleneck = tf.layers.dense(audio_cluster_activation, 128,
+                                                   use_bias=False, activation=None)
+                audio_bottleneck = tf.layers.batch_normalization(audio_bottleneck, training=is_training)
 
-        concat_activation = tf.concat([video_cluster_activation, audio_cluster_activation], 1)
-        bottleneck = tf.layers.dense(concat_activation, hidden_size, use_bias=False, activation=None)
-        bottleneck = tf.layers.batch_normalization(bottleneck, training=is_training)
+        concat = tf.concat([video_bottleneck, audio_bottleneck], 1)
+        activation0 = tf.layers.dense(concat, vocab_size, use_bias=False, activation=None)
 
-        activation0 = tf.layers.dense(bottleneck, vocab_size, use_bias=False, activation=None,
-                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+        activation_r_0 = tf.layers.batch_normalization(activation0, training=is_training)
+        activation_r_0 = tf.nn.relu(activation_r_0)
+        activation_r_1 = tf.layers.dense(activation_r_0, vocab_size, use_bias=True, activation=None)
+        activation_r_1 = tf.layers.batch_normalization(activation_r_1, training=is_training)
+        activation_r_1 = tf.nn.relu(activation_r_1)
         if is_training:
-            activation0 = tf.nn.dropout(activation0, linear_dropout)
+            activation_r_1 = tf.nn.dropout(activation_r_1, linear_dropout)
+        activation_r_2 = tf.layers.dense(activation_r_1, vocab_size, use_bias=False, activation=None)
+        activation1 = activation0 + activation_r_2
 
-        activation1 = tf.layers.dense(activation0, vocab_size * filter_size,
-                                      use_bias=True, activation=tf.nn.leaky_relu,
-                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
-        activation1 = tf.layers.batch_normalization(activation1, training=is_training)
+        activation2 = tf.layers.dense(activation1, vocab_size, use_bias=True, activation=None)
+
+        activation_r1_0 = tf.layers.batch_normalization(activation2, training=is_training)
+        activation_r1_0 = tf.nn.relu(activation_r1_0)
+        activation_r1_1 = tf.layers.dense(activation_r1_0, vocab_size, use_bias=True, activation=None)
+        activation_r1_1 = tf.layers.batch_normalization(activation_r1_1, training=is_training)
+        activation_r1_1 = tf.nn.relu(activation_r1_1)
         if is_training:
-            activation1 = tf.nn.dropout(activation1, ff_dropout)
+            activation_r1_1 = tf.nn.dropout(activation_r1_1, linear_dropout)
+        activation_r1_2 = tf.layers.dense(activation_r1_1, vocab_size, use_bias=False, activation=None)
+        activation3 = activation2 + activation_r1_2
 
-        activation2 = tf.layers.dense(activation1, vocab_size * filter_size,
-                                      use_bias=True, activation=tf.nn.leaky_relu,
-                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
-        activation2 = tf.layers.batch_normalization(activation2, training=is_training)
+        activation4 = tf.layers.dense(activation3, vocab_size, use_bias=True, activation=None)
+        activation4 = tf.layers.batch_normalization(activation4, training=is_training)
         if is_training:
-            activation2 = tf.nn.dropout(activation2, ff_dropout)
+            activation4 = tf.nn.dropout(activation4, linear_dropout)
+        activation4 = tf.nn.relu(activation4)
 
-        activation3 = tf.layers.dense(activation2, vocab_size, use_bias=False, activation=None,
+        activation5 = tf.layers.dense(activation4, vocab_size, use_bias=True, activation=tf.nn.sigmoid,
                                       kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
 
-        activation4 = activation0 + activation3
-        if is_training:
-            activation4 = tf.nn.dropout(activation4, ff_dropout)
-
-        activation5 = tf.layers.dense(activation4, vocab_size * filter_size,
-                                      use_bias=True, activation=tf.nn.leaky_relu,
-                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
-        activation5 = tf.layers.batch_normalization(activation5, training=is_training)
-        if is_training:
-            activation5 = tf.nn.dropout(activation5, ff_dropout)
-
-        activation6 = tf.layers.dense(activation5, vocab_size * filter_size,
-                                      use_bias=True, activation=tf.nn.leaky_relu,
-                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
-        activation6 = tf.layers.batch_normalization(activation6, training=is_training)
-        if is_training:
-            activation6 = tf.nn.dropout(activation6, ff_dropout)
-
-        activation7 = tf.layers.dense(activation6, vocab_size, use_bias=False, activation=None,
-                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
-
-        activation8 = activation4 + activation7
-        activation8 = tf.layers.batch_normalization(activation8, training=is_training)
-        if is_training:
-            activation8 = tf.nn.dropout(activation8, ff_dropout)
-
-        activation9 = tf.layers.dense(activation8, vocab_size, use_bias=True, activation=tf.nn.sigmoid,
-                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
-
-        return {"predictions": activation9}
+        return {"predictions": activation5}
 
 
 
