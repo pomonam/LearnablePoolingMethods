@@ -118,8 +118,11 @@ class CrazyFishV6(models.BaseModel):
             with tf.variable_scope("cluster"):
                 audio_cluster_activation = audio_cluster.forward(audio_features)
 
-        activation0 = tf.concat([video_cluster_activation, audio_cluster_activation], 1)
-        activation0 = tf.layers.dense(activation0, vocab_size, use_bias=False, activation=None,
+        concat_activation = tf.concat([video_cluster_activation, audio_cluster_activation], 1)
+        bottleneck = tf.layers.dense(concat_activation, hidden_size, use_bias=False, activation=None,
+                                     kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+
+        activation0 = tf.layers.dense(bottleneck, vocab_size, use_bias=False, activation=None,
                                       kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
         if is_training:
             activation0 = tf.nn.dropout(activation0, linear_dropout)
