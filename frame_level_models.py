@@ -119,31 +119,31 @@ class CrazyFishV3(models.BaseModel):
                 audio_cluster_activation = audio_cluster.forward(audio_features)
 
         activation0 = tf.concat([video_cluster_activation, audio_cluster_activation], 1)
-        activation0 = tf.layers.dense(activation0, hidden_size, use_bias=False, activation=None,
+        activation0 = tf.layers.dense(activation0, vocab_size, use_bias=False, activation=None,
                                       kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
         if is_training:
             activation0 = tf.nn.dropout(activation0, linear_dropout)
 
-        activation1 = tf.layers.dense(activation0, hidden_size * filter_size,
+        activation1 = tf.layers.dense(activation0, vocab_size * filter_size,
                                       use_bias=True, activation=tf.nn.leaky_relu,
                                       kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
         activation1 = tf.layers.batch_normalization(activation1, training=is_training)
         if is_training:
             activation1 = tf.nn.dropout(activation1, ff_dropout)
 
-        activation2 = tf.layers.dense(activation1, hidden_size, use_bias=True, activation=None,
+        activation2 = tf.layers.dense(activation1, vocab_size * filter_size,
+                                      use_bias=True, activation=tf.nn.leaky_relu,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+        activation2 = tf.layers.batch_normalization(activation2, training=is_training)
+        if is_training:
+            activation2 = tf.nn.dropout(activation2, ff_dropout)
+
+        activation3 = tf.layers.dense(activation2, vocab_size, use_bias=False, activation=None,
                                       kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
 
-        activation3 = activation0 + activation2
-        activation3 = tf.nn.leaky_relu(activation3)
-        activation3 = tf.layers.batch_normalization(activation3, training=is_training)
+        activation4 = activation0 + activation3
         if is_training:
-            activation3 = tf.nn.dropout(activation3, ff_dropout)
-
-        activation4 = tf.layers.dense(activation3, vocab_size, use_bias=False, activation=None,
-                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
-        if is_training:
-            activation4 = tf.nn.dropout(activation4, linear_dropout)
+            activation4 = tf.nn.dropout(activation4, ff_dropout)
 
         activation5 = tf.layers.dense(activation4, vocab_size * filter_size,
                                       use_bias=True, activation=tf.nn.leaky_relu,
@@ -152,18 +152,17 @@ class CrazyFishV3(models.BaseModel):
         if is_training:
             activation5 = tf.nn.dropout(activation5, ff_dropout)
 
-        activation6 = tf.layers.dense(activation5, vocab_size, use_bias=True, activation=None,
-                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
-
-        activation7 = activation4 + activation6
-        activation7 = tf.nn.leaky_relu(activation7)
-        activation7 = tf.layers.batch_normalization(activation7, training=is_training)
-        if is_training:
-            activation7 = tf.nn.dropout(activation7, ff_dropout)
-
-        activation8 = tf.layers.dense(activation7, vocab_size,
+        activation6 = tf.layers.dense(activation5, vocab_size * filter_size,
                                       use_bias=True, activation=tf.nn.leaky_relu,
                                       kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+        activation6 = tf.layers.batch_normalization(activation6, training=is_training)
+        if is_training:
+            activation6 = tf.nn.dropout(activation6, ff_dropout)
+
+        activation7 = tf.layers.dense(activation6, vocab_size, use_bias=False, activation=None,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+
+        activation8 = activation4 + activation7
         activation8 = tf.layers.batch_normalization(activation8, training=is_training)
         if is_training:
             activation8 = tf.nn.dropout(activation8, ff_dropout)
