@@ -160,10 +160,75 @@ class LuckyFishModuleV3(modules.BaseModule):
         cluster_attention = tf.layers.batch_normalization(cluster_attention, training=self.is_training)
         cluster_attention = tf.sigmoid(cluster_attention)
         cluster_attention = tf.expand_dims(cluster_attention, 1)
-        cluster_attention = tf.reshape(cluster_attention, [-1, 1, self.cluster_size])
+        # cluster_attention = tf.reshape(cluster_attention, [-1, 1, self.cluster_size])
 
         transformed_activation2 = tf.multiply(normalized_activation, cluster_attention)
         transformed_activation2 = tf.reshape(transformed_activation2, [-1, self.cluster_size * self.feature_size])
+        normalized_activation2 = tf.nn.l2_normalize(transformed_activation2, 1)
+
+        return normalized_activation2
+
+
+class LuckyFishModuleV4(modules.BaseModule):
+    """ Attention cluster. """
+    def __init__(self, feature_size, max_frames, dropout_rate, cluster_size,
+                 add_batch_norm, shift_operation, global_shift, is_training):
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.add_batch_norm = add_batch_norm
+        self.dropout_rate = dropout_rate
+        self.global_shift = global_shift
+        self.shift_operation = shift_operation
+        self.cluster_size = cluster_size
+
+    def forward(self, inputs, **unused_params):
+        inputs = tf.reshape(inputs, [-1, self.feature_size])
+        reshaped_inputs = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
+
+        attention_weights = tf.layers.dense(inputs, self.cluster_size, use_bias=False, activation=None)
+        float_cpy = tf.cast(self.feature_size, dtype=tf.float32)
+        attention_weights = tf.divide(attention_weights, tf.sqrt(float_cpy))
+        attention_weights = tf.layers.batch_normalization(attention_weights, training=self.is_training)
+        if self.is_training:
+            attention_weights = tf.nn.dropout(attention_weights, self.dropout_rate)
+        attention_weights = tf.nn.softmax(attention_weights)
+
+        reshaped_attention = tf.reshape(attention_weights, [-1, self.max_frames, self.cluster_size])
+        cluster_attention = tf.reduce_mean(reshaped_attention, 1)
+
+        transposed_attention = tf.transpose(reshaped_attention, perm=[0, 2, 1])
+        # -> transposed_attention: batch_size x cluster_size x max_frames
+        activation = tf.matmul(transposed_attention, reshaped_inputs)
+        # -> activation: batch_size x cluster_size x feature_size
+        transformed_activation = tf.transpose(activation, perm=[0, 2, 1])
+        # -> transformed_activation: batch_size x feature_size x cluster_size
+
+        if self.shift_operation:
+            alpha = tf.get_variable("alpha-1",
+                                    [self.cluster_size],
+                                    initializer=tf.constant_initializer(1.0))
+            beta = tf.get_variable("beta-1",
+                                   [self.cluster_size],
+                                   initializer=tf.constant_initializer(0.0))
+            transformed_activation = tf.multiply(transformed_activation, alpha)
+            transformed_activation = tf.add(transformed_activation, beta)
+            float_cpy = tf.cast(self.cluster_size, dtype=tf.float32)
+            transformed_activation = tf.divide(transformed_activation, tf.sqrt(float_cpy))
+
+        normalized_activation = tf.nn.l2_normalize(transformed_activation, 1)
+        # -> normalized_activation: batch_size x feature_size x cluster_size
+
+        if self.global_shift:
+            cluster_attention = tf.reshape(cluster_attention, [-1, self.cluster_size])
+            cluster_attention = tf.nn.l2_normalize(cluster_attention)
+            cluster_attention = tf.nn.softmax(cluster_attention)
+            cluster_attention = tf.expand_dims(cluster_attention, 1)
+            transformed_activation2 = tf.multiply(normalized_activation, cluster_attention)
+            transformed_activation2 = tf.reshape(transformed_activation2, [-1, self.cluster_size * self.feature_size])
+        else:
+            transformed_activation2 = tf.reshape(normalized_activation, [-1, self.cluster_size * self.feature_size])
+
         normalized_activation2 = tf.nn.l2_normalize(transformed_activation2, 1)
 
         return normalized_activation2
