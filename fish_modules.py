@@ -130,6 +130,8 @@ class LuckyFishModuleV3(modules.BaseModule):
         attention_weights = tf.nn.softmax(attention_weights)
 
         reshaped_attention = tf.reshape(attention_weights, [-1, self.max_frames, self.cluster_size])
+        cluster_attention = tf.reduce_mean(reshaped_attention, 1)
+
         transposed_attention = tf.transpose(reshaped_attention, perm=[0, 2, 1])
         # -> transposed_attention: batch_size x cluster_size x max_frames
         activation = tf.matmul(transposed_attention, reshaped_inputs)
@@ -150,23 +152,20 @@ class LuckyFishModuleV3(modules.BaseModule):
             transformed_activation = tf.divide(transformed_activation, tf.sqrt(float_cpy))
 
         normalized_activation = tf.nn.l2_normalize(transformed_activation, 1)
-        normalized_activation = tf.reshape(normalized_activation, [-1, self.cluster_size * self.feature_size])
+        # -> normalized_activation: batch_size x feature_size x cluster_size
 
-        if self.shift_operation:
-            alpha = tf.get_variable("alpha-2",
-                                    [self.cluster_size * self.feature_size],
-                                    initializer=tf.constant_initializer(1.0))
-            beta = tf.get_variable("beta-2",
-                                   [self.cluster_size * self.feature_size],
-                                   initializer=tf.constant_initializer(0.0))
-            normalized_activation = tf.multiply(normalized_activation, alpha)
-            normalized_activation = tf.add(normalized_activation, beta)
-            float_cpy = tf.cast(self.cluster_size * self.feature_size, dtype=tf.float32)
-            normalized_activation = tf.divide(normalized_activation, tf.sqrt(float_cpy))
+        cluster_attention = tf.reshape(cluster_attention, [-1, self.cluster_size])
+        cluster_attention = tf.layers.dense(cluster_attention, self.cluster_size,
+                                            activation=None, use_bias=False)
+        cluster_attention = tf.layers.batch_normalization(cluster_attention, training=self.is_training)
+        cluster_attention = tf.sigmoid(cluster_attention)
 
-        normalized_activation = tf.nn.l2_normalize(normalized_activation, 1)
+        transformed_activation2 = tf.multiply(normalized_activation, cluster_attention)
+        transformed_activation2 = tf.reshape(transformed_activation2, [-1, self.cluster_size * self.feature_size])
+        normalized_activation2 = tf.nn.l2_normalize(transformed_activation2, 1)
 
-        return normalized_activation
+        return normalized_activation2
+
 
 class SexyFishModule(modules.BaseModule):
     """ Attention cluster. """

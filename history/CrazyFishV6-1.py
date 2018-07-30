@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0003
@@ -40,10 +40,10 @@ BASE_LEARNING_RATE = 0.0003
 START_NEW_MODEL = False
 
 EXTRA = "--fish6_iteration=128 " \
-        "--fish6_video_cluster_size=128 " \
-        "--fish6_audio_cluster_size=16 " \
+        "--fish6_video_cluster_size=256 " \
+        "--fish6_audio_cluster_size=32 " \
         "--fish6_shift_operation=True " \
-        "--fish6_filter_size=1 " \
+        "--fish6_filter_size=2 " \
         "--fish6_cluster_dropout=0.7 " \
         "--fish6_ff_dropout=0.9 " \
         "--fish6_linear_proj_dropout=0.9 " \
