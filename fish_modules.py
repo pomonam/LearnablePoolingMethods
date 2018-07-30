@@ -160,7 +160,7 @@ class LuckyFishModuleV3(modules.BaseModule):
         cluster_attention = tf.layers.batch_normalization(cluster_attention, training=self.is_training)
         cluster_attention = tf.sigmoid(cluster_attention)
         cluster_attention = tf.expand_dims(cluster_attention, 1)
-        cluster_attention = tf.reshape(cluster_attention, [-1, 1, cluster_attention])
+        cluster_attention = tf.reshape(cluster_attention, [-1, 1, self.cluster_size])
 
         transformed_activation2 = tf.multiply(normalized_activation, cluster_attention)
         transformed_activation2 = tf.reshape(transformed_activation2, [-1, self.cluster_size * self.feature_size])
