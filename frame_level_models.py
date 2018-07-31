@@ -119,14 +119,14 @@ class CrazyFishV8(models.BaseModel):
         with tf.variable_scope("video"):
             with tf.variable_scope("cluster"):
                 video_cluster_activation = video_cluster.forward(video_features)
-                video_bottleneck = tf.layers.dense(video_cluster_activation, 2048,
+                video_bottleneck = tf.layers.dense(video_cluster_activation, 1024,
                                                    use_bias=False, activation=None)
                 video_bottleneck = tf.layers.batch_normalization(video_bottleneck, training=is_training)
 
         with tf.variable_scope("audio"):
             with tf.variable_scope("cluster"):
                 audio_cluster_activation = audio_cluster.forward(audio_features)
-                audio_bottleneck = tf.layers.dense(audio_cluster_activation, 256,
+                audio_bottleneck = tf.layers.dense(audio_cluster_activation, 128,
                                                    use_bias=False, activation=None)
                 audio_bottleneck = tf.layers.batch_normalization(audio_bottleneck, training=is_training)
 
