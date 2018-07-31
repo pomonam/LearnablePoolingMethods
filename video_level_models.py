@@ -73,16 +73,38 @@ class MoeModel(models.BaseModel):
           model in the 'predictions' key. The dimensions of the tensor are
           batch_size x num_classes.
         """
-        num_mixtures = 3
-        l2_penalty = FLAGS.moe_l2
+        num_mixtures = num_mixtures or FLAGS.moe_num_mixtures
+        low_rank_gating = FLAGS.moe_low_rank_gating
+        l2_penalty = FLAGS.moe_l2;
+        gating_probabilities = FLAGS.moe_prob_gating
+        gating_input = FLAGS.moe_prob_gating_input
 
-        gate_activations = slim.fully_connected(
-            model_input,
-            vocab_size * (num_mixtures + 1),
-            activation_fn=None,
-            biases_initializer=None,
-            weights_regularizer=slim.l2_regularizer(l2_penalty),
-            scope="gates")
+        input_size = model_input.get_shape().as_list()[1]
+        remove_diag = FLAGS.gating_remove_diag
+
+        if low_rank_gating == -1:
+            gate_activations = slim.fully_connected(
+                model_input,
+                vocab_size * (num_mixtures + 1),
+                activation_fn=None,
+                biases_initializer=None,
+                weights_regularizer=slim.l2_regularizer(l2_penalty),
+                scope="gates")
+        else:
+            gate_activations1 = slim.fully_connected(
+                model_input,
+                low_rank_gating,
+                activation_fn=None,
+                biases_initializer=None,
+                weights_regularizer=slim.l2_regularizer(l2_penalty),
+                scope="gates1")
+            gate_activations = slim.fully_connected(
+                gate_activations1,
+                vocab_size * (num_mixtures + 1),
+                activation_fn=None,
+                biases_initializer=None,
+                weights_regularizer=slim.l2_regularizer(l2_penalty),
+                scope="gates2")
 
         expert_activations = slim.fully_connected(
             model_input,
@@ -103,20 +125,38 @@ class MoeModel(models.BaseModel):
         probabilities = tf.reshape(probabilities_by_class_and_batch,
                                    [-1, vocab_size])
 
-        weight1 = tf.layers.dense(probabilities, vocab_size, use_bias=False, activation=tf.nn.relu)
-        weight1 = tf.layers.batch_normalization(weight1, training=is_training)
+        if gating_probabilities:
+            if gating_input == 'prob':
+                gating_weights = tf.get_variable("gating_prob_weights",
+                                                 [vocab_size, vocab_size],
+                                                 initializer=tf.random_normal_initializer(
+                                                     stddev=1 / math.sqrt(vocab_size)))
+                gates = tf.matmul(probabilities, gating_weights)
+            else:
+                gating_weights = tf.get_variable("gating_prob_weights",
+                                                 [input_size, vocab_size],
+                                                 initializer=tf.random_normal_initializer(
+                                                     stddev=1 / math.sqrt(vocab_size)))
 
-        weight2 = tf.layers.dense(weight1, vocab_size, use_bias=False, activation=tf.nn.relu)
-        weight2 = tf.layers.batch_normalization(weight2, training=is_training)
+                gates = tf.matmul(model_input, gating_weights)
 
-        weight3 = tf.layers.dense(weight2, vocab_size, use_bias=False, activation=None)
+            if remove_diag:
+                # removes diagonals coefficients
+                diagonals = tf.matrix_diag_part(gating_weights)
+                gates = gates - tf.multiply(diagonals, probabilities)
 
-        output = probabilities + weight3
-        output = tf.nn.relu(output)
-        output = tf.layers.batch_normalization(output, training=is_training)
-        output = tf.layers.dense(output, vocab_size, use_bias=True, activation=tf.nn.sigmoid)
+            gates = slim.batch_norm(
+                gates,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="gating_prob_bn")
 
-        return {"predictions": output}
+            gates = tf.sigmoid(gates)
+
+            probabilities = tf.multiply(probabilities, gates)
+
+        return {"predictions": probabilities}
 
 
 class MoeModel2(models.BaseModel):
