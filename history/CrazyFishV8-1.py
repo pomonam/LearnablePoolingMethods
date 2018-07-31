@@ -21,8 +21,8 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "CrazyFishV7"
-MODEL_VERSION = "-2"
+MODEL_NAME = "CrazyFishV8"
+MODEL_VERSION = "-1"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -39,16 +39,16 @@ BASE_LEARNING_RATE = 0.0002
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--fish7_iteration=30 " \
-        "--fish7_video_cluster_size=256 " \
-        "--fish7_audio_cluster_size=32 " \
-        "--fish7_shift_operation=True " \
-        "--fish7_filter_size=4 " \
-        "--fish7_cluster_dropout=0.7 " \
-        "--fish7_ff_dropout=0.9 " \
-        "--fish7_linear_proj_dropout=0.9 " \
-        "--fish7_l2_regularization_rate=1e-8 " \
-        "--fish7_hidden_size=1 "
+EXTRA = "--fish8_iteration=30 " \
+        "--fish8_video_cluster_size=256 " \
+        "--fish8_audio_cluster_size=32 " \
+        "--fish8_shift_operation=True " \
+        "--fish8_filter_size=2 " \
+        "--fish8_cluster_dropout=0.8 " \
+        "--fish8_ff_dropout=0.9 " \
+        "--fish8_linear_proj_dropout=0.9 " \
+        "--fish8_l2_regularization_rate=1e-8 " \
+        "--fish8_hidden_size=1 "
 
 
 def main():
