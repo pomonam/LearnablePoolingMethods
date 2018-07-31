@@ -111,7 +111,7 @@ class CrazyFishV8(models.BaseModel):
                                                        shift_operation=shift_operation,
                                                        is_training=is_training)
 
-        res_block = fish_modules.ResBlock(feature_size=vocab_size,
+        res_block = fish_modules.ResBlock(feature_size=2048,
                                           k=filter_size,
                                           is_training=is_training,
                                           dropout_rate=ff_dropout)
