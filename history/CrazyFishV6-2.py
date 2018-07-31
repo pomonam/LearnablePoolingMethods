@@ -22,7 +22,7 @@ import os
 
 # Name and version of the model
 MODEL_NAME = "CrazyFishV6"
-MODEL_VERSION = "-1"
+MODEL_VERSION = "-2"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -39,16 +39,16 @@ BASE_LEARNING_RATE = 0.0003
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--fish6_iteration=128 " \
-        "--fish6_video_cluster_size=512 " \
-        "--fish6_audio_cluster_size=64 " \
+EXTRA = "--fish6_iteration=30 " \
+        "--fish6_video_cluster_size=256 " \
+        "--fish6_audio_cluster_size=32 " \
         "--fish6_shift_operation=True " \
         "--fish6_filter_size=1 " \
-        "--fish6_cluster_dropout=0.8 " \
+        "--fish6_cluster_dropout=0.7 " \
         "--fish6_ff_dropout=0.9 " \
         "--fish6_linear_proj_dropout=0.9 " \
         "--fish6_l2_regularization_rate=1e-8 " \
-        "--fish6_hidden_size=512 "
+        "--fish6_hidden_size=1024 "
 
 
 def main():

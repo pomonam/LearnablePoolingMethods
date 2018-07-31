@@ -3839,7 +3839,7 @@ class NetVLADModelLF(models.BaseModel):
                      hidden_size=None,
                      is_training=True,
                      **unused_params):
-        iterations = 128
+        iterations = 30
         add_batch_norm = True
         cluster_size = 256
 
@@ -3851,19 +3851,17 @@ class NetVLADModelLF(models.BaseModel):
         feature_size = model_input.get_shape().as_list()[2]
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
 
-        video_NetVLAD = fish_modules.LuckyFishModuleV4(feature_size=1024,
+        video_NetVLAD = fish_modules.LuckyFishModuleV2(feature_size=1024,
                                                        max_frames=max_frames,
                                                        cluster_size=256,
                                                        add_batch_norm=True,
                                                        shift_operation=True,
-                                                       global_shift=True,
                                                        dropout_rate=0.8,
                                                        is_training=is_training)
 
-        audio_NetVLAD = fish_modules.LuckyFishModuleV4(feature_size=128,
+        audio_NetVLAD = fish_modules.LuckyFishModuleV2(feature_size=128,
                                                        max_frames=max_frames,
                                                        cluster_size=32,
-                                                       global_shift=True,
                                                        add_batch_norm=True,
                                                        dropout_rate=0.8,
                                                        shift_operation=True,
