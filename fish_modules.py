@@ -93,8 +93,6 @@ class LuckyFishModuleV2(modules.BaseModule):
                                    initializer=tf.constant_initializer(0.0))
             transformed_activation = tf.multiply(transformed_activation, alpha)
             transformed_activation = tf.add(transformed_activation, beta)
-            float_cpy = tf.cast(self.cluster_size, dtype=tf.float32)
-            transformed_activation = tf.divide(transformed_activation, tf.sqrt(float_cpy))
 
         normalized_activation = tf.nn.l2_normalize(transformed_activation, 1)
         normalized_activation = tf.reshape(normalized_activation, [-1, self.cluster_size * self.feature_size])

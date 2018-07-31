@@ -36,6 +36,132 @@ import fish_modules
 ###############################################################################
 # Transformer #################################################################
 ###############################################################################
+flags.DEFINE_integer("fish7_iteration", 128,
+                     "Number of frames per batch")
+flags.DEFINE_integer("fish7_video_cluster_size", 256,
+                     "Video clustering size")
+flags.DEFINE_integer("fish7_audio_cluster_size", 32,
+                     "Audio clustering size")
+flags.DEFINE_integer("fish7_filter_size", 2,
+                     "Video clustering size")
+flags.DEFINE_integer("fish7_hidden_size", 1024,
+                     "Hidden size")
+flags.DEFINE_bool("fish7_shift_operation", True,
+                  "Perform shift operation?")
+flags.DEFINE_float("fish7_cluster_dropout", 0.7,
+                   "Dropout rate for clustering operation")
+flags.DEFINE_float("fish7_ff_dropout", 0.8,
+                   "Dropout rate for Feed Forward operation")
+flags.DEFINE_float("fish7_linear_proj_dropout", 0.8,
+                   "Dropout rate for linear projection")
+flags.DEFINE_float("fish7_l2_regularization_rate", 1e-8,
+                   "Regularization rate")
+
+
+class CrazyFishV6(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.fish6_iteration
+        video_cluster_size = FLAGS.fish6_video_cluster_size
+        audio_cluster_size = FLAGS.fish6_audio_cluster_size
+        shift_operation = FLAGS.fish6_shift_operation
+        cluster_dropout = FLAGS.fish6_cluster_dropout
+        ff_dropout = FLAGS.fish6_ff_dropout
+        linear_dropout = FLAGS.fish6_linear_proj_dropout
+        filter_size = FLAGS.fish6_filter_size
+        l2_reg_rate = FLAGS.fish6_l2_regularization_rate
+        hidden_size = FLAGS.fish6_hidden_size
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        # Differentiate video & audio features.
+        video_features = reshaped_input[:, 0:1024]
+        audio_features = reshaped_input[:, 1024:]
+        video_features = tf.nn.l2_normalize(video_features)
+        audio_features = tf.nn.l2_normalize(audio_features)
+        video_features = tf.reshape(video_features, [-1, max_frames, 1024])
+        audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
+
+        video_cluster = fish_modules.LuckyFishModuleV2(feature_size=1024,
+                                                       max_frames=max_frames,
+                                                       dropout_rate=cluster_dropout,
+                                                       cluster_size=video_cluster_size,
+                                                       add_batch_norm=True,
+                                                       shift_operation=shift_operation,
+                                                       is_training=is_training)
+
+        audio_cluster = fish_modules.LuckyFishModuleV2(feature_size=128,
+                                                       max_frames=max_frames,
+                                                       dropout_rate=cluster_dropout,
+                                                       cluster_size=audio_cluster_size,
+                                                       add_batch_norm=True,
+                                                       shift_operation=shift_operation,
+                                                       is_training=is_training)
+
+        with tf.variable_scope("video"):
+            with tf.variable_scope("cluster"):
+                video_cluster_activation = video_cluster.forward(video_features)
+                video_bottleneck = tf.layers.dense(video_cluster_activation, 1024,
+                                                   use_bias=False, activation=None)
+                video_bottleneck = tf.layers.batch_normalization(video_bottleneck, training=is_training)
+
+        with tf.variable_scope("audio"):
+            with tf.variable_scope("cluster"):
+                audio_cluster_activation = audio_cluster.forward(audio_features)
+                audio_bottleneck = tf.layers.dense(audio_cluster_activation, 128,
+                                                   use_bias=False, activation=None)
+                audio_bottleneck = tf.layers.batch_normalization(audio_bottleneck, training=is_training)
+
+        concat = tf.concat([video_bottleneck, audio_bottleneck], 1)
+        activation0 = tf.layers.dense(concat, vocab_size, use_bias=False, activation=None)
+
+        activation_r_0 = tf.layers.batch_normalization(activation0, training=is_training)
+        activation_r_0 = tf.nn.relu(activation_r_0)
+        activation_r_1 = tf.layers.dense(activation_r_0, vocab_size, use_bias=True, activation=None)
+        activation_r_1 = tf.layers.batch_normalization(activation_r_1, training=is_training)
+        activation_r_1 = tf.nn.relu(activation_r_1)
+        if is_training:
+            activation_r_1 = tf.nn.dropout(activation_r_1, linear_dropout)
+        activation_r_2 = tf.layers.dense(activation_r_1, vocab_size, use_bias=False, activation=None)
+        activation1 = activation0 + activation_r_2
+
+        activation2 = tf.layers.dense(activation1, vocab_size, use_bias=True, activation=None)
+
+        activation_r1_0 = tf.layers.batch_normalization(activation2, training=is_training)
+        activation_r1_0 = tf.nn.relu(activation_r1_0)
+        activation_r1_1 = tf.layers.dense(activation_r1_0, vocab_size, use_bias=True, activation=None)
+        activation_r1_1 = tf.layers.batch_normalization(activation_r1_1, training=is_training)
+        activation_r1_1 = tf.nn.relu(activation_r1_1)
+        if is_training:
+            activation_r1_1 = tf.nn.dropout(activation_r1_1, linear_dropout)
+        activation_r1_2 = tf.layers.dense(activation_r1_1, vocab_size, use_bias=False, activation=None)
+        activation3 = activation2 + activation_r1_2
+
+        activation4 = tf.layers.dense(activation3, vocab_size, use_bias=True, activation=None)
+        activation4 = tf.layers.batch_normalization(activation4, training=is_training)
+        if is_training:
+            activation4 = tf.nn.dropout(activation4, linear_dropout)
+        activation4 = tf.nn.relu(activation4)
+
+        activation5 = tf.layers.dense(activation4, vocab_size, use_bias=True, activation=tf.nn.sigmoid,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+
+        return {"predictions": activation5}
+
+
 flags.DEFINE_integer("fish6_iteration", 128,
                      "Number of frames per batch")
 flags.DEFINE_integer("fish6_video_cluster_size", 256,
@@ -3855,7 +3981,7 @@ class NetVLADModelLF(models.BaseModel):
                                                        max_frames=max_frames,
                                                        cluster_size=256,
                                                        add_batch_norm=True,
-                                                       shift_operation=True,
+                                                       shift_operation=False,
                                                        dropout_rate=0.8,
                                                        is_training=is_training)
 
@@ -3864,7 +3990,7 @@ class NetVLADModelLF(models.BaseModel):
                                                        cluster_size=32,
                                                        add_batch_norm=True,
                                                        dropout_rate=0.8,
-                                                       shift_operation=True,
+                                                       shift_operation=False,
                                                        is_training=is_training)
 
         if add_batch_norm:  # and not lightvlad:
