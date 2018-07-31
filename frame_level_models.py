@@ -58,7 +58,7 @@ flags.DEFINE_float("fish7_l2_regularization_rate", 1e-8,
                    "Regularization rate")
 
 
-class CrazyFishV6(models.BaseModel):
+class CrazyFishV7(models.BaseModel):
     def create_model(self,
                      model_input,
                      vocab_size,
@@ -69,16 +69,16 @@ class CrazyFishV6(models.BaseModel):
                      hidden_size=None,
                      is_training=True,
                      **unused_params):
-        iterations = iterations or FLAGS.fish6_iteration
-        video_cluster_size = FLAGS.fish6_video_cluster_size
-        audio_cluster_size = FLAGS.fish6_audio_cluster_size
-        shift_operation = FLAGS.fish6_shift_operation
-        cluster_dropout = FLAGS.fish6_cluster_dropout
-        ff_dropout = FLAGS.fish6_ff_dropout
-        linear_dropout = FLAGS.fish6_linear_proj_dropout
-        filter_size = FLAGS.fish6_filter_size
-        l2_reg_rate = FLAGS.fish6_l2_regularization_rate
-        hidden_size = FLAGS.fish6_hidden_size
+        iterations = iterations or FLAGS.fish7_iteration
+        video_cluster_size = FLAGS.fish7_video_cluster_size
+        audio_cluster_size = FLAGS.fish7_audio_cluster_size
+        shift_operation = FLAGS.fish7_shift_operation
+        cluster_dropout = FLAGS.fish7_cluster_dropout
+        ff_dropout = FLAGS.fish7_ff_dropout
+        linear_dropout = FLAGS.fish7_linear_proj_dropout
+        filter_size = FLAGS.fish7_filter_size
+        l2_reg_rate = FLAGS.fish7_l2_regularization_rate
+        hidden_size = FLAGS.fish7_hidden_size
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
@@ -111,6 +111,11 @@ class CrazyFishV6(models.BaseModel):
                                                        shift_operation=shift_operation,
                                                        is_training=is_training)
 
+        res_block = fish_modules.ResBlock(feature_size=vocab_size,
+                                          k=filter_size,
+                                          is_training=is_training,
+                                          dropout_rate=ff_dropout)
+
         with tf.variable_scope("video"):
             with tf.variable_scope("cluster"):
                 video_cluster_activation = video_cluster.forward(video_features)
@@ -128,38 +133,21 @@ class CrazyFishV6(models.BaseModel):
         concat = tf.concat([video_bottleneck, audio_bottleneck], 1)
         activation0 = tf.layers.dense(concat, vocab_size, use_bias=False, activation=None)
 
-        activation_r_0 = tf.layers.batch_normalization(activation0, training=is_training)
-        activation_r_0 = tf.nn.relu(activation_r_0)
-        activation_r_1 = tf.layers.dense(activation_r_0, vocab_size, use_bias=True, activation=None)
-        activation_r_1 = tf.layers.batch_normalization(activation_r_1, training=is_training)
-        activation_r_1 = tf.nn.relu(activation_r_1)
-        if is_training:
-            activation_r_1 = tf.nn.dropout(activation_r_1, linear_dropout)
-        activation_r_2 = tf.layers.dense(activation_r_1, vocab_size, use_bias=False, activation=None)
-        activation1 = activation0 + activation_r_2
+        with tf.variable_scope("block_1"):
+            activation1 = res_block.forward(activation0)
+        with tf.variable_scope("block_2"):
+            activation2 = res_block.forward(activation1)
+        with tf.variable_scope("block_3"):
+            activation3 = res_block.forward(activation2)
+        with tf.variable_scope("block_4"):
+            activation4 = res_block.forward(activation3)
+        with tf.variable_scope("block_5"):
+            activation5 = res_block.forward(activation4)
 
-        activation2 = tf.layers.dense(activation1, vocab_size, use_bias=True, activation=None)
-
-        activation_r1_0 = tf.layers.batch_normalization(activation2, training=is_training)
-        activation_r1_0 = tf.nn.relu(activation_r1_0)
-        activation_r1_1 = tf.layers.dense(activation_r1_0, vocab_size, use_bias=True, activation=None)
-        activation_r1_1 = tf.layers.batch_normalization(activation_r1_1, training=is_training)
-        activation_r1_1 = tf.nn.relu(activation_r1_1)
-        if is_training:
-            activation_r1_1 = tf.nn.dropout(activation_r1_1, linear_dropout)
-        activation_r1_2 = tf.layers.dense(activation_r1_1, vocab_size, use_bias=False, activation=None)
-        activation3 = activation2 + activation_r1_2
-
-        activation4 = tf.layers.dense(activation3, vocab_size, use_bias=True, activation=None)
-        activation4 = tf.layers.batch_normalization(activation4, training=is_training)
-        if is_training:
-            activation4 = tf.nn.dropout(activation4, linear_dropout)
-        activation4 = tf.nn.relu(activation4)
-
-        activation5 = tf.layers.dense(activation4, vocab_size, use_bias=True, activation=tf.nn.sigmoid,
+        activation6 = tf.layers.dense(activation5, vocab_size, use_bias=True, activation=tf.nn.sigmoid,
                                       kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
 
-        return {"predictions": activation5}
+        return {"predictions": activation6}
 
 
 flags.DEFINE_integer("fish6_iteration", 128,

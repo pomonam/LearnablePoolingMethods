@@ -653,3 +653,23 @@ class PrePostProcessingWrapper(modules.BaseModule):
         y = self.layer.forward(y, *args, **kwargs)
 
         return x + y
+
+
+class ResBlock(modules.BaseModule):
+    def __init__(self, feature_size, is_training, dropout_rate, k=2):
+        self.feature_size = feature_size
+        self.is_training = is_training
+        self.dropout_rate = dropout_rate
+        self.k = k
+
+    def forward(self, inputs, **unused_params):
+        activation0 = tf.layers.batch_normalization(inputs, training=self.is_training)
+        activation0 = tf.nn.relu(activation0)
+        activation1 = tf.layers.dense(activation0, self.feature_size * self.k, use_bias=True, activation=None)
+        activation1 = tf.nn.relu(activation1)
+        activation1 = tf.layers.batch_normalization(activation1, training=self.is_training)
+        if self.is_training:
+            activation1 = tf.nn.dropout(activation1, self.dropout_rate)
+        activation2 = tf.layers.dense(activation1, self.feature_size, use_bias=True, activation=None)
+        activation3 = inputs + activation2
+        return activation3
