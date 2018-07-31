@@ -3981,7 +3981,7 @@ class NetVLADModelLF(models.BaseModel):
                                                        max_frames=max_frames,
                                                        cluster_size=256,
                                                        add_batch_norm=True,
-                                                       shift_operation=False,
+                                                       shift_operation=True,
                                                        dropout_rate=0.8,
                                                        is_training=is_training)
 
@@ -3990,7 +3990,7 @@ class NetVLADModelLF(models.BaseModel):
                                                        cluster_size=32,
                                                        add_batch_norm=True,
                                                        dropout_rate=0.8,
-                                                       shift_operation=False,
+                                                       shift_operation=True,
                                                        is_training=is_training)
 
         if add_batch_norm:  # and not lightvlad:

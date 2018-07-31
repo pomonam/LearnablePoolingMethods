@@ -75,7 +75,7 @@ class MoeModel(models.BaseModel):
         """
         num_mixtures = num_mixtures or FLAGS.moe_num_mixtures
         low_rank_gating = FLAGS.moe_low_rank_gating
-        l2_penalty = FLAGS.moe_l2;
+        l2_penalty = FLAGS.moe_l2
         gating_probabilities = FLAGS.moe_prob_gating
         gating_input = FLAGS.moe_prob_gating_input
 
