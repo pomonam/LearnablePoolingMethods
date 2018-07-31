@@ -81,7 +81,7 @@ class CrazyFishV7(models.BaseModel):
         hidden_size = FLAGS.fish7_hidden_size
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
-        model_input = utils.SampleRandomFrames(model_input, num_frames, iterations)
+        model_input = utils.SampleUniformFrames(model_input, num_frames, iterations)
         # model_input: batch_size x max_frames x feature_size
         max_frames = model_input.get_shape().as_list()[1]
         feature_size = model_input.get_shape().as_list()[2]
