@@ -135,16 +135,16 @@ class CrazyFishV7(models.BaseModel):
 
         with tf.variable_scope("block_1"):
             activation1 = res_block.forward(activation0)
-        with tf.variable_scope("block_2"):
-            activation2 = res_block.forward(activation1)
-        with tf.variable_scope("block_3"):
-            activation3 = res_block.forward(activation2)
-        with tf.variable_scope("block_4"):
-            activation4 = res_block.forward(activation3)
-        with tf.variable_scope("block_5"):
-            activation5 = res_block.forward(activation4)
+        # with tf.variable_scope("block_2"):
+        #     activation2 = res_block.forward(activation1)
+        # with tf.variable_scope("block_3"):
+        #     activation3 = res_block.forward(activation2)
+        # with tf.variable_scope("block_4"):
+        #     activation4 = res_block.forward(activation3)
+        # with tf.variable_scope("block_5"):
+        #     activation5 = res_block.forward(activation4)
 
-        activation6 = tf.layers.dense(activation5, vocab_size, use_bias=True, activation=tf.nn.sigmoid,
+        activation6 = tf.layers.dense(activation1, vocab_size, use_bias=True, activation=tf.nn.sigmoid,
                                       kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
 
         return {"predictions": activation6}
