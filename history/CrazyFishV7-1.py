@@ -48,7 +48,7 @@ EXTRA = "--fish7_iteration=30 " \
         "--fish7_ff_dropout=0.9 " \
         "--fish7_linear_proj_dropout=0.9 " \
         "--fish7_l2_regularization_rate=1e-8 " \
-        "--fish7_hidden_size=1024 "
+        "--fish7_hidden_size=512 "
 
 
 def main():
