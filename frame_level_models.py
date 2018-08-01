@@ -242,6 +242,7 @@ class CrazyFishV8(models.BaseModel):
 
         concat = tf.concat([video_bottleneck, audio_bottleneck], 1)
         activation0 = tf.layers.dense(concat, vocab_size, use_bias=False, activation=None)
+        activation0 = tf.layers.batch_normalization(activation0, training=is_training)
 
         with tf.variable_scope("block_1"):
             activation1 = res_block.forward(activation0)
