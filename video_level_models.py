@@ -287,14 +287,15 @@ class FishMoeModel2(models.BaseModel):
         probabilities0 = tf.reshape(probabilities_by_class_and_batch,
                                     [-1, vocab_size])
 
-        r_activation0 = tf.layers.dense(probabilities0, vocab_size * filter_size, use_bias=True, activation=tf.nn.relu)
+        temp_probabilities = tf.layers.batch_normalization(probabilities0, training=is_training)
+        r_activation0 = tf.layers.dense(temp_probabilities, vocab_size * filter_size, use_bias=True, activation=tf.nn.relu)
         r_activation0 = tf.layers.batch_normalization(r_activation0, training=is_training)
         if is_training:
             r_activation0 = tf.layers.dropout(r_activation0, 0.9)
         r_activation1 = tf.layers.dense(r_activation0, vocab_size, use_bias=True, activation=None)
 
         probabilities1 = probabilities0 + r_activation1
-        probabilities1 = tf.nn.relu(probabilities1)
+        # probabilities1 = tf.nn.relu(probabilities1)
         probabilities1 = tf.layers.batch_normalization(probabilities1, training=is_training)
 
         probabilities2 = tf.layers.dense(probabilities1, vocab_size, use_bias=True, activation=tf.nn.sigmoid)
