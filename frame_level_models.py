@@ -251,6 +251,7 @@ class CrazyFishV9(models.BaseModel):
         activation0 = tf.layers.batch_normalization(activation0, training=is_training)
 
         activation1 = fish_gate.forward(activation0)
+        activation1 = tf.contrib.layers.layer_norm(activation1)
 
         aggregated_model = getattr(video_level_models,
                                    "FishMoeModel")

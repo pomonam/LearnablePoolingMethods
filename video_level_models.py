@@ -224,6 +224,8 @@ class FishMoeModel(models.BaseModel):
                                           is_training=is_training)
 
         probabilities = fish_gate.forward(probabilities)
+        probabilities = tf.contrib.layers.layer_norm(probabilities)
+        probabilities = tf.layers.dense(probabilities, vocab_size, use_bias=True, activation=tf.nn.softmax)
 
         return {"predictions": probabilities}
 
