@@ -189,13 +189,7 @@ class FishMoeModel(models.BaseModel):
           batch_size x num_classes.
         """
         num_mixtures = num_mixtures or FLAGS.moe_num_mixtures
-        low_rank_gating = FLAGS.moe_low_rank_gating
         l2_penalty = FLAGS.moe_l2
-        gating_probabilities = FLAGS.moe_prob_gating
-        gating_input = FLAGS.moe_prob_gating_input
-
-        input_size = model_input.get_shape().as_list()[1]
-        remove_diag = FLAGS.gating_remove_diag
 
         gate_activations = slim.fully_connected(
             model_input,
@@ -233,6 +227,79 @@ class FishMoeModel(models.BaseModel):
 
         return {"predictions": probabilities}
 
+
+class FishMoeModel2(models.BaseModel):
+    """A softmax over a mixture of logistic models (with L2 regularization)."""
+
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     is_training,
+                     num_mixtures=None,
+                     l2_penalty=1e-6,
+                     filter_size=2,
+                     **unused_params):
+        """Creates a Mixture of (Logistic) Experts model.
+         It also includes the possibility of gating the probabilities
+         The model consists of a per-class softmax distribution over a
+         configurable number of logistic classifiers. One of the classifiers in the
+         mixture is not trained, and always predicts 0.
+        Args:
+          model_input: 'batch_size' x 'num_features' matrix of input features.
+          vocab_size: The number of classes in the dataset.
+          is_training: Is this the training phase ?
+          num_mixtures: The number of mixtures (excluding a dummy 'expert' that
+            always predicts the non-existence of an entity).
+          l2_penalty: How much to penalize the squared magnitudes of parameter
+            values.
+        Returns:
+          A dictionary with a tensor containing the probability predictions of the
+          model in the 'predictions' key. The dimensions of the tensor are
+          batch_size x num_classes.
+        """
+        num_mixtures = num_mixtures or FLAGS.moe_num_mixtures
+        l2_penalty = FLAGS.moe_l2
+
+        gate_activations = slim.fully_connected(
+            model_input,
+            vocab_size * (num_mixtures + 1),
+            activation_fn=None,
+            biases_initializer=None,
+            weights_regularizer=slim.l2_regularizer(l2_penalty),
+            scope="gates")
+
+        expert_activations = slim.fully_connected(
+            model_input,
+            vocab_size * num_mixtures,
+            activation_fn=None,
+            weights_regularizer=slim.l2_regularizer(l2_penalty),
+            scope="experts")
+
+        gating_distribution = tf.nn.softmax(tf.reshape(
+            gate_activations,
+            [-1, num_mixtures + 1]))  # (Batch * #Labels) x (num_mixtures + 1)
+        expert_distribution = tf.nn.sigmoid(tf.reshape(
+            expert_activations,
+            [-1, num_mixtures]))  # (Batch * #Labels) x num_mixtures
+
+        probabilities_by_class_and_batch = tf.reduce_sum(
+            gating_distribution[:, :num_mixtures] * expert_distribution, 1)
+        probabilities0 = tf.reshape(probabilities_by_class_and_batch,
+                                    [-1, vocab_size])
+
+        r_activation0 = tf.layers.dense(probabilities0, vocab_size * filter_size, use_bias=True, activation=tf.nn.relu)
+        r_activation0 = tf.layers.batch_normalization(r_activation0, training=is_training)
+        if is_training:
+            r_activation0 = tf.layers.dropout(r_activation0, 0.9)
+        r_activation1 = tf.layers.dense(r_activation0, vocab_size, use_bias=True, activation=None)
+
+        probabilities1 = probabilities0 + r_activation1
+        probabilities1 = tf.nn.relu(probabilities1)
+        probabilities1 = tf.layers.batch_normalization(probabilities1, training=is_training)
+
+        probabilities2 = tf.layers.dense(probabilities1, vocab_size, use_bias=True, activation=tf.nn.sigmoid)
+
+        return {"predictions": probabilities2}
 
 
 class MoeModel2(models.BaseModel):
