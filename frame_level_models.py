@@ -127,9 +127,9 @@ class CrazyFishV10(models.BaseModel):
 
         concat_activation = tf.concat([video_bottleneck, audio_bottleneck], 1)
         activation0 = tf.layers.dense(concat_activation, hidden_size, use_bias=False, activation=None)
+        activation0 = tf.layers.batch_normalization(activation0, training=is_training)
 
-        temp_activation0 = tf.layers.batch_normalization(activation0, training=is_training)
-        r_activation0 = tf.layers.dense(temp_activation0, hidden_size * filter_size, use_bias=True, activation=tf.nn.relu)
+        r_activation0 = tf.layers.dense(activation0, hidden_size * filter_size, use_bias=True, activation=tf.nn.relu)
         r_activation0 = tf.layers.batch_normalization(r_activation0, training=is_training)
         if is_training:
             r_activation0 = tf.layers.dropout(r_activation0, 0.9)

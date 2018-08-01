@@ -52,7 +52,6 @@ EXTRA = "--fish9_iteration=300 " \
         "--moe_num_mixtures=4 " \
         "--learning_rate_decay=0.8 " \
         "--moe_l2=1e-6 " \
-        "--iterations=300 " \
         "--max_step=400000 "
 
 
