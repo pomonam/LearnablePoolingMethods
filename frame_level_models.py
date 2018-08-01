@@ -243,11 +243,11 @@ class CrazyFishV9(models.BaseModel):
         with tf.variable_scope("audio"):
             with tf.variable_scope("cluster"):
                 audio_cluster_activation = audio_cluster.forward(audio_features)
-                # audio_bottleneck = tf.layers.dense(audio_cluster_activation, 128,
-                #                                    use_bias=False, activation=None)
-                # audio_bottleneck = tf.layers.batch_normalization(audio_bottleneck, training=is_training)
+                audio_bottleneck = tf.layers.dense(audio_cluster_activation, 128,
+                                                   use_bias=False, activation=None)
+                audio_bottleneck = tf.layers.batch_normalization(audio_bottleneck, training=is_training)
 
-        concat_activation = tf.concat([video_cluster_activation, audio_cluster_activation], 1)
+        concat_activation = tf.concat([video_bottleneck, audio_bottleneck], 1)
         activation0 = tf.layers.dense(concat_activation, 1024, use_bias=False, activation=None)
         activation0 = tf.layers.batch_normalization(activation0, training=is_training)
 
