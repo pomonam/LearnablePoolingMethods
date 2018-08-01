@@ -21,8 +21,8 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "CrazyFishV8"
-MODEL_VERSION = "-1"
+MODEL_NAME = "CrazyFishV9"
+MODEL_VERSION = "-2"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0002
@@ -39,17 +39,19 @@ BASE_LEARNING_RATE = 0.0002
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--fish8_iteration=30 " \
-        "--fish8_video_cluster_size=128 " \
-        "--fish8_audio_cluster_size=32 " \
-        "--fish8_shift_operation=True " \
-        "--fish8_filter_size=2 " \
-        "--fish8_cluster_dropout=0.8 " \
-        "--fish8_ff_dropout=0.9 " \
-        "--fish8_linear_proj_dropout=0.9 " \
-        "--fish8_l2_regularization_rate=1e-8 " \
-        "--fish8_hidden_size=1 " \
-        "--learning_rate_decay=0.8"
+EXTRA = "--fish9_iteration=30 " \
+        "--fish9_video_cluster_size=256 " \
+        "--fish9_audio_cluster_size=16 " \
+        "--fish9_shift_operation=True " \
+        "--fish9_filter_size=4 " \
+        "--fish9_cluster_dropout=0.8 " \
+        "--fish9_ff_dropout=0.9 " \
+        "--fish9_linear_proj_dropout=0.9 " \
+        "--fish9_l2_regularization_rate=1e-8 " \
+        "--fish9_hidden_size=1 " \
+        "--moe_num_mixtures=4 " \
+        "--learning_rate_decay=0.8 " \
+        "--num_epochs=4 "
 
 
 def main():
