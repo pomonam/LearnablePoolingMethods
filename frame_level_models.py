@@ -136,6 +136,7 @@ class CrazyFishV10(models.BaseModel):
         r_activation1 = tf.layers.dense(r_activation0, hidden_size, use_bias=True, activation=None)
 
         activation1 = activation0 + r_activation1
+        activation1 = tf.contrib.layers.layer_norm(activation1)
         activation1 = tf.layers.batch_normalization(activation1, training=is_training)
         # activation1 = tf.nn.relu(activation1)
 

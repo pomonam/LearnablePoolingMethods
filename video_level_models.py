@@ -297,6 +297,7 @@ class FishMoeModel2(models.BaseModel):
         r_activation1 = tf.layers.dense(r_activation0, vocab_size, use_bias=True, activation=None)
 
         probabilities1 = probabilities0 + r_activation1
+        probabilities1 = tf.contrib.layers.layer_norm(probabilities1)
         probabilities1 = tf.layers.batch_normalization(probabilities1, training=is_training)
         probabilities2 = tf.layers.dense(probabilities1, vocab_size, use_bias=True, activation=tf.nn.softmax)
 

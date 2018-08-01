@@ -22,7 +22,7 @@ import os
 
 # Name and version of the model
 MODEL_NAME = "CrazyFishV9"
-MODEL_VERSION = "-1"
+MODEL_VERSION = "-3"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -43,7 +43,7 @@ EXTRA = "--fish9_iteration=300 " \
         "--fish9_video_cluster_size=256 " \
         "--fish9_audio_cluster_size=32 " \
         "--fish9_shift_operation=True " \
-        "--fish9_filter_size=4 " \
+        "--fish9_filter_size=2 " \
         "--fish9_cluster_dropout=0.8 " \
         "--fish9_ff_dropout=0.9 " \
         "--fish9_linear_proj_dropout=0.9 " \
