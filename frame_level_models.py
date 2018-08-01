@@ -248,7 +248,7 @@ class CrazyFishV9(models.BaseModel):
                 audio_bottleneck = tf.layers.batch_normalization(audio_bottleneck, training=is_training)
 
         concat_activation = tf.concat([video_bottleneck, audio_bottleneck], 1)
-        activation0 = tf.layers.dense(concat_activation, 1024, use_bias=False, activation=None)
+        activation0 = tf.layers.dense(concat_activation, hidden_size, use_bias=False, activation=None)
         activation0 = tf.layers.batch_normalization(activation0, training=is_training)
 
         activation1 = fish_gate.forward(activation0)
