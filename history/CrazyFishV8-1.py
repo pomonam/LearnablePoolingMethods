@@ -48,7 +48,8 @@ EXTRA = "--fish8_iteration=30 " \
         "--fish8_ff_dropout=0.9 " \
         "--fish8_linear_proj_dropout=0.9 " \
         "--fish8_l2_regularization_rate=1e-8 " \
-        "--fish8_hidden_size=1 "
+        "--fish8_hidden_size=1 " \
+        "--learning_rate_decay=0.8 "
 
 
 def main():

@@ -434,6 +434,27 @@ class FishGate(modules.BaseModule):
         return activation
 
 
+class ContextGate(modules.BaseModule):
+    def __init__(self, hidden_size, k, dropout_rate, is_training):
+        self.hidden_size = hidden_size
+        self.k = k
+        self.dropout_rate = dropout_rate
+        self.is_training = is_training
+
+    def forward(self, inputs, **unused_params):
+
+        gating_weights1 = tf.layers.dense(inputs, self.hidden_size * self.k, use_bias=False, activation=tf.nn.relu)
+        gating_weights1 = tf.layers.batch_normalization(gating_weights1, training=self.is_training)
+        if self.is_training:
+            gating_weights1 = tf.nn.dropout(gating_weights1, self.dropout_rate)
+
+        gating_weights2 = tf.layers.dense(gating_weights1, self.hidden_size, use_bias=False, activation=tf.nn.relu)
+        gating_weights2 = tf.layers.batch_normalization(gating_weights2, training=self.is_training)
+        gating_weights2 = tf.sigmoid(gating_weights2)
+        activation = tf.multiply(inputs, gating_weights2)
+        return activation
+
+
 class FishGate2(modules.BaseModule):
     def __init__(self, hidden_size, is_training):
         self.hidden_size = hidden_size
@@ -666,13 +687,15 @@ class ResBlock(modules.BaseModule):
         self.k = k
 
     def forward(self, inputs, **unused_params):
-        activation0 = tf.layers.batch_normalization(inputs, training=self.is_training)
-        activation0 = tf.nn.relu(activation0)
-        activation1 = tf.layers.dense(activation0, self.feature_size * self.k, use_bias=True, activation=None)
+        # activation0 = tf.layers.batch_normalization(inputs, training=self.is_training)
+        # activation0 = tf.nn.relu(activation0)
+        activation1 = tf.layers.dense(inputs, self.feature_size * self.k, use_bias=True, activation=None)
         activation1 = tf.nn.relu(activation1)
         activation1 = tf.layers.batch_normalization(activation1, training=self.is_training)
         if self.is_training:
             activation1 = tf.nn.dropout(activation1, self.dropout_rate)
         activation2 = tf.layers.dense(activation1, self.feature_size, use_bias=True, activation=None)
         activation3 = inputs + activation2
+        activation3 = tf.nn.relu(activation3)
+        activation3 = tf.layers.batch_normalization(activation3, training=self.is_training)
         return activation3

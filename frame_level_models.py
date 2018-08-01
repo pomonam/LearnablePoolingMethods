@@ -221,7 +221,7 @@ class CrazyFishV8(models.BaseModel):
                                                        shift_operation=shift_operation,
                                                        is_training=is_training)
 
-        res_block = fish_modules.ResBlock(feature_size=2048,
+        res_block = fish_modules.ResBlock(feature_size=vocab_size,
                                           k=filter_size,
                                           is_training=is_training,
                                           dropout_rate=ff_dropout)
@@ -241,27 +241,33 @@ class CrazyFishV8(models.BaseModel):
                 audio_bottleneck = tf.layers.batch_normalization(audio_bottleneck, training=is_training)
 
         concat = tf.concat([video_bottleneck, audio_bottleneck], 1)
-        activation0 = tf.layers.dense(concat, 2048, use_bias=False, activation=None)
+        activation0 = tf.layers.dense(concat, vocab_size, use_bias=False, activation=None)
 
-        # with tf.variable_scope("block_1"):
-        #     activation1 = res_block.forward(activation0)
-        # with tf.variable_scope("block_2"):
-        #     activation2 = res_block.forward(activation1)
-        # with tf.variable_scope("block_3"):
-        #     activation3 = res_block.forward(activation2)
-        # with tf.variable_scope("block_4"):
-        #     activation4 = res_block.forward(activation3)
-        # with tf.variable_scope("block_5"):
-        #     activation5 = res_block.forward(activation4)
+        with tf.variable_scope("block_1"):
+            activation1 = res_block.forward(activation0)
+        with tf.variable_scope("block_2"):
+            activation2 = res_block.forward(activation1)
+        with tf.variable_scope("block_3"):
+            activation3 = res_block.forward(activation2)
+        with tf.variable_scope("block_4"):
+            activation4 = res_block.forward(activation3)
 
-        aggregated_model = getattr(video_level_models,
-                                   "MoeModel")
+        activation5 = tf.layers.dense(activation4, vocab_size, use_bias=True, activation=tf.nn.relu,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+        activation5 = tf.layers.batch_normalization(activation5, training=is_training)
+        if is_training:
+            activation5 = tf.nn.dropout(activation5, 0.9)
 
-        return aggregated_model().create_model(
-            model_input=activation1,
-            vocab_size=vocab_size,
-            is_training=is_training,
-            **unused_params)
+        activation6 = tf.layers.dense(activation5, vocab_size, use_bias=True, activation=tf.nn.sigmoid,
+                                      kernel_regularizer=tf.contrib.layers.l2_regularizer(l2_reg_rate))
+
+        gating_weights = tf.layers.dense(activation6, vocab_size, use_bias=None, activation=None)
+        gating_weights = tf.layers.batch_normalization(gating_weights, training=is_training)
+        gating_weights = tf.sigmoid(gating_weights)
+
+        activation7 = tf.multiply(activation6, gating_weights)
+
+        return {"predictions": activation7}
 
 
 flags.DEFINE_integer("fish7_iteration", 128,
