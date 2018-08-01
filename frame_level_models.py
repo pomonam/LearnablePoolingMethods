@@ -128,15 +128,16 @@ class CrazyFishV10(models.BaseModel):
         concat_activation = tf.concat([video_bottleneck, audio_bottleneck], 1)
         activation0 = tf.layers.dense(concat_activation, hidden_size, use_bias=False, activation=None)
 
-        r_activation0 = tf.layers.dense(activation0, hidden_size * filter_size, use_bias=True, activation=tf.nn.relu)
+        temp_activation0 = tf.layers.batch_normalization(activation0, training=is_training)
+        r_activation0 = tf.layers.dense(temp_activation0, hidden_size * filter_size, use_bias=True, activation=tf.nn.relu)
         r_activation0 = tf.layers.batch_normalization(r_activation0, training=is_training)
         if is_training:
             r_activation0 = tf.layers.dropout(r_activation0, 0.9)
         r_activation1 = tf.layers.dense(r_activation0, hidden_size, use_bias=True, activation=None)
 
         activation1 = activation0 + r_activation1
-        activation1 = tf.nn.relu(activation1)
         activation1 = tf.layers.batch_normalization(activation1, training=is_training)
+        # activation1 = tf.nn.relu(activation1)
 
         aggregated_model = getattr(video_level_models,
                                    "FishMoeModel2")
