@@ -36,6 +36,116 @@ import fish_modules
 ###############################################################################
 # Transformer #################################################################
 ###############################################################################
+flags.DEFINE_integer("fish9_iteration", 128,
+                     "Number of frames per batch")
+flags.DEFINE_integer("fish9_video_cluster_size", 256,
+                     "Video clustering size")
+flags.DEFINE_integer("fish9_audio_cluster_size", 32,
+                     "Audio clustering size")
+flags.DEFINE_integer("fish9_filter_size", 2,
+                     "Video clustering size")
+flags.DEFINE_integer("fish9_hidden_size", 1024,
+                     "Hidden size")
+flags.DEFINE_bool("fish9_shift_operation", True,
+                  "Perform shift operation?")
+flags.DEFINE_float("fish9_cluster_dropout", 0.7,
+                   "Dropout rate for clustering operation")
+flags.DEFINE_float("fish9_ff_dropout", 0.8,
+                   "Dropout rate for Feed Forward operation")
+flags.DEFINE_float("fish9_linear_proj_dropout", 0.8,
+                   "Dropout rate for linear projection")
+flags.DEFINE_float("fish9_l2_regularization_rate", 1e-8,
+                   "Regularization rate")
+
+
+class CrazyFishV9(models.BaseModel):
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.fish9_iteration
+        video_cluster_size = FLAGS.fish9_video_cluster_size
+        audio_cluster_size = FLAGS.fish9_audio_cluster_size
+        shift_operation = FLAGS.fish9_shift_operation
+        cluster_dropout = FLAGS.fish9_cluster_dropout
+        ff_dropout = FLAGS.fish9_ff_dropout
+        linear_dropout = FLAGS.fish9_linear_proj_dropout
+        filter_size = FLAGS.fish9_filter_size
+        l2_reg_rate = FLAGS.fish9_l2_regularization_rate
+        hidden_size = FLAGS.fish9_hidden_size
+
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        model_input = utils.SampleUniformFrames(model_input, num_frames, iterations)
+        # model_input: batch_size x max_frames x feature_size
+        max_frames = model_input.get_shape().as_list()[1]
+        feature_size = model_input.get_shape().as_list()[2]
+        reshaped_input = tf.reshape(model_input, [-1, feature_size])
+
+        # Differentiate video & audio features.
+        video_features = reshaped_input[:, 0:1024]
+        audio_features = reshaped_input[:, 1024:]
+        video_features = tf.nn.l2_normalize(video_features)
+        audio_features = tf.nn.l2_normalize(audio_features)
+        video_features = tf.reshape(video_features, [-1, max_frames, 1024])
+        audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
+
+        video_cluster = fish_modules.LuckyFishModuleV2(feature_size=1024,
+                                                       max_frames=max_frames,
+                                                       dropout_rate=cluster_dropout,
+                                                       cluster_size=video_cluster_size,
+                                                       add_batch_norm=True,
+                                                       shift_operation=shift_operation,
+                                                       is_training=is_training)
+
+        audio_cluster = fish_modules.LuckyFishModuleV2(feature_size=128,
+                                                       max_frames=max_frames,
+                                                       dropout_rate=cluster_dropout,
+                                                       cluster_size=audio_cluster_size,
+                                                       add_batch_norm=True,
+                                                       shift_operation=shift_operation,
+                                                       is_training=is_training)
+
+        fish_gate = fish_modules.FishGate(hidden_size=hidden_size,
+                                          k=filter_size,
+                                          dropout_rate=0.9,
+                                          is_training=is_training)
+
+        with tf.variable_scope("video"):
+            with tf.variable_scope("cluster"):
+                video_cluster_activation = video_cluster.forward(video_features)
+                video_bottleneck = tf.layers.dense(video_cluster_activation, 1024,
+                                                   use_bias=False, activation=None)
+                video_bottleneck = tf.layers.batch_normalization(video_bottleneck, training=is_training)
+
+        with tf.variable_scope("audio"):
+            with tf.variable_scope("cluster"):
+                audio_cluster_activation = audio_cluster.forward(audio_features)
+                audio_bottleneck = tf.layers.dense(audio_cluster_activation, 128,
+                                                   use_bias=False, activation=None)
+                audio_bottleneck = tf.layers.batch_normalization(audio_bottleneck, training=is_training)
+
+        concat = tf.concat([video_bottleneck, audio_bottleneck], 1)
+        activation0 = tf.layers.dense(concat, 1024, use_bias=False, activation=None)
+        activation0 = tf.layers.batch_normalization(activation0, training=is_training)
+
+        activation1 = fish_gate.forward(activation0)
+
+        aggregated_model = getattr(video_level_models,
+                                   "FishMoeModel")
+
+        return aggregated_model().create_model(
+            model_input=activation1,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
+
+
 flags.DEFINE_integer("fish8_iteration", 128,
                      "Number of frames per batch")
 flags.DEFINE_integer("fish8_video_cluster_size", 256,
@@ -69,16 +179,16 @@ class CrazyFishV8(models.BaseModel):
                      hidden_size=None,
                      is_training=True,
                      **unused_params):
-        iterations = iterations or FLAGS.fish7_iteration
-        video_cluster_size = FLAGS.fish7_video_cluster_size
-        audio_cluster_size = FLAGS.fish7_audio_cluster_size
-        shift_operation = FLAGS.fish7_shift_operation
-        cluster_dropout = FLAGS.fish7_cluster_dropout
-        ff_dropout = FLAGS.fish7_ff_dropout
-        linear_dropout = FLAGS.fish7_linear_proj_dropout
-        filter_size = FLAGS.fish7_filter_size
-        l2_reg_rate = FLAGS.fish7_l2_regularization_rate
-        hidden_size = FLAGS.fish7_hidden_size
+        iterations = iterations or FLAGS.fish8_iteration
+        video_cluster_size = FLAGS.fish8_video_cluster_size
+        audio_cluster_size = FLAGS.fish8_audio_cluster_size
+        shift_operation = FLAGS.fish8_shift_operation
+        cluster_dropout = FLAGS.fish8_cluster_dropout
+        ff_dropout = FLAGS.fish8_ff_dropout
+        linear_dropout = FLAGS.fish8_linear_proj_dropout
+        filter_size = FLAGS.fish8_filter_size
+        l2_reg_rate = FLAGS.fish8_l2_regularization_rate
+        hidden_size = FLAGS.fish8_hidden_size
 
         num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
         model_input = utils.SampleUniformFrames(model_input, num_frames, iterations)
@@ -133,8 +243,8 @@ class CrazyFishV8(models.BaseModel):
         concat = tf.concat([video_bottleneck, audio_bottleneck], 1)
         activation0 = tf.layers.dense(concat, 2048, use_bias=False, activation=None)
 
-        with tf.variable_scope("block_1"):
-            activation1 = res_block.forward(activation0)
+        # with tf.variable_scope("block_1"):
+        #     activation1 = res_block.forward(activation0)
         # with tf.variable_scope("block_2"):
         #     activation2 = res_block.forward(activation1)
         # with tf.variable_scope("block_3"):
@@ -152,7 +262,6 @@ class CrazyFishV8(models.BaseModel):
             vocab_size=vocab_size,
             is_training=is_training,
             **unused_params)
-
 
 
 flags.DEFINE_integer("fish7_iteration", 128,

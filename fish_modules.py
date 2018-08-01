@@ -414,20 +414,23 @@ class FishMultiHeadFF(modules.BaseModule):
 
 
 class FishGate(modules.BaseModule):
-    def __init__(self, hidden_size, is_training):
+    def __init__(self, hidden_size, k, dropout_rate, is_training):
         self.hidden_size = hidden_size
+        self.k = k
+        self.dropout_rate = dropout_rate
         self.is_training = is_training
 
     def forward(self, inputs, **unused_params):
-        gating_weights = tf.get_variable("gating_weights_2",
-                                         [self.hidden_size, self.hidden_size],
-                                         initializer=tf.random_normal_initializer(
-                                             stddev=1 / math.sqrt(self.hidden_size)))
 
-        gates = tf.matmul(inputs, gating_weights)
-        gates = tf.layers.batch_normalization(gates, training=self.is_training)
-        gates = tf.sigmoid(gates)
-        activation = tf.multiply(inputs, gates)
+        gating_weights1 = tf.layers.dense(inputs, self.hidden_size * self.k, use_bias=False, activation=tf.nn.relu)
+        gating_weights1 = tf.layers.batch_normalization(gating_weights1, training=self.is_training)
+        if self.is_training:
+            gating_weights1 = tf.nn.dropout(gating_weights1, self.dropout_rate)
+
+        gating_weights2 = tf.layers.dense(gating_weights1, self.hidden_size, use_bias=False, activation=tf.nn.relu)
+        gating_weights2 = tf.layers.batch_normalization(gating_weights2, training=self.is_training)
+        gating_weights2 = tf.sigmoid(gating_weights2)
+        activation = tf.multiply(inputs, gating_weights2)
         return activation
 
 
