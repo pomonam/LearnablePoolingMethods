@@ -151,8 +151,6 @@ class CrazyFishV10(models.BaseModel):
             **unused_params)
 
 
-
-
 flags.DEFINE_integer("fish9_iteration", 128,
                      "Number of frames per batch")
 flags.DEFINE_integer("fish9_video_cluster_size", 256,
@@ -207,8 +205,8 @@ class CrazyFishV9(models.BaseModel):
         # Differentiate video & audio features.
         video_features = reshaped_input[:, 0:1024]
         audio_features = reshaped_input[:, 1024:]
-        video_features = tf.nn.l2_normalize(video_features)
-        audio_features = tf.nn.l2_normalize(audio_features)
+        video_features = tf.nn.l2_normalize(video_features, 1)
+        audio_features = tf.nn.l2_normalize(audio_features, 1)
         video_features = tf.reshape(video_features, [-1, max_frames, 1024])
         audio_features = tf.reshape(audio_features, [-1, max_frames, 128])
 

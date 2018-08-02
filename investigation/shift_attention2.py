@@ -17,6 +17,9 @@ normalized = tf.nn.l2_normalize(addition, 1)
 expand_normalized = tf.reshape(normalized, [-1, num_cluster * feature_size])
 renormalized = tf.nn.l2_normalize(expand_normalized, 1)
 
+sample = tf.constant(np.arange(0, 18), dtype=tf.float32, shape=[batch_size * num_cluster, feature_size])
+normalized_sample = tf.nn.l2_normalize(sample, 1)
+
 
 with tf.Session():
     print("original")
@@ -29,3 +32,6 @@ with tf.Session():
     print("expand")
     print(expand_normalized.eval())
     print(renormalized.eval())
+    print("sample")
+    print(sample.eval())
+    print(normalized_sample.eval())
