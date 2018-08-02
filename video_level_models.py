@@ -304,6 +304,68 @@ class FishMoeModel2(models.BaseModel):
         return {"predictions": probabilities}
 
 
+class FishMoeModel4(models.BaseModel):
+    """A softmax over a mixture of logistic models (with L2 regularization)."""
+
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     is_training,
+                     num_mixtures=None,
+                     l2_penalty=1e-8,
+                     filter_size=2,
+                     **unused_params):
+        """Creates a Mixture of (Logistic) Experts model.
+         It also includes the possibility of gating the probabilities
+         The model consists of a per-class softmax distribution over a
+         configurable number of logistic classifiers. One of the classifiers in the
+         mixture is not trained, and always predicts 0.
+        Args:
+          model_input: 'batch_size' x 'num_features' matrix of input features.
+          vocab_size: The number of classes in the dataset.
+          is_training: Is this the training phase ?
+          num_mixtures: The number of mixtures (excluding a dummy 'expert' that
+            always predicts the non-existence of an entity).
+          l2_penalty: How much to penalize the squared magnitudes of parameter
+            values.
+        Returns:
+          A dictionary with a tensor containing the probability predictions of the
+          model in the 'predictions' key. The dimensions of the tensor are
+          batch_size x num_classes.
+        """
+        num_mixtures = num_mixtures or FLAGS.moe_num_mixtures
+        l2_penalty = FLAGS.moe_l2
+
+        fc1 = slim.fully_connected(
+            model_input, vocab_size, activation_fn=tf.nn.relu, weights_regularizer=slim.l2_regularizer(l2_penalty))
+        fc1 = tf.layers.batch_normalization(fc1, training=is_training)
+        if is_training:
+            fc1 = tf.nn.dropout(fc1, keep_prob=0.9)
+
+        fc2 = slim.fully_connected(
+            fc1, vocab_size, activation_fn=tf.nn.relu, weights_regularizer=slim.l2_regularizer(l2_penalty))
+        fc2 = tf.layers.batch_normalization(fc2, training=is_training)
+        if is_training:
+            fc2 = tf.nn.dropout(fc2, keep_prob=0.9)
+
+        fc3 = slim.fully_connected(
+            fc2, vocab_size, activation_fn=tf.nn.sigmoid, weights_regularizer=slim.l2_regularizer(l2_penalty))
+        fc3 = tf.layers.batch_normalization(fc3, training=is_training)
+        if is_training:
+            fc3 = tf.nn.dropout(fc3, keep_prob=0.9)
+
+        fish_gate = fish_modules.FishGate(hidden_size=vocab_size,
+                                          k=filter_size,
+                                          dropout_rate=0.9,
+                                          is_training=is_training)
+
+        probabilities = fish_gate.forward(fc3)
+
+        # probabilities = tf.layers.dense(probabilities, vocab_size, use_bias=True, activation=tf.nn.softmax)
+
+        return {"predictions": probabilities}
+
+
 class FishMoeModel3(models.BaseModel):
     """A softmax over a mixture of logistic models (with L2 regularization)."""
 
