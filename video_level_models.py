@@ -221,13 +221,13 @@ class FishMoeModel(models.BaseModel):
         probabilities = tf.layers.batch_normalization(probabilities, training=is_training)
 
         fish_gate = fish_modules.FishGate(hidden_size=vocab_size,
-                                          k=filter_size,
+                                          k=2,
                                           dropout_rate=0.9,
                                           is_training=is_training)
 
         probabilities = fish_gate.forward(probabilities)
         probabilities = tf.contrib.layers.layer_norm(probabilities)
-        
+
         probabilities = tf.layers.dense(probabilities, vocab_size, use_bias=True, activation=tf.nn.softmax)
 
         return {"predictions": probabilities}

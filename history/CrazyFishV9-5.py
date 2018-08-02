@@ -47,10 +47,10 @@ EXTRA = "--fish9_iteration=300 " \
         "--fish9_cluster_dropout=0.8 " \
         "--fish9_ff_dropout=0.9 " \
         "--fish9_linear_proj_dropout=0.9 " \
-        "--fish9_l2_regularization_rate=1e-8 " \
+        "--fish9_l2_regularization_rate=1e-6 " \
         "--fish9_hidden_size=1024 " \
-        "--moe_num_mixtures=8 " \
-        "--learning_rate_decay_examples=2000000" \
+        "--moe_num_mixtures=4 " \
+        "--learning_rate_decay_examples=2000000 " \
         "--learning_rate_decay=0.8 " \
         "--num_epochs=4 " \
         "--moe_l2=1e-6 " \
