@@ -259,6 +259,7 @@ class CrazyFishV9(models.BaseModel):
 
         return aggregated_model().create_model(
             model_input=activation1,
+            filter_size=filter_size,
             vocab_size=vocab_size,
             is_training=is_training,
             **unused_params)

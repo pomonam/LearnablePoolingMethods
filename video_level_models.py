@@ -169,6 +169,7 @@ class FishMoeModel(models.BaseModel):
                      is_training,
                      num_mixtures=None,
                      l2_penalty=1e-8,
+                     filter_size=2,
                      **unused_params):
         """Creates a Mixture of (Logistic) Experts model.
          It also includes the possibility of gating the probabilities
@@ -217,14 +218,16 @@ class FishMoeModel(models.BaseModel):
             gating_distribution[:, :num_mixtures] * expert_distribution, 1)
         probabilities = tf.reshape(probabilities_by_class_and_batch,
                                    [-1, vocab_size])
+        probabilities = tf.layers.batch_normalization(probabilities, training=is_training)
 
         fish_gate = fish_modules.FishGate(hidden_size=vocab_size,
-                                          k=2,
+                                          k=filter_size,
                                           dropout_rate=0.9,
                                           is_training=is_training)
 
         probabilities = fish_gate.forward(probabilities)
         probabilities = tf.contrib.layers.layer_norm(probabilities)
+        
         probabilities = tf.layers.dense(probabilities, vocab_size, use_bias=True, activation=tf.nn.softmax)
 
         return {"predictions": probabilities}

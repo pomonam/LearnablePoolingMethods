@@ -22,7 +22,7 @@ import os
 
 # Name and version of the model
 MODEL_NAME = "CrazyFishV9"
-MODEL_VERSION = "-3"
+MODEL_VERSION = "-4"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
