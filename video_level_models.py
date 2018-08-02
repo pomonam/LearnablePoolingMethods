@@ -291,7 +291,6 @@ class FishMoeModel2(models.BaseModel):
             gating_distribution[:, :num_mixtures] * expert_distribution, 1)
         probabilities = tf.reshape(probabilities_by_class_and_batch,
                                    [-1, vocab_size])
-        probabilities = tf.layers.batch_normalization(probabilities, training=is_training)
 
         fish_gate = fish_modules.FishGate(hidden_size=vocab_size,
                                           k=filter_size,
@@ -300,7 +299,7 @@ class FishMoeModel2(models.BaseModel):
 
         probabilities = fish_gate.forward(probabilities)
 
-        probabilities = tf.layers.dense(probabilities, vocab_size, use_bias=True, activation=tf.nn.softmax)
+        # probabilities = tf.layers.dense(probabilities, vocab_size, use_bias=True, activation=tf.nn.softmax)
 
         return {"predictions": probabilities}
 
