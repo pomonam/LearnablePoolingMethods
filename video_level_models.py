@@ -337,19 +337,19 @@ class FishMoeModel4(models.BaseModel):
         l2_penalty = FLAGS.moe_l2
 
         fc1 = tf.layers.dense(model_input, vocab_size, activation=tf.nn.relu,
-                              weights_regularizer=slim.l2_regularizer(l2_penalty))
+                              kernel_regularizer=slim.l2_regularizer(l2_penalty))
         fc1 = tf.layers.batch_normalization(fc1, training=is_training)
         if is_training:
             fc1 = tf.nn.dropout(fc1, keep_prob=0.9)
 
         fc2 = tf.layers.dense(fc1, vocab_size, activation=tf.nn.relu,
-                              weights_regularizer=slim.l2_regularizer(l2_penalty))
+                              kernel_regularizer=slim.l2_regularizer(l2_penalty))
         fc2 = tf.layers.batch_normalization(fc2, training=is_training)
         if is_training:
             fc2 = tf.nn.dropout(fc2, keep_prob=0.9)
 
         fc3 = tf.layers.dense(fc2, vocab_size, activation=tf.nn.sigmoid,
-                              weights_regularizer=slim.l2_regularizer(l2_penalty))
+                              kernel_regularizer=slim.l2_regularizer(l2_penalty))
         fc3 = tf.layers.batch_normalization(fc3, training=is_training)
         if is_training:
             fc3 = tf.nn.dropout(fc3, keep_prob=0.9)
