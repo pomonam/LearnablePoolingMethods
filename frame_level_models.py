@@ -58,7 +58,7 @@ flags.DEFINE_float("fish12_l2_regularization_rate", 1e-8,
                    "Regularization rate")
 
 
-class CrazyFishV11(models.BaseModel):
+class CrazyFishV12(models.BaseModel):
     def create_model(self,
                      model_input,
                      vocab_size,
