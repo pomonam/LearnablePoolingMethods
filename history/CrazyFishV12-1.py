@@ -31,10 +31,10 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0002
+BASE_LEARNING_RATE = 0.0001
 
 # Initialize a new model?
 START_NEW_MODEL = False
@@ -43,7 +43,7 @@ EXTRA = "--fish11_iteration=300 " \
         "--fish11_video_cluster_size=256 " \
         "--fish11_audio_cluster_size=32 " \
         "--fish11_shift_operation=True " \
-        "--fish11_filter_size=3 " \
+        "--fish11_filter_size=2 " \
         "--fish11_cluster_dropout=0.8 " \
         "--fish11_ff_dropout=0.9 " \
         "--fish11_linear_proj_dropout=0.9 " \
