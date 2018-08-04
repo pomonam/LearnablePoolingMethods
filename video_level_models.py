@@ -294,7 +294,7 @@ class FishMoeModel2(models.BaseModel):
 
         fish_gate = fish_modules.FishGate(hidden_size=vocab_size,
                                           k=filter_size,
-                                          dropout_rate=0.9,
+                                          dropout_rate=0.8,
                                           is_training=is_training)
 
         probabilities = fish_gate.forward(probabilities)

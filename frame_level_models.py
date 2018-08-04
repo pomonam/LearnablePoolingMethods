@@ -110,7 +110,7 @@ class CrazyFishV13(models.BaseModel):
 
         fish_gate = fish_modules.FishGate(hidden_size=hidden_size,
                                           k=filter_size,
-                                          dropout_rate=0.9,
+                                          dropout_rate=0.8,
                                           is_training=is_training)
 
         with tf.variable_scope("video"):
