@@ -43,13 +43,13 @@ EXTRA = "--fish11_iteration=300 " \
         "--fish11_video_cluster_size=256 " \
         "--fish11_audio_cluster_size=32 " \
         "--fish11_shift_operation=True " \
-        "--fish11_filter_size=2 " \
+        "--fish11_filter_size=3 " \
         "--fish11_cluster_dropout=0.8 " \
         "--fish11_ff_dropout=0.9 " \
         "--fish11_linear_proj_dropout=0.9 " \
         "--fish11_l2_regularization_rate=1e-7 " \
-        "--fish11_hidden_size=2048 " \
-        "--moe_num_mixtures=2 " \
+        "--fish11_hidden_size=1024 " \
+        "--moe_num_mixtures=4 " \
         "--learning_rate_decay_examples=2000000 " \
         "--learning_rate_decay=0.8 " \
         "--num_epochs=4 " \

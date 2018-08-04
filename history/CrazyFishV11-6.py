@@ -21,8 +21,8 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "CrazyFishV9"
-MODEL_VERSION = "-1"
+MODEL_NAME = "CrazyFishV11"
+MODEL_VERSION = "-6"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -31,7 +31,7 @@ FRAME_LEVEL = True
 FEATURES = "rgb,audio"
 
 # Batch size.
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 
 # Base LR.
 BASE_LEARNING_RATE = 0.0002
@@ -39,19 +39,22 @@ BASE_LEARNING_RATE = 0.0002
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--fish9_iteration=300 " \
-        "--fish9_video_cluster_size=256 " \
-        "--fish9_audio_cluster_size=32 " \
-        "--fish9_shift_operation=True " \
-        "--fish9_filter_size=4 " \
-        "--fish9_cluster_dropout=0.8 " \
-        "--fish9_ff_dropout=0.9 " \
-        "--fish9_linear_proj_dropout=0.9 " \
-        "--fish9_l2_regularization_rate=1e-8 " \
-        "--fish9_hidden_size=1 " \
-        "--moe_num_mixtures=4 " \
-        "--learning_rate_decay=0.8 " \
-        "--num_epochs=4 "
+EXTRA = "--fish11_iteration=300 " \
+        "--fish11_video_cluster_size=256 " \
+        "--fish11_audio_cluster_size=32 " \
+        "--fish11_shift_operation=True " \
+        "--fish11_filter_size=2 " \
+        "--fish11_cluster_dropout=0.7 " \
+        "--fish11_ff_dropout=0.9 " \
+        "--fish11_linear_proj_dropout=0.9 " \
+        "--fish11_l2_regularization_rate=1e-7 " \
+        "--fish11_hidden_size=512 " \
+        "--moe_num_mixtures=2 " \
+        "--learning_rate_decay_examples=3000000 " \
+        "--learning_rate_decay=0.85 " \
+        "--num_epochs=4 " \
+        "--moe_l2=1e-6 " \
+        "--max_step=400000 "
 
 
 def main():
@@ -86,7 +89,7 @@ def main():
     eval_command += "--feature_names='{}' ".format(FEATURES)
     eval_command += "--feature_sizes='1024,128' "
     eval_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    eval_command += "--train_dir=/home/koreasecretweapon/hello/ ".format(MODEL_NAME + str(MODEL_VERSION))
+    eval_command += "--train_dir=/home/deeptopology2/JuhanTestModelV3-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
     eval_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
     eval_command += "--run_once=True "
     eval_command += EXTRA
@@ -100,9 +103,9 @@ def main():
     inference_command += "--feature_names='{}' ".format(FEATURES)
     inference_command += "--feature_sizes='1024,128' "
     inference_command += "--batch_size=256 ".format(str(BATCH_SIZE))
-    inference_command += "--train_dir=/home/koreasecretweapon/hello/ ".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--train_dir=/home/deeptopology2/JuhanTestModelV3-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
-    inference_command += "--output_file=/home/koreasecretweapon/hello/predictions.csv ".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--output_file=/home/deeptopology2/JuhanTestModelV3-2/predictions.csv ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += EXTRA
 
     return local_command, eval_command, inference_command

@@ -74,7 +74,7 @@ def main():
     eval_command += "--feature_names='{}' ".format(FEATURES)
     eval_command += "--feature_sizes='1024,128' "
     eval_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    eval_command += "--train_dir=/home/soopowja/jb3/ ".format(MODEL_NAME + str(MODEL_VERSION))
+    eval_command += "--train_dir=/home/soopowja/hello/ ".format(MODEL_NAME + str(MODEL_VERSION))
     eval_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
     eval_command += "--run_once=True "
     eval_command += EXTRA
@@ -88,9 +88,9 @@ def main():
     inference_command += "--feature_names='{}' ".format(FEATURES)
     inference_command += "--feature_sizes='1024,128' "
     inference_command += "--batch_size=256 ".format(str(BATCH_SIZE))
-    inference_command += "--train_dir=/home/soopowja/jb3/ ".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--train_dir=/home/soopowja/hello/ ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
-    inference_command += "--output_file=/home/soopowja/jb3/predictions.csv ".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--output_file=/home/soopowja/hello/predictions.csv ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += EXTRA
 
     return local_command, eval_command, inference_command
