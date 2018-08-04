@@ -22,7 +22,7 @@ import os
 
 # Name and version of the model
 MODEL_NAME = "CrazyFishV12"
-MODEL_VERSION = "-1"
+MODEL_VERSION = "-2"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -39,16 +39,16 @@ BASE_LEARNING_RATE = 0.0001
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--fish11_iteration=300 " \
-        "--fish11_video_cluster_size=256 " \
-        "--fish11_audio_cluster_size=32 " \
-        "--fish11_shift_operation=True " \
-        "--fish11_filter_size=4 " \
-        "--fish11_cluster_dropout=0.7 " \
-        "--fish11_ff_dropout=0.8 " \
-        "--fish11_linear_proj_dropout=0.8 " \
-        "--fish11_l2_regularization_rate=1e-6 " \
-        "--fish11_hidden_size=512 " \
+EXTRA = "--fish12_iteration=300 " \
+        "--fish12_video_cluster_size=256 " \
+        "--fish12_audio_cluster_size=32 " \
+        "--fish12_shift_operation=True " \
+        "--fish12_filter_size=4 " \
+        "--fish12_cluster_dropout=0.7 " \
+        "--fish12_ff_dropout=0.8 " \
+        "--fish12_linear_proj_dropout=0.8 " \
+        "--fish12_l2_regularization_rate=1e-6 " \
+        "--fish12_hidden_size=512 " \
         "--moe_num_mixtures=4 " \
         "--learning_rate_decay_examples=2000000 " \
         "--learning_rate_decay=0.85 " \
