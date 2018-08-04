@@ -83,13 +83,13 @@ def main():
     eval_command = "gcloud ml-engine local train "
     eval_command += "--package-path=youtube-8m --module-name=youtube-8m.eval "
     if FRAME_LEVEL:
-        eval_command += "-- --eval_data_pattern='gs://youtube8m-ml-us-east1/2/frame/validate/validate*.tfrecord' "
+        eval_command += "-- --eval_data_pattern='gs://youtube8m-ml-us-east1/2/frame/test/test*.tfrecord' "
         eval_command += "--frame_features=True "
     eval_command += "--model={} ".format(MODEL_NAME)
     eval_command += "--feature_names='{}' ".format(FEATURES)
     eval_command += "--feature_sizes='1024,128' "
     eval_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    eval_command += "--train_dir=/home/deeptopology2/JuhanTestModelV3-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
+    eval_command += "--train_dir=/home/koreasecretweapon/CrazyFishV11-4 ".format(MODEL_NAME + str(MODEL_VERSION))
     eval_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
     eval_command += "--run_once=True "
     eval_command += EXTRA

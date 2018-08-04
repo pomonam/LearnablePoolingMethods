@@ -21,8 +21,8 @@ import os
 ####################################################################
 
 # Name and version of the model
-MODEL_NAME = "CrazyFishV11"
-MODEL_VERSION = "-6"
+MODEL_NAME = "CrazyFishV13"
+MODEL_VERSION = "-1"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -34,7 +34,7 @@ FEATURES = "rgb,audio"
 BATCH_SIZE = 128
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0002
+BASE_LEARNING_RATE = 0.0003
 
 # Initialize a new model?
 START_NEW_MODEL = False
@@ -43,14 +43,14 @@ EXTRA = "--fish11_iteration=300 " \
         "--fish11_video_cluster_size=256 " \
         "--fish11_audio_cluster_size=32 " \
         "--fish11_shift_operation=True " \
-        "--fish11_filter_size=2 " \
-        "--fish11_cluster_dropout=0.7 " \
-        "--fish11_ff_dropout=0.9 " \
-        "--fish11_linear_proj_dropout=0.9 " \
-        "--fish11_l2_regularization_rate=1e-7 " \
+        "--fish11_filter_size=4 " \
+        "--fish11_cluster_dropout=0.6 " \
+        "--fish11_ff_dropout=0.8 " \
+        "--fish11_linear_proj_dropout=0.8 " \
+        "--fish11_l2_regularization_rate=1e-6 " \
         "--fish11_hidden_size=512 " \
-        "--moe_num_mixtures=2 " \
-        "--learning_rate_decay_examples=3000000 " \
+        "--moe_num_mixtures=4 " \
+        "--learning_rate_decay_examples=2000000 " \
         "--learning_rate_decay=0.85 " \
         "--num_epochs=4 " \
         "--moe_l2=1e-6 " \
@@ -83,13 +83,13 @@ def main():
     eval_command = "gcloud ml-engine local train "
     eval_command += "--package-path=youtube-8m --module-name=youtube-8m.eval "
     if FRAME_LEVEL:
-        eval_command += "-- --eval_data_pattern='gs://youtube8m-ml-us-east1/2/frame/test/test*.tfrecord' "
+        eval_command += "-- --eval_data_pattern='gs://youtube8m-ml-us-east1/2/frame/validate/validate*.tfrecord' "
         eval_command += "--frame_features=True "
     eval_command += "--model={} ".format(MODEL_NAME)
     eval_command += "--feature_names='{}' ".format(FEATURES)
     eval_command += "--feature_sizes='1024,128' "
     eval_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    eval_command += "--train_dir=/home/koreasecretweapon/CrazyFishV11-6 ".format(MODEL_NAME + str(MODEL_VERSION))
+    eval_command += "--train_dir=/home/deeptopology2/JuhanTestModelV3-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
     eval_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
     eval_command += "--run_once=True "
     eval_command += EXTRA
