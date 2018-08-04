@@ -136,7 +136,7 @@ class CrazyFishV12(models.BaseModel):
         activation1 = fish_gate.forward(activation0)
 
         aggregated_model = getattr(video_level_models,
-                                   "FishMoeModel4")
+                                   "FishMoeModel2")
 
         return aggregated_model().create_model(
             model_input=activation1,

@@ -43,17 +43,17 @@ EXTRA = "--fish11_iteration=300 " \
         "--fish11_video_cluster_size=256 " \
         "--fish11_audio_cluster_size=32 " \
         "--fish11_shift_operation=True " \
-        "--fish11_filter_size=2 " \
-        "--fish11_cluster_dropout=0.8 " \
-        "--fish11_ff_dropout=0.9 " \
-        "--fish11_linear_proj_dropout=0.9 " \
-        "--fish11_l2_regularization_rate=1e-7 " \
-        "--fish11_hidden_size=1024 " \
+        "--fish11_filter_size=4 " \
+        "--fish11_cluster_dropout=0.7 " \
+        "--fish11_ff_dropout=0.8 " \
+        "--fish11_linear_proj_dropout=0.8 " \
+        "--fish11_l2_regularization_rate=1e-6 " \
+        "--fish11_hidden_size=512 " \
         "--moe_num_mixtures=4 " \
         "--learning_rate_decay_examples=2000000 " \
         "--learning_rate_decay=0.85 " \
         "--num_epochs=4 " \
-        "--moe_l2=1e-7 " \
+        "--moe_l2=1e-6 " \
         "--max_step=400000 "
 
 
