@@ -22,7 +22,7 @@ import os
 
 # Name and version of the model
 MODEL_NAME = "CrazyFishV13"
-MODEL_VERSION = "-2"
+MODEL_VERSION = "-6"
 
 # Does it require frame-level models?
 FRAME_LEVEL = True
@@ -34,21 +34,21 @@ FEATURES = "rgb,audio"
 BATCH_SIZE = 128
 
 # Base LR.
-BASE_LEARNING_RATE = 0.0003
+BASE_LEARNING_RATE = 0.0002
 
 # Initialize a new model?
 START_NEW_MODEL = False
 
 EXTRA = "--fish13_iteration=300 " \
-        "--fish13_video_cluster_size=256 " \
-        "--fish13_audio_cluster_size=32 " \
+        "--fish13_video_cluster_size=128 " \
+        "--fish13_audio_cluster_size=16 " \
         "--fish13_shift_operation=True " \
         "--fish13_filter_size=2 " \
         "--fish13_cluster_dropout=0.7 " \
         "--fish13_ff_dropout=0.8 " \
         "--fish13_linear_proj_dropout=0.8 " \
         "--fish13_l2_regularization_rate=1e-6 " \
-        "--fish13_hidden_size=512 " \
+        "--fish13_hidden_size=256 " \
         "--moe_num_mixtures=2 " \
         "--learning_rate_decay_examples=2000000 " \
         "--learning_rate_decay=0.85 " \
@@ -89,7 +89,7 @@ def main():
     eval_command += "--feature_names='{}' ".format(FEATURES)
     eval_command += "--feature_sizes='1024,128' "
     eval_command += "--batch_size={} ".format(str(BATCH_SIZE))
-    eval_command += "--train_dir=/home/koreasecretweapon/CrazyFishV13-2 ".format(MODEL_NAME + str(MODEL_VERSION))
+    eval_command += "--train_dir=/home/soopowja/CrazyFishV13-3/ ".format(MODEL_NAME + str(MODEL_VERSION))
     eval_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
     eval_command += "--run_once=True "
     eval_command += EXTRA
@@ -103,9 +103,9 @@ def main():
     inference_command += "--feature_names='{}' ".format(FEATURES)
     inference_command += "--feature_sizes='1024,128' "
     inference_command += "--batch_size=256 ".format(str(BATCH_SIZE))
-    inference_command += "--train_dir=/home/koreasecretweapon/CrazyFishV13-2/ ".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--train_dir=/home/soopowja/CrazyFishV13-3/ ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += "--base_learning_rate={} ".format(str(BASE_LEARNING_RATE))
-    inference_command += "--output_file=/home/koreasecretweapon/CrazyFishV13-2/predictions.csv ".format(MODEL_NAME + str(MODEL_VERSION))
+    inference_command += "--output_file=/home/soopowja/CrazyFishV13-3/predictions.csv ".format(MODEL_NAME + str(MODEL_VERSION))
     inference_command += EXTRA
 
     return local_command, eval_command, inference_command
