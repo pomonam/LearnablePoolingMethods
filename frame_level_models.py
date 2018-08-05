@@ -61,8 +61,6 @@ class CrazyFishV14(models.BaseModel):
                      **unused_params):
         video_cluster_size = FLAGS.fish14_video_cluster_size
         audio_cluster_size = FLAGS.fish14_audio_cluster_size
-        cluster_dropout = FLAGS.fish14_cluster_dropout
-
         max_frames = model_input.get_shape().as_list()[1]
         feature_size = model_input.get_shape().as_list()[2]
         reshaped_input = tf.reshape(model_input, [-1, feature_size])
@@ -77,7 +75,7 @@ class CrazyFishV14(models.BaseModel):
 
         video_cluster = fish_modules.LuckyFishModuleV2(feature_size=1024,
                                                        max_frames=max_frames,
-                                                       dropout_rate=cluster_dropout,
+                                                       dropout_rate=0.9,
                                                        cluster_size=video_cluster_size,
                                                        add_batch_norm=True,
                                                        shift_operation=True,
@@ -85,7 +83,7 @@ class CrazyFishV14(models.BaseModel):
 
         audio_cluster = fish_modules.LuckyFishModuleV2(feature_size=128,
                                                        max_frames=max_frames,
-                                                       dropout_rate=cluster_dropout,
+                                                       dropout_rate=0.9,
                                                        cluster_size=audio_cluster_size,
                                                        add_batch_norm=True,
                                                        shift_operation=True,
@@ -103,7 +101,6 @@ class CrazyFishV14(models.BaseModel):
         activation0 = tf.layers.dense(concat_activation, vocab_size, use_bias=True, activation=tf.nn.tanh,
                                       kernel_regularizer=slim.l2_regularizer(1e-6))
         activation0 = tf.layers.batch_normalization(activation0, training=is_training)
-
         activation1 = tf.layers.dense(activation0, vocab_size, use_bias=True, activation=tf.nn.softmax,
                                       kernel_regularizer=slim.l2_regularizer(1e-6))
 
