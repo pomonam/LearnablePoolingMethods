@@ -39,16 +39,16 @@ BASE_LEARNING_RATE = 0.0002
 # Initialize a new model?
 START_NEW_MODEL = False
 
-EXTRA = "--fish13_iteration=300 " \
-        "--fish13_video_cluster_size=128 " \
-        "--fish13_audio_cluster_size=16 " \
-        "--fish13_shift_operation=True " \
-        "--fish13_filter_size=2 " \
-        "--fish13_cluster_dropout=0.7 " \
-        "--fish13_ff_dropout=0.9 " \
-        "--fish13_linear_proj_dropout=0.9 " \
-        "--fish13_l2_regularization_rate=1e-6 " \
-        "--fish13_hidden_size=256 " \
+EXTRA = "--fish14_iteration=300 " \
+        "--fish14_video_cluster_size=128 " \
+        "--fish14_audio_cluster_size=16 " \
+        "--fish14_shift_operation=True " \
+        "--fish14_filter_size=2 " \
+        "--fish14_cluster_dropout=0.7 " \
+        "--fish14_ff_dropout=0.9 " \
+        "--fish14_linear_proj_dropout=0.9 " \
+        "--fish14_l2_regularization_rate=1e-6 " \
+        "--fish14_hidden_size=256 " \
         "--moe_num_mixtures=2 " \
         "--learning_rate_decay_examples=2000000 " \
         "--learning_rate_decay=0.85 " \

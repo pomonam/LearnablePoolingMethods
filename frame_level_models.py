@@ -46,19 +46,9 @@ flags.DEFINE_integer("fish14_filter_size", 2,
                      "Video clustering size")
 flags.DEFINE_integer("fish14_hidden_size", 1024,
                      "Hidden size")
-flags.DEFINE_bool("fish13_shift_operation", True,
-                  "Perform shift operation?")
-flags.DEFINE_float("fish13_cluster_dropout", 0.7,
-                   "Dropout rate for clustering operation")
-flags.DEFINE_float("fish13_ff_dropout", 0.8,
-                   "Dropout rate for Feed Forward operation")
-flags.DEFINE_float("fish13_linear_proj_dropout", 0.8,
-                   "Dropout rate for linear projection")
-flags.DEFINE_float("fish13_l2_regularization_rate", 1e-8,
-                   "Regularization rate")
 
 
-class CrazyFishV13(models.BaseModel):
+class CrazyFishV14(models.BaseModel):
     def create_model(self,
                      model_input,
                      vocab_size,
@@ -111,10 +101,14 @@ class CrazyFishV13(models.BaseModel):
                 audio_cluster_activation = audio_cluster.forward(audio_features)
 
         concat_activation = tf.concat([video_cluster_activation, audio_cluster_activation], 1)
-        activation0 = tf.layers.dense(concat_activation, vocab_size, use_bias=True, activation=tf.nn.softmax,
+        activation0 = tf.layers.dense(concat_activation, vocab_size, use_bias=True, activation=tf.nn.tanh,
+                                      kernel_regularizer=slim.l2_regularizer(1e-6))
+        activation0 = tf.layers.batch_normalization(activation0, training=is_training)
+
+        activation1 = tf.layers.dense(activation0, vocab_size, use_bias=True, activation=tf.nn.softmax,
                                       kernel_regularizer=slim.l2_regularizer(1e-6))
 
-        return {"predictions": activation0}
+        return {"predictions": activation1}
 
 
 
