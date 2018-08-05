@@ -61,7 +61,6 @@ class CrazyFishV14(models.BaseModel):
                      **unused_params):
         video_cluster_size = FLAGS.fish14_video_cluster_size
         audio_cluster_size = FLAGS.fish14_audio_cluster_size
-        shift_operation = FLAGS.fish14_shift_operation
         cluster_dropout = FLAGS.fish14_cluster_dropout
 
         max_frames = model_input.get_shape().as_list()[1]
@@ -81,7 +80,7 @@ class CrazyFishV14(models.BaseModel):
                                                        dropout_rate=cluster_dropout,
                                                        cluster_size=video_cluster_size,
                                                        add_batch_norm=True,
-                                                       shift_operation=shift_operation,
+                                                       shift_operation=True,
                                                        is_training=is_training)
 
         audio_cluster = fish_modules.LuckyFishModuleV2(feature_size=128,
@@ -89,7 +88,7 @@ class CrazyFishV14(models.BaseModel):
                                                        dropout_rate=cluster_dropout,
                                                        cluster_size=audio_cluster_size,
                                                        add_batch_norm=True,
-                                                       shift_operation=shift_operation,
+                                                       shift_operation=True,
                                                        is_training=is_training)
 
         with tf.variable_scope("video"):
@@ -150,10 +149,7 @@ class CrazyFishV13(models.BaseModel):
         audio_cluster_size = FLAGS.fish13_audio_cluster_size
         shift_operation = FLAGS.fish13_shift_operation
         cluster_dropout = FLAGS.fish13_cluster_dropout
-        ff_dropout = FLAGS.fish13_ff_dropout
-        linear_dropout = FLAGS.fish13_linear_proj_dropout
         filter_size = FLAGS.fish13_filter_size
-        l2_reg_rate = FLAGS.fish13_l2_regularization_rate
         hidden_size = FLAGS.fish13_hidden_size
 
         max_frames = model_input.get_shape().as_list()[1]
