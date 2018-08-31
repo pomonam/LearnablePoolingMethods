@@ -12,7 +12,7 @@ At the moment, we are refactoring our code for reusuability.
     - Code cleaning
 
 # Contributors
-- [Juhan Bae](https://github.com/pomonam)
 - [Ruijian An](https://github.com/RuijianSZ)
+- [Juhan Bae](https://github.com/pomonam)
 - [Sebastian Kmiec](https://github.com/sebastiankmiec)
 
