@@ -1,4 +1,0 @@
-trainingInput:
-  scaleTier: CUSTOM
-  masterType: large_model
-  runtimeVersion: "1.8"

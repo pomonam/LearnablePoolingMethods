@@ -1,3 +1,0 @@
-trainingInput:
-  scaleTier: BASIC_TPU
-  runtimeVersion: "1.8"

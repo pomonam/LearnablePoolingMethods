@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="370d4654-9bf0-4423-b50b-4b5357b1a30d" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/aggregation_modules.py" beforeDir="false" afterPath="$PROJECT_DIR$/aggregation_modules.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/attention_modules.py" beforeDir="false" afterPath="$PROJECT_DIR$/attention_modules.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cloudml_config/cloudml-4gpu.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cloudml_config/cloudml-gpu-distributed.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cloudml_config/cloudml-gpu-inference.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cloudml_config/cloudml-gpu.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cloudml_config/cloudml-tpu.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV10-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV11-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV11-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV11-3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV11-4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV11-5.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV11-6.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV12-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV13-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV13-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV13-3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV13-4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV13-6.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV13-7.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV14-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV3-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV3-3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV3-4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV4-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV5-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV5-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV5.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV6-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV6-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV7-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV7-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV8-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV9-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV9-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV9-3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV9-4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyFishV9-5.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyModelV1-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyModelV11-5.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyTestV1-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/CrazyTestV1-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/FishModelV1-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/FishModelV2-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/FishModelV3-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/FishModelV4-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JbTransformerV1-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JbTransformerV1-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JbTransformerV1-3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JbTransformerV2-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JbTransformerV2-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JbTransformerV3-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JbTransformerV3-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JbTransformerV4-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JbTransformerV4-3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JbTransformerV5-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV1-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV1-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV1-3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV1-4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV2-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV2-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV2-3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV3-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV3-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV4-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV5-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV6-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV6-2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/JuhanTestModelV6-3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/TransformerV1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/TriangulationCnnClusterModel-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/jbTransformerV4-1.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/template.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/willow-69.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/history/willow.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/investigation/cnn_check.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/investigation/non_share_cnn_investigate.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/investigation/shift_attention.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/investigation/shift_attention2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/investigation/temb_check.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/investigation/temb_finite_difference.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/investigation/temp.txt" beforeDir="false" />
+    </list>
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FUSProjectUsageTrigger">
+    <session id="1686520405">
+      <usages-collector id="statistics.lifecycle.project">
+        <counts>
+          <entry key="project.open.time.1" value="1" />
+          <entry key="project.opened" value="1" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.extensions.open">
+        <counts>
+          <entry key="gitignore" value="1" />
+          <entry key="py" value="7" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.types.open">
+        <counts>
+          <entry key="PLAIN_TEXT" value="1" />
+          <entry key="Python" value="7" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.extensions.edit">
+        <counts>
+          <entry key="gitignore" value="27" />
+          <entry key="py" value="60" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.types.edit">
+        <counts>
+          <entry key="PLAIN_TEXT" value="27" />
+          <entry key="Python" value="60" />
+        </counts>
+      </usages-collector>
+    </session>
+  </component>
+  <component name="FileEditorManager">
+    <leaf>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/.gitignore">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-1208">
+              <caret line="22" column="11" lean-forward="true" selection-start-line="22" selection-start-column="11" selection-end-line="22" selection-end-column="11" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/aggregation_modules.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-1260">
+              <caret line="74" column="8" selection-start-line="74" selection-start-column="8" selection-end-line="74" selection-end-column="8" />
+              <folding>
+                <element signature="e#659#682#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/attention_modules.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-3060">
+              <caret line="126" column="99" selection-start-line="126" selection-start-column="99" selection-end-line="126" selection-end-column="99" />
+              <folding>
+                <element signature="e#600#636#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$PROJECT_DIR$/.gitignore" />
+        <option value="$PROJECT_DIR$/history/CrazyFishV4-1.py" />
+        <option value="$PROJECT_DIR$/aggregation_modules.py" />
+        <option value="$PROJECT_DIR$/attention_modules.py" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="y" value="23" />
+    <option name="width" value="1280" />
+    <option name="height" value="709" />
+  </component>
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="1" id="Add" />
+  </component>
+  <component name="ProjectView">
+    <navigator proportions="" version="1">
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="Scope" />
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="LearnablePoolingMethodsForVideoClassification" type="b2602c69:ProjectViewProjectNode" />
+              <item name="LearnablePoolingMethodsForVideoClassification" type="462c0819:PsiDirectoryNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="370d4654-9bf0-4423-b50b-4b5357b1a30d" name="Default Changelist" comment="" />
+      <created>1537402671886</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1537402671886</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="0" y="23" width="1280" height="709" extended-state="0" />
+    <editor active="true" />
+    <layout>
+      <window_info id="Favorites" side_tool="true" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.2494043" />
+      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
+      <window_info anchor="bottom" id="Version Control" show_stripe_button="false" />
+      <window_info anchor="bottom" id="Python Console" />
+      <window_info anchor="bottom" id="Terminal" />
+      <window_info anchor="bottom" id="Event Log" side_tool="true" />
+      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Find" order="1" />
+      <window_info anchor="bottom" id="Run" order="2" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+    </layout>
+  </component>
+  <component name="VcsContentAnnotationSettings">
+    <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/scripts/generate_gcloud_evaluation.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/scripts/generate_gcloud_inference.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-375" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/scripts/generate_gcloud_train.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-525" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/scripts/generate_gcloud_train_valid.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/history/CrazyFishV4-1.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret column="2" selection-start-column="2" selection-end-column="2" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/.gitignore">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1208">
+          <caret line="22" column="11" lean-forward="true" selection-start-line="22" selection-start-column="11" selection-end-line="22" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/aggregation_modules.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1260">
+          <caret line="74" column="8" selection-start-line="74" selection-start-column="8" selection-end-line="74" selection-end-column="8" />
+          <folding>
+            <element signature="e#659#682#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/attention_modules.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-3060">
+          <caret line="126" column="99" selection-start-line="126" selection-start-column="99" selection-end-line="126" selection-end-column="99" />
+          <folding>
+            <element signature="e#600#636#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+  </component>
+</project>

@@ -19,8 +19,7 @@ import modules
 
 
 class IndirectClusterMeanPoolModule(modules.BaseModule):
-    """
-    Mean pooling method. Mean is computed from weighted average
+    """ Mean pooling method. Mean is computed from weighted average
     inspired from self-attention mechanism (indirect clustering)
     """
     def __init__(self, l2_normalize):
@@ -55,8 +54,7 @@ class IndirectClusterMeanPoolModule(modules.BaseModule):
 
 
 class MeanStdPoolModule(modules.BaseModule):
-    """
-    Mean-Std pooling method.
+    """ Mean-Std pooling method.
     """
     def __init__(self, l2_normalize):
         """ Initialize Mean STD module.
@@ -74,8 +72,7 @@ class MeanStdPoolModule(modules.BaseModule):
 
 
 class IndirectClusterMaxMeanPoolModule(modules.BaseModule):
-    """
-    Max-Mean pooling method. Mean is computed from weighted average
+    """ Max-Mean pooling method. Mean is computed from weighted average
     inspired from self-attention mechanism (indirect clustering)
     """
     def __init__(self, l2_normalize):

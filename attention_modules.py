@@ -65,8 +65,7 @@ class OneFcAttention(modules.BaseModule):
 
 class MultiHeadAttention(modules.BaseModule):
     def __init__(self, num_heads, num_units, max_frames, block_id):
-        """
-
+        """ Initialize MultiHeadAttention
         :param num_heads: Number of self-attention modules
         :param num_units: last dimension of Q, K, V
         """
@@ -76,13 +75,6 @@ class MultiHeadAttention(modules.BaseModule):
         self.block_id = block_id
 
     def self_attention(self, inputs, scope_id):
-        """
-
-        :param Q: batch_size x max_frames x num_units
-        :param K: batch_size x max_frames x num_units
-        :param V: batch_size x max_frames x num_units
-        :return:
-        """
         with tf.variable_scope("Block{}Layer{}".format(self.block_id, scope_id), reuse=tf.AUTO_REUSE):
             # Calculate query, key, value pair
             Q = tf.layers.dense(inputs, self.num_units, activation=tf.nn.relu)
@@ -119,9 +111,9 @@ class MultiHeadAttention(modules.BaseModule):
 
 class TransformerEncoderBlock(modules.BaseModule):
     def __init__(self, is_training, num_units, max_frames, feature_size, num_heads, block_id):
-        """
+        """ Initialize Transformer Encoder block
 
-        :param is_training:
+        :param is_training: bool
         :param num_units: Number of hidden units of fully connected layers
         """
         self.is_training = is_training
@@ -132,11 +124,7 @@ class TransformerEncoderBlock(modules.BaseModule):
         self.block_id = block_id
 
     def forward(self, inputs, **unused_params):
-        """
-        One block of encoder containing one self-attention layer and one fully connected layer.
-        :param inputs: (batch_size * max_frames) x feature_size
-        :param unused_params:
-        :return:
+        """ One block of encoder containing one self-attention layer and one fully connected layer.
         """
         multi_head_layer = MultiHeadAttention(self.num_heads, self.num_units, self.max_frames, self.block_id)
 
