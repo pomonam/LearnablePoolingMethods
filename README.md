@@ -1,7 +1,7 @@
 # Learnable Pooling Methods for Video Classification
 The repository is based on the starter code provided by Google AI. It contains a code for training and evaluating models for [YouTube-8M](https://research.google.com/youtube8m/) dataset. The detailed table of contents and descriptions can be found at [original repository](https://github.com/google/youtube-8m).
 
-Our approach was accepted in [ECCV - The 2nd Workshop on YouTube-8M Large-Scale Video Understanding](https://research.google.com/youtube8m/workshop2018/index.html). The paper and presentation will be release soon.
+Our approach was accepted in [ECCV - The 2nd Workshop on YouTube-8M Large-Scale Video Understanding](https://research.google.com/youtube8m/workshop2018/index.html). The presentation is accessable in official ECCV Workshop page.
 
 At the moment, we are refactoring our code for reusuability.
 
@@ -11,7 +11,7 @@ At the moment, we are refactoring our code for reusuability.
 - **2.00** (TBA)
     - Code cleaning
 
-# Contributors
+# Contributors (Alphabetical Order)
 - [Ruijian An](https://github.com/RuijianSZ)
 - [Juhan Bae](https://github.com/pomonam)
 - [Sebastian Kmiec](https://github.com/sebastiankmiec)
