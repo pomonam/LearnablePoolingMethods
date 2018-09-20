@@ -17,7 +17,6 @@
 import pathmagic
 from tensorflow import flags
 import attention_modules
-import fish_modules
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import models
