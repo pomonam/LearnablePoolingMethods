@@ -8,8 +8,25 @@ At the moment, we are refactoring our code for reusuability.
 # Changes
 - **1.00** (31 August 2018)
     - Initial public release
-- **2.00** (TBA)
+- **2.00** (30 September 2018)
     - Code cleaning
+    - Model usage
+    
+# Usage
+In frame_level_models.py, Prototype 1, 2 and 3 refer to Sections 3.1, 3.2 and 3.3 in our paper. Detailed instructions for performing model verification and inference can be found in the [YT8M repository](https://github.com/google/youtube-8m). Below we provide example usage of training these models:
+
+### Prototype 1
+```
+python train.py --train_data_pattern="<path to tr>" --model=NetVladV1 --train_dir="<path for model checkpoints>" --frame_features=True --feature_names="rgb,audio" --feature_sizes="1024,128" --batch_size=80 --base_learning_rate=0.0002 --netvlad_cluster_size=256 --netvlad_hidden_size=512 --iterations=256 --learning_rate_decay=0.85
+```
+### Prototype 2
+```
+python train.py --train_data_pattern="<path to tr>" --model=NetVladV2 --train_dir="<path for model checkpoints>" --frame_features=True --feature_names="rgb,audio" --feature_sizes="1024,128" --batch_size=80 --base_learning_rate=0.0002 --netvlad_cluster_size=256 --netvlad_hidden_size=512 --iterations=256 --learning_rate_decay=0.85
+```
+### Prototype 3
+```
+TBD
+```
 
 # Contributors (Alphabetical Order)
 - [Ruijian An](https://github.com/RuijianSZ)
