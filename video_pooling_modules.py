@@ -1661,7 +1661,7 @@ class NetVladAttenCluster(modules.BaseModule):
         vlad = tf.nn.l2_normalize(vlad, 1,
                                   name=self.scope_id + "vlad_final")                # Normalize global descriptor
 
-        # #vlad = tf.reshape(vlad, [-1, self.cluster_size, self.feature_size])      # Optional: output shape
+        #vlad = tf.reshape(vlad, [-1, self.cluster_size, self.feature_size])         # Optional: output shape
 
-        # batch_size x cluster_size x feature_size
+        # batch_size x (cluster_size * feature_size)
         return vlad
