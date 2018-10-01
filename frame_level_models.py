@@ -2219,7 +2219,7 @@ flags.DEFINE_float("rgb_det_reg", 1e-4,
 # Paper Prototype 1 ############################################################
 ################################################################################
 class NetVladV1(models.BaseModel):
-    """ WILLOW model with orthogonal regularization for robust features. """
+    """ NetVlad with Context Gating, modified. """
     def create_model(self,
                      model_input,
                      vocab_size,
@@ -2281,6 +2281,166 @@ class NetVladV1(models.BaseModel):
 
         # Fuse video and audio features:
         vlad = tf.concat([vlad_video, vlad_audio], 1)
+
+        #
+        # Project features to a lower space
+        #
+        vlad_dim = vlad.get_shape().as_list()[1]
+        hidden1_weights = tf.get_variable("hidden1_weights",
+                                          [vlad_dim, hidden1_size],
+                                          initializer=tf.random_normal_initializer(stddev=1 / math.sqrt(cluster_size)))
+
+        activation = tf.matmul(vlad, hidden1_weights)
+
+        if add_batch_norm and relu:
+            activation = slim.batch_norm(
+                activation,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="hidden1_bn")
+
+        else:
+            hidden1_biases = tf.get_variable("hidden1_biases",
+                                             [hidden1_size],
+                                             initializer=tf.random_normal_initializer(stddev=0.01))
+            tf.summary.histogram("hidden1_biases", hidden1_biases)
+            activation += hidden1_biases
+
+        if relu:
+            activation = tf.nn.relu6(activation)
+
+        #
+        # Perform context gating
+        #
+        if gating:
+            gating_weights = tf.get_variable("gating_weights_2",
+                                             [hidden1_size, hidden1_size],
+                                             initializer=tf.random_normal_initializer(
+                                                 stddev=1 / math.sqrt(hidden1_size)))
+            gates = tf.matmul(activation, gating_weights)
+
+            if remove_diag:
+                # Removes diagonals coefficients
+                diagonals = tf.matrix_diag_part(gating_weights)
+                gates = gates - tf.multiply(diagonals, activation)
+
+            if add_batch_norm:
+                gates = slim.batch_norm(
+                    gates,
+                    center=True,
+                    scale=True,
+                    is_training=is_training,
+                    scope="gating_bn")
+            else:
+                gating_biases = tf.get_variable("gating_biases",
+                                                [cluster_size],
+                                                initializer=tf.random_normal(stddev=1 / math.sqrt(feature_size)))
+                gates += gating_biases
+
+            gates = tf.sigmoid(gates)
+            activation = tf.multiply(activation, gates)
+
+        aggregated_model = getattr(video_level_models,
+                                   "MoeModel")
+
+        return aggregated_model().create_model(
+            model_input=activation,
+            vocab_size=vocab_size,
+            is_training=is_training,
+            **unused_params)
+
+################################################################################
+# Paper Prototype 2 ############################################################
+################################################################################
+class NetVladV2(models.BaseModel):
+    """ NetVlad with Context Gating, modified. """
+    def create_model(self,
+                     model_input,
+                     vocab_size,
+                     num_frames,
+                     iterations=None,
+                     add_batch_norm=None,
+                     sample_random_frames=None,
+                     cluster_size=None,
+                     hidden_size=None,
+                     is_training=True,
+                     **unused_params):
+        iterations = iterations or FLAGS.iterations
+        add_batch_norm = add_batch_norm or FLAGS.netvlad_add_batch_norm
+        random_frames = sample_random_frames or FLAGS.sample_random_frames
+        cluster_size = cluster_size or FLAGS.netvlad_cluster_size
+        hidden1_size = hidden_size or FLAGS.netvlad_hidden_size
+        relu = FLAGS.netvlad_relu
+        gating = FLAGS.gating
+        remove_diag = FLAGS.gating_remove_diag
+
+
+        #
+        # New: sample frames uniformly
+        #
+        num_frames = tf.cast(tf.expand_dims(num_frames, 1), tf.float32)
+        # if random_frames:
+        #     model_input = utils.SampleRandomFrames(model_input, num_frames,
+        #                                            iterations)
+        # else:
+        #     model_input = utils.SampleRandomSequence(model_input, num_frames,
+        #                                              iterations)
+        model_input = utils.SampleUniformFrames(model_input, num_frames, iterations) # batch x frames x feature_size
+
+        max_frames      = model_input.get_shape().as_list()[1]
+        feature_size    = model_input.get_shape().as_list()[2]                      # (batch * frames) x feature_size
+        reshaped_input  = tf.reshape(model_input, [-1, feature_size])
+
+        video_NetVLAD = NetVLAD(1024, max_frames, cluster_size,
+                                                              add_batch_norm, is_training, "netvlad_rgb_scope")
+        audio_NetVLAD = NetVLAD(128, max_frames, cluster_size / 4,
+                                                              add_batch_norm, is_training, "netvlad_audio_scope")
+        if add_batch_norm:
+            reshaped_input = slim.batch_norm(
+                reshaped_input,
+                center=True,
+                scale=True,
+                is_training=is_training,
+                scope="input_bn")
+
+        with tf.variable_scope("video_VLAD"):
+            vlad_video = video_NetVLAD.forward(reshaped_input[:, 0:1024])
+
+        with tf.variable_scope("audio_VLAD"):
+            vlad_audio = audio_NetVLAD.forward(reshaped_input[:, 1024:])
+
+        #
+        # New: Compute attention based features, using NetVLAD global descriptors
+        #
+        with tf.variable_scope("video_attention"):
+            video_encoder_block = transformer_utils.TransformerEncoder(feature_size=1024,
+                                                                    hidden_size=1024,
+                                                                    num_heads=64,
+                                                                    attention_dropout=0.1,
+                                                                    ff_filter_size=4*1024,
+                                                                    ff_relu_dropout=0.1,
+                                                                    is_train=is_training,
+                                                                    scope_id="encode1")
+            vlad_video_attention = video_encoder_block.forward(vlad_video)
+            vlad_video_attention = tf.reshape(vlad_video_attention, [-1, 1024 * cluster_size])
+
+        with tf.variable_scope("audio_attention"):
+            audio_encoder_block = transformer_utils.TransformerEncoder(feature_size=128,
+                                                                    hidden_size=128,
+                                                                    num_heads=16,
+                                                                    attention_dropout=0.1,
+                                                                    ff_filter_size=4*128,
+                                                                    ff_relu_dropout=0.1,
+                                                                    is_train=is_training,
+                                                                    scope_id="encode2")
+            vlad_audio_attention = audio_encoder_block.forward(vlad_audio)
+            vlad_audio_attention = tf.reshape(vlad_audio_attention, [-1, 128 * (cluster_size//4)])
+
+        #
+        # New: Fuse attention-based video and audio features
+        #
+        vlad = tf.concat([vlad_video_attention, vlad_audio_attention], 1)
 
         #
         # Project features to a lower space
