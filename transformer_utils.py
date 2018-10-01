@@ -615,8 +615,6 @@ class MultiHeadAttentionBN(modules.BaseModule):
                     scope="logits_bn")
         weights = tf.nn.softmax(logits, name="attention_weights")
 
-        #if self.is_train:
-        #     weights = tf.nn.dropout(weights, 1.0 - self.attention_dropout)
         attention_output = tf.matmul(weights, v)
 
         # -> batch_size x length x hidden_size]
@@ -670,5 +668,57 @@ class FeedForwardNetwork(modules.BaseModule):
                                  name="ff_output{}".format(self.scope_id))
         output = output + inputs
         output = tf.contrib.layers.layer_norm(output)
+
+        return output
+
+
+class FeedForwardNetworkMod(modules.BaseModule):
+    """ Feed Forward Network. """
+
+    def __init__(self, feature_size, filter_size, relu_dropout,
+                 is_train, scope_id, final_size):
+        """ Initialize class FeedForwardNetwork.
+        :param hidden_size: int
+        :param filter_size: int
+        :param relu_dropout: int
+        :param is_train: bool
+        :param scope_id: String
+        """
+        self.feature_size = feature_size
+        self.filter_size = filter_size
+        self.relu_dropout = relu_dropout
+        self.is_train = is_train
+        self.scope_id = scope_id
+        self.final_size = final_size
+
+    def forward(self, inputs, **unused_params):
+        """ Forward method for FeedForwardNetwork.
+        :param inputs: 3D Tensor with size 'batch_size x num_feature x feature_size'
+        :return: 3D Tensor with size 'batch_size x num_feature x hidden_size'
+        """
+        filter_output = tf.layers.dense(inputs, self.filter_size,
+                                        use_bias=True,
+                                        activation=tf.nn.relu,
+                                        name="filter_output{}".format(self.scope_id))
+
+        filter_output = slim.batch_norm(
+            filter_output,
+            center=True,
+            scale=True,
+            is_training=self.is_train,
+            scope="filter_bn")
+
+        output = tf.layers.dense(filter_output,
+                                 self.final_size,
+                                 use_bias=True,
+                                 activation=tf.nn.relu,
+                                 name="ff_output{}".format(self.scope_id))
+
+        output = slim.batch_norm(
+            output,
+            center=True,
+            scale=True,
+            is_training=self.is_train,
+            scope="feed_output_bn")
 
         return output
