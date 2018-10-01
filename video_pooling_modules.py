@@ -1496,10 +1496,6 @@ class TriangulationTemporalEmbedding(modules.BaseModule):
         temp_info = tf.stack(stacks, 1)
         return temp_info
 
-
-###############################################################################
-# NetVLAD Prototype ###########################################################
-###############################################################################
 class NetVladOrthoReg(modules.BaseModule):
     """ NetVLAD from WILLOW's model with orthogonal regularization. """
     def __init__(self, feature_size, max_frames, cluster_size, batch_norm, is_training,
@@ -1590,9 +1586,9 @@ class NetVladOrthoReg(modules.BaseModule):
         return vlad
 
 
-################################################################################
-# Paper Prototype 1 ############################################################
-################################################################################
+###############################################################################
+# Paper Prototype 2 ###########################################################
+###############################################################################
 class NetVladAttenCluster(modules.BaseModule):
     """ NetVLAD from WILLOW's model with orthogonal regularization. """
     def __init__(self, feature_size, max_frames, cluster_size, batch_norm, is_training,
