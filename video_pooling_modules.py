@@ -1588,3 +1588,80 @@ class NetVladOrthoReg(modules.BaseModule):
 
         # batch_size x (cluster_size * feature_size)
         return vlad
+
+
+################################################################################
+# Paper Prototype 1 ############################################################
+################################################################################
+class NetVladAttenCluster(modules.BaseModule):
+    """ NetVLAD from WILLOW's model with orthogonal regularization. """
+    def __init__(self, feature_size, max_frames, cluster_size, batch_norm, is_training,
+                    scope_id=None):
+        """ Initialize NetVLAD with orthogonal regularization.
+        :param feature_size: int
+        :param max_frames: max_frames x 1
+        :param cluster_size: int
+        :param batch_norm: bool
+        :param is_training: bool
+        :param scope_id: Object
+        """
+        self.feature_size = feature_size
+        self.max_frames = max_frames
+        self.is_training = is_training
+        self.batch_norm = batch_norm
+        self.cluster_size = cluster_size
+        self.scope_id = scope_id
+
+        # Attention encoder parameters:
+        self.encoder_hidden_size = feature_size
+        self.num_heads = feature_size // 16
+        self.dropout_ratio = 0.1
+        self.filter_size = 4 * self.encoder_hidden_size
+
+    def forward(self, inputs, **unused_params):
+        """ Forward method for NetVladOrthoReg.
+        :param inputs: (batch_size * max_frames) x feature_size
+        :return: (batch_size * max_frames) x (feature_size * cluster_size)
+        """
+
+        reshaped_input = tf.reshape(inputs, [-1, self.max_frames, self.feature_size])
+
+        #
+        # New: Compute attention-based cluster similarity weights:
+        #
+        with tf.variable_scope("cluster_attention"):
+            encoder_block = transformer_utils.TransformerEncoderMod(feature_size=self.feature_size,
+                                                                     hidden_size=self.encoder_hidden_size,
+                                                                     num_heads=self.num_heads,
+                                                                     attention_dropout=self.dropout_ratio,
+                                                                     ff_filter_size=self.filter_size,
+                                                                     ff_relu_dropout=0.1,
+                                                                     is_train=self.is_training,
+                                                                     scope_id="encode",
+                                                                     final_size=self.cluster_size)
+            cluster_similarities = encoder_block.forward(reshaped_input)
+
+
+        cluster_centres = tf.get_variable("cluster_centers", [self.feature_size, self.cluster_size],
+                                                                initializer=tf.random_normal_initializer(
+                                                                stddev=1 / math.sqrt(self.feature_size)))
+
+        # (xi - ck)
+        reshaped_input  = tf.expand_dims(reshaped_input, axis=3)                    # B x N x F x 1
+        residuals       = tf.subtract(reshaped_input, cluster_centres)              # B x N x F x C
+
+        # Sum of ak(xi) * (xi - ck)
+        cluster_similarities    = tf.expand_dims(cluster_similarities, axis=3)      # B x N x C x 1
+        weighted_residuals      = tf.multiply(residuals, cluster_similarities)
+        residual_sum            = tf.reduce_sum(weighted_residuals, axis=1)         # B x F x C
+
+        # Normalization of flattened global descriptor:
+        vlad = tf.nn.l2_normalize(residual_sum, 1)                                  # Normalize per cluster
+        vlad = tf.reshape(vlad, [-1, self.cluster_size * self.feature_size])        # Flatten
+        vlad = tf.nn.l2_normalize(vlad, 1,
+                                  name=self.scope_id + "vlad_final")                # Normalize global descriptor
+
+        # #vlad = tf.reshape(vlad, [-1, self.cluster_size, self.feature_size])      # Optional: output shape
+
+        # batch_size x cluster_size x feature_size
+        return vlad
