@@ -543,6 +543,98 @@ class MultiHeadAttention(modules.BaseModule):
         return attention_output
 
 
+class MultiHeadAttentionBN(modules.BaseModule):
+    def __init__(self, feature_size, hidden_size, num_heads, attention_dropout, is_train):
+        """ Initialize class MultiHeadAttention.
+        :param hidden_size: int
+        :param num_heads: int
+        :param attention_dropout: float
+        :param is_train: bool
+        """
+        self.feature_size = feature_size
+        self.hidden_size = hidden_size
+        self.num_heads = num_heads
+        self.attention_dropout = attention_dropout
+        self.is_train = is_train
+
+    def split_heads(self, inputs):
+        """ Split x into different heads, and transpose the resulting value.
+        The tensor is transposed to insure the inner dimensions hold the correct
+        values during the matrix multiplication.
+        :param inputs: 3D Tensor with shape 'batch_size x length x hidden_size'
+        :return:
+        """
+        with tf.name_scope("split_heads"):
+            batch_size = tf.shape(inputs)[0]
+            length = (inputs.get_shape())[1]
+
+            # Calculate depth of last dimension after it has been split.
+            depth = (self.hidden_size // self.num_heads)
+
+            # Split the last dimension
+            x = tf.reshape(inputs, [batch_size, length, self.num_heads, depth])
+
+            # Transpose the result
+            return tf.transpose(x, [0, 2, 1, 3])
+
+    def combine_heads(self, inputs):
+        """ Combine tensor that has been split.
+        :param inputs: 4D Tensor with shape 'batch_size x num_heads, num_feature, hidden_size/num_heads'
+        :return: 3D Tensor with shape 'batch_size x length x hidden_size'
+        """
+        with tf.name_scope("combine_heads"):
+            batch_size = tf.shape(inputs)[0]
+            length = tf.shape(inputs)[2]
+            x = tf.transpose(inputs, [0, 2, 1, 3])  # --> [batch, length, num_heads, depth]
+            return tf.reshape(x, [batch_size, length, self.hidden_size])
+
+    def forward(self, queries, keys):
+        """ Forward method for MultiHeadAttention
+        :param queries: 3D Tensor with shape 'batch_size x length x hidden_size'
+        :param keys: 3D Tensor with shape 'batch_size x length x hidden_size'
+        :return:
+        """
+        # Layers for linearly projecting the queries, keys, and values.
+        q = tf.layers.dense(queries, self.hidden_size, use_bias=False, name="q")
+        k = tf.layers.dense(keys, self.hidden_size, use_bias=False, name="k")
+        v = tf.layers.dense(keys, self.hidden_size, use_bias=False, name="v")
+
+        # Split q, k, v into heads.
+        q = self.split_heads(q)
+        k = self.split_heads(k)
+        v = self.split_heads(v)
+        # -> [batch_size, num_heads, length, hidden_size/num_heads]
+
+        # Batch norm logits instead of scaling "q":
+        logits  = tf.matmul(q, k, transpose_b=True)
+        logits  = slim.batch_norm(
+                    logits,
+                    center=True,
+                    scale=True,
+                    is_training=self.is_train,
+                    scope="logits_bn")
+        weights = tf.nn.softmax(logits, name="attention_weights")
+
+        #if self.is_train:
+        #     weights = tf.nn.dropout(weights, 1.0 - self.attention_dropout)
+        attention_output = tf.matmul(weights, v)
+
+        # -> batch_size x length x hidden_size]
+        attention_output = self.combine_heads(attention_output)
+
+        attention_output = slim.batch_norm(
+            attention_output,
+            center=True,
+            scale=True,
+            is_training=self.is_train,
+            scope="attention_bn")
+
+        attention_output = tf.layers.dense(attention_output,
+                                           self.feature_size,
+                                           use_bias=True, name="output_transform")
+
+        return attention_output
+
 class FeedForwardNetwork(modules.BaseModule):
     """ Feed Forward Network. """
     def __init__(self, feature_size, filter_size, relu_dropout,
