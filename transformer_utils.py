@@ -412,6 +412,49 @@ class TransformerEncoder(modules.BaseModule):
 
         return ff_output
 
+class TransformerEncoderMod(modules.BaseModule):
+    def __init__(self, feature_size, hidden_size, num_heads, attention_dropout,
+                 ff_filter_size, ff_relu_dropout,
+                 is_train, scope_id, final_size):
+
+        self.feature_size = feature_size
+        self.hidden_size = hidden_size
+        self.num_heads = num_heads
+        self.attention_dropout = attention_dropout
+        self.ff_filter_size = ff_filter_size
+        self.ff_relu_dropout = ff_relu_dropout
+        self.is_train = is_train
+        self.scope_id = scope_id
+        self.final_size = final_size
+
+        self.multi_head_attention = MultiHeadAttentionBN(feature_size,
+                                                       hidden_size,
+                                                       num_heads,
+                                                       attention_dropout,
+                                                       is_train)
+
+        self.ff_network = FeedForwardNetworkMod(feature_size,
+                                             ff_filter_size,
+                                             ff_relu_dropout,
+                                             is_train,
+                                             self.scope_id,
+                                             final_size)
+
+    def forward(self, inputs, **unused_params):
+        """
+        :param inputs: [batch_size, input_length, hidden_size]
+        :param unused_params:
+        :return:
+        """
+        attention = self.multi_head_attention.forward(inputs, inputs)
+        attention = tf.layers.dropout(attention, rate=1.0 - self.attention_dropout, training=self.is_train)
+        attention = attention + inputs
+
+        # Final residual connection removed:
+        attention = tf.contrib.layers.layer_norm(attention)
+        ff_output = self.ff_network.forward(attention)
+
+        return ff_output
 
 class TransformerDecoder(modules.BaseModule):
     def __init__(self, feature_size, hidden_size, num_heads, attention_dropout,
