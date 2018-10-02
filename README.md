@@ -4,7 +4,7 @@ The repository is based on the starter code provided by Google AI. It contains a
 The repository contains models from team "Deep Topology". Our approach was accepted in [ECCV - The 2nd Workshop on YouTube-8M Large-Scale Video Understanding](https://research.google.com/youtube8m/workshop2018/index.html). The presentation is accessible in ECCV Workshop page.
 
 Presentation: TBA \
-Paper: [Link](paper/Learnable_Pooling_Methods_for_Video_Classification.pdf)
+Paper: [Link](paper/Learnable_Pooling_Methods_for_Video_Classification.pdf), [Arxiv](https://arxiv.org/abs/1810.00530)
     
 # Usage
 In [frame_level_models.py](frame_level_models.py), prototype 1, 2 and 3 refer to sections 3.1, 3.2 and 3.2 in the paper. The detailed instructions instructions to train and evaluate the model can be found at [YT8M repository](https://github.com/google/youtube-8m). The following is the example training command to reproduce the result.
