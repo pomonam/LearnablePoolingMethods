@@ -27,6 +27,17 @@ TBD
 - **2.00** (30 September 2018)
     - Code cleaning
     - Model usage
+    
+# Citations
+If you find our apporaches useful, please cite our paper.
+```
+@article{kmiec2018learnable,
+  title={Learnable Pooling Methods for Video Classification},
+  author={Kmiec, Sebastian and Bae, Juhan and An, Ruijian},
+  journal={arXiv preprint arXiv:1810.00530},
+  year={2018}
+}
+```
 
 # Contributors (Alphabetical Order)
 - [Ruijian An](https://github.com/RuijianSZ)
